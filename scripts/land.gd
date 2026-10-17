@@ -1,0 +1,178 @@
+extends Node
+## Arsalar: satın alma, inşaat, satış ve dakikalık kira geliri (sunucu yetkili).
+
+signal plots_changed
+
+const Map = preload("res://scripts/map.gd")
+const U = preload("res://scripts/util.gd")
+
+const LEVEL_NAMES := ["Boş arsa", "Küçük ev", "Villa", "Gökdelen"]
+const BUILD_COST := [0, 1500, 5000, 15000]   # o seviyeye çıkma maliyeti
+const LEVEL_INCOME := [0, 25, 80, 250]       # dakikalık ek kira
+const INCOME_INTERVAL := 60.0
+const SELL_RATIO := 0.7
+const MAX_PER_PLAYER := 4
+
+var plots: Array = []   # sunucu: [{owner, level, price}]
+var view: Array = []    # herkes: sunucudan gelen kopya
+var _timer: Timer
+
+
+static func income_of(p: Dictionary) -> int:
+	return int(int(p.price) * 0.006) + LEVEL_INCOME[int(p.level)]
+
+
+static func sell_value(p: Dictionary) -> int:
+	var total := int(p.price)
+	for l in range(1, int(p.level) + 1):
+		total += BUILD_COST[l]
+	return int(total * SELL_RATIO)
+
+
+func reset() -> void:
+	plots.clear()
+	view.clear()
+	if _timer:
+		_timer.stop()
+	plots_changed.emit()
+
+
+func server_init() -> void:
+	plots.clear()
+	var saved = Net.save_data.get("plots", [])
+	for i in Map.PLOT_COUNT:
+		var p := {"owner": "", "level": 0, "price": Map.PLOT_PRICES[i]}
+		if saved is Array and i < saved.size() and saved[i] is Dictionary:
+			p.owner = str(saved[i].get("owner", ""))
+			p.level = clampi(int(saved[i].get("level", 0)), 0, 3)
+		plots.append(p)
+	if _timer == null:
+		_timer = Timer.new()
+		add_child(_timer)
+		_timer.timeout.connect(_pay_rent)
+	_timer.start(INCOME_INTERVAL)
+
+
+func _pay_rent() -> void:
+	if not Net.is_server():
+		return
+	var totals := {}
+	for p in plots:
+		if p.owner != "":
+			totals[p.owner] = totals.get(p.owner, 0) + income_of(p)
+	for owner in totals:
+		Net.add_money_by_name(owner, totals[owner])
+		var id := Net.id_by_name(owner)
+		if id != 0:
+			Net.notify(id, "Kira geliri: +%s" % U.money(totals[owner]))
+
+
+func _owned_count(owner: String) -> int:
+	var n := 0
+	for p in plots:
+		if p.owner == owner:
+			n += 1
+	return n
+
+
+func _check(d: Dictionary) -> int:
+	if not multiplayer.is_server():
+		return -1
+	var i := int(d.get("i", -1))
+	if not Net.players.has(Net.sender()) or i < 0 or i >= plots.size():
+		return -1
+	return i
+
+
+# ------------------------------------------------------------------ istemci API
+
+func buy(i: int) -> void:
+	Net.ask(self, "req_buy", {"i": i})
+
+
+func build_up(i: int) -> void:
+	Net.ask(self, "req_build", {"i": i})
+
+
+func sell(i: int) -> void:
+	Net.ask(self, "req_sell", {"i": i})
+
+
+# ------------------------------------------------------------------ sunucu
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_buy(d: Dictionary) -> void:
+	var i := _check(d)
+	if i < 0:
+		return
+	var id := Net.sender()
+	var pname: String = Net.players[id].name
+	var p: Dictionary = plots[i]
+	if p.owner != "":
+		Net.notify(id, "Bu arsa zaten satılmış.", false)
+		return
+	if _owned_count(pname) >= MAX_PER_PLAYER:
+		Net.notify(id, "En fazla %d arsan olabilir." % MAX_PER_PLAYER, false)
+		return
+	if not Net.try_spend(id, int(p.price)):
+		Net.notify(id, "Yeterli paran yok.", false)
+		return
+	p.owner = pname
+	p.level = 0
+	Net.mark_dirty()
+	_broadcast()
+	Net.announce("%s, %d numaralı arsayı %s karşılığında satın aldı!" % [pname, i + 1, U.money(int(p.price))])
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_build(d: Dictionary) -> void:
+	var i := _check(d)
+	if i < 0:
+		return
+	var id := Net.sender()
+	var p: Dictionary = plots[i]
+	if p.owner != Net.players[id].name:
+		return
+	if int(p.level) >= 3:
+		Net.notify(id, "Bu arsa zaten en üst seviyede.", false)
+		return
+	var cost: int = BUILD_COST[int(p.level) + 1]
+	if not Net.try_spend(id, cost):
+		Net.notify(id, "İnşaat için %s gerekli." % U.money(cost), false)
+		return
+	p.level = int(p.level) + 1
+	Net.mark_dirty()
+	_broadcast()
+	Net.notify(id, "%s inşa edildi! Yeni kira: %s/dk" % [LEVEL_NAMES[p.level], U.money(income_of(p))])
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_sell(d: Dictionary) -> void:
+	var i := _check(d)
+	if i < 0:
+		return
+	var id := Net.sender()
+	var p: Dictionary = plots[i]
+	if p.owner != Net.players[id].name:
+		return
+	var value := sell_value(p)
+	p.owner = ""
+	p.level = 0
+	Net.add_money(id, value)
+	Net.mark_dirty()
+	_broadcast()
+	Net.notify(id, "Arsa satıldı: +%s" % U.money(value))
+
+
+func _broadcast() -> void:
+	Net.tell_all(self, "on_plots", {"plots": plots})
+
+
+func send_state(id: int) -> void:
+	Net.tell(self, id, "on_plots", {"plots": plots})
+
+
+@rpc("authority", "call_local", "reliable")
+func on_plots(d: Dictionary) -> void:
+	view = d.plots.duplicate(true)
+	plots_changed.emit()

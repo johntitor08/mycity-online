@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="340" viewBox="0 0 110 170">
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <rect x="53" y="2" width="4" height="14" rx="0" fill="#64748b" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="55" cy="3" r="3" fill="#ef4444" stroke="#232634" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="10" y="14" width="90" height="18" rx="3" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="10" y="30" width="90" height="136" rx="0" fill="#1e3a8a" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="78" y="30" width="22" height="136" rx="0" fill="#000000" stroke="none" opacity="0.18"/>
+  <rect x="18" y="38" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="36" y="38" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="54" y="38" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="72" y="38" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="86" y="38" width="8" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="18" y="52" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="36" y="52" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="54" y="52" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="72" y="52" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="86" y="52" width="8" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="18" y="66" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="36" y="66" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="54" y="66" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="72" y="66" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="86" y="66" width="8" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="18" y="80" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="36" y="80" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="54" y="80" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="72" y="80" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="86" y="80" width="8" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="18" y="94" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="36" y="94" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="54" y="94" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="72" y="94" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="86" y="94" width="8" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="18" y="108" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="36" y="108" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="54" y="108" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="72" y="108" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="86" y="108" width="8" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="18" y="122" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="36" y="122" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="54" y="122" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="72" y="122" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="86" y="122" width="8" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="18" y="136" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="36" y="136" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="54" y="136" width="10" height="8" rx="1" fill="#fde68a" stroke="none" />
+  <rect x="72" y="136" width="10" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="86" y="136" width="8" height="8" rx="1" fill="#60a5fa" stroke="none" />
+  <rect x="40" y="146" width="30" height="20" rx="2" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

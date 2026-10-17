@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="108" viewBox="0 0 64 54">
+  
+  <rect x="6" y="26" width="52" height="24" rx="2" fill="#e9c97c" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="4" y="12" width="16" height="38" rx="1" fill="#f0d48f" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M4 12v-5h4v5h4v-5h4v5" fill="#f0d48f" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="24" y="12" width="16" height="38" rx="1" fill="#f0d48f" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M24 12v-5h4v5h4v-5h4v5" fill="#f0d48f" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="44" y="12" width="16" height="38" rx="1" fill="#f0d48f" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M44 12v-5h4v5h4v-5h4v5" fill="#f0d48f" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="28" y="34" width="8" height="16" rx="4" fill="#a07a3f" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M32 7V0" fill="none" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="32,0 42,3 32,6" fill="#ef4444" stroke="#232634" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
