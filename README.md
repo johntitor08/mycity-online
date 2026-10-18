@@ -37,6 +37,18 @@ arsalar ve karakter görünümü hesaba kaydedilir.
 bu, şifrenin kendisini korur ama tam bir güvenlik katmanı değildir; başka sitelerde kullandığın
 bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre hesaba bağlanır.
 
+## Hazır sürümü derlemek (Windows / Linux)
+
+`export_presets.cfg` hazır. Godot 4.6.3 export şablonları kuruluyken:
+
+```sh
+godot --headless --path . --export-release "Linux" build/linux/MyCityOnline.x86_64
+godot --headless --path . --export-release "Windows" build/windows/MyCityOnline.exe
+```
+
+Derlenmiş oyun tek dosyadır. Ekransız sunucu için: `MyCityOnline.exe --headless -- --sunucu`
+(build klasörlerindeki `sunucu-baslat` dosyaları bunu yapar).
+
 ## Arkadaşlarla internetten oynamak
 
 Sunucu UDP **7777** portunu dinler (ENet).
