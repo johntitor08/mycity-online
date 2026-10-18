@@ -42,6 +42,7 @@ var _sync_accum := 0.0
 var _save_accum := 0.0
 var _send_accum := 0.0
 var _dirty := false
+var _stop_accum := 0.0
 
 
 func _ready() -> void:
@@ -113,6 +114,12 @@ func id_by_name(player_name: String) -> int:
 	return 0
 
 
+## Adanmış sunucuda zaman damgalı log (systemd/journalctl'de görünür).
+func log_line(text: String) -> void:
+	if dedicated:
+		print("[%s] %s" % [Time.get_datetime_string_from_system(false, true), text])
+
+
 func mark_dirty() -> void:
 	_dirty = true
 
@@ -136,7 +143,9 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 	_load()
 	Land.server_init()
 	if dedicated:
-		print("[Sunucu] MyCity Online %s, %d portunda çalışıyor." % [VERSION, port])
+		# Ekransız sunucu sınırsız kare hızında dönüp bir çekirdeği %100 kullanmasın.
+		Engine.max_fps = 30
+		log_line("MyCity Online %s, %d portunda çalışıyor. Kayıt: %s" % [VERSION, port, ProjectSettings.globalize_path(save_path)])
 	else:
 		var reason := _register(1, player_name, pass_hash, appearance)
 		if reason != "":
@@ -205,11 +214,32 @@ func _on_peer_disconnected(id: int) -> void:
 	_save()
 	_broadcast_roster()
 	announce("%s şehirden ayrıldı." % pname)
+	log_line("%s çıktı (%d oyuncu çevrimiçi)" % [pname, players.size()])
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and is_server():
 		_save()
+
+
+## systemd durdururken kayıt klasörüne "kapat" dosyası bırakır: kaydet ve düzgünce çık.
+## (Godot SIGTERM'de kayıt yapmadan kapandığı için bu yol kullanılıyor.)
+func _check_stop_request() -> void:
+	var stop_file := save_path.get_base_dir().path_join("kapat")
+	if not FileAccess.file_exists(stop_file):
+		return
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stop_file))
+	announce("Sunucu bakım için yeniden başlıyor, birkaç saniye sonra tekrar bağlan.")
+	_save()
+	log_line("Kapatma isteği alındı, kayıt yazıldı. Çıkılıyor.")
+	await get_tree().create_timer(0.5).timeout    # duyuru oyunculara ulaşsın
+	get_tree().quit()
+
+
+func _exit_tree() -> void:
+	if is_server():
+		_save()
+		log_line("Sunucu kapanıyor, kayıt yazıldı.")
 
 
 # ------------------------------------------------------------------ kayıt olma
@@ -226,6 +256,7 @@ func req_register(d: Dictionary) -> void:
 		return
 	var reason := _register(id, str(d.get("name", "")), str(d.get("pass", "")), d.get("appearance"))
 	if reason != "":
+		log_line("Giriş reddedildi (%s): %s" % [str(d.get("name", "")).left(16), reason])
 		await get_tree().create_timer(1.0).timeout    # şifre denemelerini yavaşlat
 		_kick(id, reason)
 
@@ -286,6 +317,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Poker.send_state(id)
 	Jobs.send_inventory(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
+	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
 
 
@@ -410,7 +442,12 @@ func _process(delta: float) -> void:
 		if not positions.is_empty():
 			rpc("sync_positions", positions.duplicate())
 	_save_accum += delta
-	if _save_accum >= 5.0:
+	if dedicated:
+		_stop_accum += delta
+		if _stop_accum >= 1.0:
+			_stop_accum = 0.0
+			_check_stop_request()
+	if _save_accum >= (2.0 if dedicated else 5.0):
 		_save_accum = 0.0
 		if _dirty:
 			_save()
@@ -447,10 +484,19 @@ func on_toast(d: Dictionary) -> void:
 
 func _save() -> void:
 	save_data["plots"] = Land.plots
-	var f := FileAccess.open(save_path, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(save_data, "\t"))
+	# Önce geçici dosyaya yaz, sonra yerine taşı: yazarken kapanırsa kayıt bozulmaz.
+	var tmp := save_path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		log_line("UYARI: kayıt yazılamadı: %s" % error_string(FileAccess.get_open_error()))
+		return
+	f.store_string(JSON.stringify(save_data, "\t"))
+	f.close()
+	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(tmp), ProjectSettings.globalize_path(save_path))
+	if err == OK:
 		_dirty = false
+	else:
+		log_line("UYARI: kayıt taşınamadı: %s" % error_string(err))
 
 
 func _load() -> void:

@@ -1,0 +1,24 @@
+[Unit]
+Description=MyCity Online oyun sunucusu
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=mycity
+Group=mycity
+WorkingDirectory=/opt/mycity
+Environment=HOME=/var/lib/mycity
+ExecStart=/opt/mycity/MyCityOnline.x86_64 --headless -- --sunucu --port=7777
+# Godot SIGTERM'de kaydetmeden kapanır; önce "kapat" dosyası bırakıp kendisinin kaydedip çıkmasını bekle.
+ExecStop=/bin/sh -c 'touch "/var/lib/mycity/.local/share/godot/app_userdata/MyCity Online/kapat"; for i in $$(seq 1 20); do kill -0 ${MAINPID} 2>/dev/null || exit 0; sleep 0.5; done'
+Restart=always
+RestartSec=3
+# Güvenlik: sunucu yalnızca kendi veri klasörüne yazabilir
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/mycity
+
+[Install]
+WantedBy=multi-user.target

@@ -203,6 +203,10 @@ func _on_ok() -> void:
 	var t0 := Time.get_ticks_msec()
 	while hands < 4 and Time.get_ticks_msec() - t0 < 120000:
 		await _wait(0.5)
+		# Biri fişlerini kaybedip masada tek kişi kalırsa oyun durur: yeni bot çağır.
+		if _seat_count() < 2 and Poker.view.get("stage") == "idle":
+			Poker.add_bot()
+			await _wait(0.5)
 	check(hands >= 4, "%d el oynandı" % hands)
 	Poker.leave_table()
 	Poker.remove_bots()

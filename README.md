@@ -58,6 +58,23 @@ godot --headless --path . --export-release "Windows" build/windows/MyCityOnline.
 Derlenmiş oyun tek dosyadır. Ekransız sunucu için: `MyCityOnline.exe --headless -- --sunucu`
 (build klasörlerindeki `sunucu-baslat` dosyaları bunu yapar).
 
+## 7/24 sunucu (VPS)
+
+`deploy/` klasörü oyunu bir Ubuntu VPS'te systemd servisi olarak çalıştırır: çökünce ve sunucu
+yeniden başlayınca otomatik açılır, UDP portunu açar, her gece kaydı yedekler (14 gün saklanır).
+
+```sh
+./deploy/kur.sh root@SUNUCU_IP        # kurar; aynı komut güncellemek için de kullanılır
+./deploy/log.sh root@SUNUCU_IP        # canlı loglar (girişler/çıkışlar)
+```
+
+SSH anahtarı varsayılan olarak `~/.ssh/mycity_vps` (`MYCITY_SSH_KEY` ile değiştirilebilir).
+Sunucuda: program `/opt/mycity`, kayıt ve yedekler `/var/lib/mycity`. Durdurma/yeniden başlatma
+(`systemctl stop|restart mycity`) önce kaydı yazar, oyunculara duyuru yapar.
+Oracle Cloud'da ayrıca web panelinden (VCN → Security List) UDP 7777 için giriş kuralı eklenmelidir.
+Adres belli olunca `scripts/main.gd` içindeki `OFFICIAL_SERVER` doldurulursa menüde
+"Resmi Sunucuya Katıl" butonu çıkar.
+
 ## Arkadaşlarla internetten oynamak
 
 Sunucu UDP **7777** portunu dinler (ENet).
@@ -133,6 +150,7 @@ tools/        make_art.py (görseller), make_sounds.py (sesler)
 assets/       SVG görseller (binalar, arsalar, doğa, karakter katmanları)
 tools/        make_art.py: görsel üreteci
 tests/        otomatik test istemcisi ve ekran görüntüsü modu
+deploy/       VPS kurulumu: systemd servisi, kurulum/güncelleme, yedekleme, log betikleri
 fonts/        DejaVu Sans (kart ♠♥♦♣ ve zar simgeleri için yedek font; lisansı LICENSE-DejaVu.txt)
 docs/ekran/   ekran görüntüleri
 ```

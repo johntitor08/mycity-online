@@ -6,6 +6,8 @@ extends Node
 const World = preload("res://scripts/world.gd")
 const CharacterPanel = preload("res://scripts/ui/character_panel.gd")
 const SETTINGS_PATH := "user://ayarlar.cfg"
+## 7/24 açık resmi sunucu (boşsa menüde buton görünmez). Biçim: "adres" ya da "adres:port".
+const OFFICIAL_SERVER := ""
 
 var menu: Control
 var world: Node2D
@@ -108,6 +110,10 @@ func _build_menu() -> void:
 	row.add_theme_constant_override("separation", 10)
 	v.add_child(row)
 	buttons = [_button(row, "Sunucu Kur ve Oyna", _on_host), _button(row, "Sunucuya Katıl", _on_join)]
+	if OFFICIAL_SERVER != "":
+		var official := _button(v, "Resmi Sunucuya Katıl (7/24 açık)", _on_join_official)
+		official.add_theme_color_override("font_color", Color("#facc15"))
+		buttons.append(official)
 	var row2 := HBoxContainer.new()
 	row2.add_theme_constant_override("separation", 10)
 	v.add_child(row2)
@@ -212,6 +218,13 @@ func _on_join() -> void:
 	status.text = "Bağlanılıyor..."
 	for b in buttons:
 		b.disabled = true
+
+
+func _on_join_official() -> void:
+	var parts := OFFICIAL_SERVER.split(":")
+	ip_edit.text = parts[0]
+	port_edit.text = parts[1] if parts.size() > 1 else str(Net.DEFAULT_PORT)
+	_on_join()
 
 
 func _on_connected() -> void:
