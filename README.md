@@ -4,6 +4,8 @@
 Texas Hold'em poker oyna, gölde ve denizde balık tut, plajda yüz, hastanede doktor ve
 markette kasiyer olarak çalış. Şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var.
 
+**İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
+
 ![Şehir](docs/ekran/sehir2.png)
 
 | | |
@@ -36,6 +38,13 @@ arsalar ve karakter görünümü hesaba kaydedilir.
 özeti rastgele bir tuzla bir kez daha özetleyerek saklar. ENet bağlantısı şifrelenmediği için
 bu, şifrenin kendisini korur ama tam bir güvenlik katmanı değildir; başka sitelerde kullandığın
 bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre hesaba bağlanır.
+
+## itch.io'ya yükleme
+
+```sh
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.2
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.2
+```
 
 ## Hazır sürümü derlemek (Windows / Linux)
 
