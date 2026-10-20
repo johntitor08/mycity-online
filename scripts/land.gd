@@ -61,6 +61,7 @@ func _pay_rent() -> void:
 		if p.owner != "":
 			totals[p.owner] = totals.get(p.owner, 0) + income_of(p)
 	for owner in totals:
+		totals[owner] = int(totals[owner] * Rpg.rent_mult_by_name(owner))
 		Net.add_money_by_name(owner, totals[owner])
 		var id := Net.id_by_name(owner)
 		if id != 0:
@@ -121,6 +122,8 @@ func req_buy(d: Dictionary) -> void:
 	p.level = 0
 	Net.mark_dirty()
 	_broadcast()
+	Rpg.add_xp(id, "realestate", 50)
+	Rpg.quest_event(id, "build")
 	Net.announce("%s, %d numaralı arsayı %s karşılığında satın aldı!" % [pname, i + 1, U.money(int(p.price))])
 
 
@@ -136,6 +139,10 @@ func req_build(d: Dictionary) -> void:
 	if int(p.level) >= 3:
 		Net.notify(id, "Bu arsa zaten en üst seviyede.", false)
 		return
+	var gate: int = [0, 1, Rpg.LEVEL_GATES.villa, Rpg.LEVEL_GATES.tower][int(p.level) + 1]
+	if Rpg.level(id) < gate:
+		Net.notify(id, "%s inşa etmek için seviye %d gerekli." % [LEVEL_NAMES[int(p.level) + 1], gate], false)
+		return
 	var cost: int = BUILD_COST[int(p.level) + 1]
 	if not Net.try_spend(id, cost):
 		Net.notify(id, "İnşaat için %s gerekli." % U.money(cost), false)
@@ -143,6 +150,8 @@ func req_build(d: Dictionary) -> void:
 	p.level = int(p.level) + 1
 	Net.mark_dirty()
 	_broadcast()
+	Rpg.add_xp(id, "realestate", 100 * int(p.level))
+	Rpg.quest_event(id, "build")
 	Net.notify(id, "%s inşa edildi! Yeni kira: %s/dk" % [LEVEL_NAMES[p.level], U.money(income_of(p))])
 
 

@@ -179,10 +179,16 @@ func req_cast(_d: Dictionary) -> void:
 	if spot == "":
 		Net.notify(id, "Balık tutmak için bir iskelenin ucuna git.", false)
 		return
+	if spot == "sea" and Rpg.level(id) < Rpg.LEVEL_GATES.sea:
+		Net.notify(id, "Deniz balıkçılığı için seviye %d gerekli." % Rpg.LEVEL_GATES.sea, false)
+		return
 	if _bag(id).size() >= BAG_SIZE:
 		Net.notify(id, "Kovan dolu! Önce balıkları sat.", false)
 		return
-	_fish[id] = {"bite_at": _now() + randf_range(3.0, 8.0), "bitten": false, "bite_time": 0.0, "spot": spot}
+	if not Rpg.use_energy(id, 2):
+		return
+	_fish[id] = {"bite_at": _now() + randf_range(3.0, 8.0), "bitten": false, "bite_time": 0.0, "spot": spot,
+		"window": BITE_WINDOW + Rpg.perk(id, "fish_window")}
 	Net.tell(self, id, "on_fish", {"state": "cast", "spot": spot})
 
 
@@ -196,22 +202,33 @@ func req_reel(_d: Dictionary) -> void:
 	if not t.bitten:
 		Net.tell(self, id, "on_fish", {"state": "early"})
 		return
-	var f := _roll_fish(SEA_FISH if t.spot == "sea" else LAKE_FISH)
+	var f := _roll_fish(SEA_FISH if t.spot == "sea" else LAKE_FISH, Rpg.perk(id, "fish_rare"))
 	_bag(id).append({"name": f[0], "price": f[1]})
 	Net.mark_dirty()
 	Net.tell(self, id, "on_fish", {"state": "caught", "fish": f[0], "price": f[1], "spot": t.spot})
 	send_inventory(id)
+	Rpg.add_xp(id, "fishing", 5 + mini(int(f[1]) / 10, 200))
+	Rpg.quest_event(id, "fish")
 	if f[1] >= 500:
 		Net.announce("%s bir %s yakaladı! (%s)" % [Net.players[id].name, f[0], U.money(f[1])])
 
 
-func _roll_fish(table: Array) -> Array:
+## rare: >1 ise değerli balıkların (≥100 TL) şansı artar, çöplerinki azalır.
+func _roll_fish(table: Array, rare: float = 1.0) -> Array:
+	var weights: Array = []
 	var total := 0.0
 	for f in table:
-		total += f[1]
+		var w: float = f[1]
+		if f[3] >= 100:
+			w *= rare
+		elif f[3] <= 3:
+			w /= rare
+		weights.append(w)
+		total += w
 	var r := randf() * total
-	for f in table:
-		r -= f[1]
+	for i in table.size():
+		var f: Array = table[i]
+		r -= weights[i]
 		if r <= 0.0:
 			return [f[0], randi_range(f[2], f[3])]
 	return [table[2][0], table[2][2]]
@@ -246,7 +263,7 @@ func _process(_delta: float) -> void:
 			t.bitten = true
 			t.bite_time = now
 			Net.tell(self, id, "on_fish", {"state": "bite"})
-		elif t.bitten and now > t.bite_time + BITE_WINDOW:
+		elif t.bitten and now > t.bite_time + float(t.get("window", BITE_WINDOW)):
 			_fish.erase(id)
 			Net.tell(self, id, "on_fish", {"state": "escaped"})
 
@@ -258,6 +275,10 @@ func req_hospital(_d: Dictionary) -> void:
 	var id := _player()
 	if id == 0:
 		return
+	if not Rpg.use_energy(id, 3):
+		Net.tell(self, id, "on_result", {"job": "hospital", "ok": false, "pay": 0, "stop": true,
+			"text": "Çok yorgunsun. Bir şeyler ye ya da plajda dinlen."})
+		return
 	var c: Array = CASES.pick_random()
 	var opts: Array = [c[1]]
 	while opts.size() < 4:
@@ -265,9 +286,10 @@ func req_hospital(_d: Dictionary) -> void:
 		if not opts.has(o):
 			opts.append(o)
 	opts.shuffle()
-	_hosp[id] = {"correct": opts.find(c[1]), "correct_text": c[1], "deadline": _now() + HOSPITAL_TIME}
+	var limit := HOSPITAL_TIME + Rpg.perk(id, "medicine_time")
+	_hosp[id] = {"correct": opts.find(c[1]), "correct_text": c[1], "deadline": _now() + limit}
 	Net.tell(self, id, "on_hospital_case", {"patient": PATIENTS.pick_random(), "symptom": c[0],
-		"options": opts, "time": HOSPITAL_TIME})
+		"options": opts, "time": limit})
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -284,8 +306,10 @@ func req_hospital_answer(d: Dictionary) -> void:
 		res["text"] = "Süre doldu, hasta başka doktora gitti."
 	elif choice == t.correct:
 		res["ok"] = true
-		res["pay"] = 25 + int(maxf(left, 0.0) * 2.0)
+		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay"))
 		res["text"] = "Doğru tedavi! Hasta iyileşti. +%s" % U.money(res.pay)
+		Rpg.add_xp(id, "medicine", 10)
+		Rpg.quest_event(id, "patient")
 	else:
 		res["pay"] = -15
 		res["text"] = "Yanlış tedavi! Doğrusu: %s. Ceza: %s" % [t.correct_text, U.money(15)]
@@ -300,6 +324,10 @@ func req_hospital_answer(d: Dictionary) -> void:
 func req_market(_d: Dictionary) -> void:
 	var id := _player()
 	if id == 0:
+		return
+	if not Rpg.use_energy(id, 3):
+		Net.tell(self, id, "on_result", {"job": "market", "ok": false, "pay": 0, "stop": true,
+			"text": "Çok yorgunsun. Bir şeyler ye ya da plajda dinlen."})
 		return
 	var pool: Array = ITEMS.duplicate()
 	pool.shuffle()
@@ -316,8 +344,9 @@ func req_market(_d: Dictionary) -> void:
 			if randf() < 0.3 and i + 1 < NOTES.size():
 				paid = NOTES[i + 1]
 			break
-	_mkt[id] = {"change": paid - total, "deadline": _now() + MARKET_TIME}
-	Net.tell(self, id, "on_market_case", {"items": items, "paid": paid, "time": MARKET_TIME})
+	var limit := MARKET_TIME + Rpg.perk(id, "cashier_time")
+	_mkt[id] = {"change": paid - total, "deadline": _now() + limit}
+	Net.tell(self, id, "on_market_case", {"items": items, "paid": paid, "time": limit})
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -334,8 +363,10 @@ func req_market_answer(d: Dictionary) -> void:
 		res["text"] = "Müşteri beklemekten sıkılıp gitti."
 	elif change == t.change:
 		res["ok"] = true
-		res["pay"] = 50 + int(maxf(left, 0.0) * 3.0)
+		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay"))
 		res["text"] = "Doğru para üstü! +%s" % U.money(res.pay)
+		Rpg.add_xp(id, "cashier", 12)
+		Rpg.quest_event(id, "customer")
 	else:
 		res["pay"] = -20
 		res["text"] = "Yanlış! Doğru para üstü %s idi. Kasa açığı: %s" % [U.money(t.change), U.money(20)]

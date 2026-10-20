@@ -59,6 +59,29 @@ func _ready() -> void:
 	await _wait(1.0)
 	_shot("karakter_duzenle")
 	w._close_panel()
+	# RPG: biraz XP ve eşya, sonra Karakter Kartı ve market alışverişi
+	Rpg.add_xp(1, "fishing", 260)
+	Rpg.add_xp(1, "medicine", 120)
+	Rpg.use_energy(1, 37)
+	Rpg.quest_event(1, Rpg._rec(1).quests.list[0].id)
+	for b in preload("res://scripts/map.gd").BUILDINGS:
+		if b.type == "market":
+			w.my_pos = b.rect.get_center()
+	await _wait(0.6)
+	Rpg.buy("tost")
+	Rpg.buy("tost")
+	Rpg.buy("rod")
+	await _wait(0.5)
+	w.open_profile()
+	await _wait(1.0)
+	_shot("profil")
+	w._close_panel()
+	w.zone = {"type": "market", "label": "Market"}
+	w._open_panel()
+	w.panel._show(true)
+	await _wait(0.8)
+	_shot("magaza")
+	w._close_panel()
 	for k in 4:
 		Net.players.erase(9001 + k)
 		Net.positions.erase(9001 + k)

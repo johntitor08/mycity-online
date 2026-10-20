@@ -2,7 +2,8 @@
 
 Çok oyunculu 2D şehir oyunu: arsa al ve üzerine bina dik, kumarhanede bahis oyna,
 Texas Hold'em poker oyna, gölde ve denizde balık tut, plajda yüz, hastanede doktor ve
-markette kasiyer olarak çalış. Şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var.
+markette kasiyer olarak çalış. Seviye/XP, meslek yetenekleri, enerji, eşyalar ve günlük görevlerle
+RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var.
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 
@@ -28,6 +29,25 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## RPG sistemi
+
+**C** tuşu (ya da HUD'daki "Profil") Karakter Kartı'nı açar.
+
+- **Seviye/XP:** İşler, balık, poker kazançları, bahisler, arsa alma/inşa XP verir. Seviye atlayınca
+  `100 × seviye` TL ödül ve dolu enerji. Kilitler: deniz balıkçılığı Sv.3, villa Sv.5, gökdelen Sv.10.
+  Seviye isim etiketlerinde ve sıralamada görünür.
+- **Meslek yetenekleri** (en fazla Sv.20), her seviye bonus verir:
+  Balıkçılık (nadir balık +%8, çekme süresi +0,1 sn), Doktorluk (maaş +%5, süre +0,5 sn),
+  Kasiyerlik (maaş +%5, süre +1 sn), Emlakçılık (kira +%5).
+- **Enerji:** Balık tutmak 2, hastane/market vakası 3 enerji harcar. 20 sn'de 1 dolar;
+  plajda ve denizde 3 kat hızlı. Maksimum `100 + 5 × (seviye − 1)`.
+- **Market alışverişi:** Yiyecekler (simit, kahve, tost, döner: +10…+50 enerji) çantaya gider.
+  Aletler kalıcıdır: Profesyonel Olta, Steteskop, Hesap Makinesi, Altın Kartvizit.
+- **Günlük görevler:** Her gün oyuncuya özel 3 görev (balık tut, hasta iyileştir, pokerde kazan,
+  denizde yüz...). Her biri +300 TL ve +80 XP.
+
+Hepsi sunucuda hesaplanır ve hesap kaydına (`rpg` bölümü) yazılır.
+
 ## Hesaplar
 
 Bir isimle ilk girişte hesap o şifreyle oluşturulur; sonraki girişlerde aynı şifre gerekir
@@ -42,8 +62,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.2
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.2
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.3
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.3
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -139,6 +159,7 @@ scripts/
   casino.gd   (autoload) rulet, zar, at yarışı
   poker.gd    (autoload) Texas Hold'em kuralları, el değerlendirme, botlar
   jobs.gd     (autoload) balık, hastane, market
+  rpg.gd      (autoload) seviye/XP, yetenekler, enerji, eşyalar, günlük görevler
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)
   avatar.gd   karakter seçenekleri ve katmanlı çizim
   map.gd      harita yerleşimi (ortak sabitler)

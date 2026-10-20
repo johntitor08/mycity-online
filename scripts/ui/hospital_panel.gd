@@ -89,4 +89,7 @@ func _on_result(d: Dictionary) -> void:
 	if d.ok:
 		_treated += 1
 	stats_label.text = "Bu vardiya: %d hasta iyileştirdin, net kazanç %s" % [_treated, U.money(_earned)]
+	if d.get("stop", false):
+		start_btn.visible = true     # enerji bitti: otomatik devam etme
+		return
 	later(1.6, _next)

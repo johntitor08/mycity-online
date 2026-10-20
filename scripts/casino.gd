@@ -44,6 +44,8 @@ func _take_bet(d: Dictionary) -> int:
 	if not Net.try_spend(id, bet):
 		Net.notify(id, "Yeterli paran yok.", false)
 		return 0
+	Rpg.add_xp(id, "", clampi(bet / 50, 1, 20))
+	Rpg.quest_event(id, "bet")
 	return bet
 
 

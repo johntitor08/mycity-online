@@ -143,7 +143,8 @@ func _on_ok() -> void:
 	Land.buy(free_plot)
 	await _wait(0.5)
 	check(Land.view[free_plot].owner == Net.my_name, "arsa #%d satın alındı" % (free_plot + 1))
-	check(Net.my_money() == m0 - int(Land.view[free_plot].price), "arsa parası düştü")
+	# (görev ödülü / seviye ödülü gelebileceği için tam eşitlik aranmaz)
+	check(Net.my_money() < m0, "arsa parası düştü")
 	var can_build := Net.my_money() >= Land.BUILD_COST[1]
 	Land.build_up(free_plot)
 	await _wait(0.5)
@@ -174,7 +175,11 @@ func _on_ok() -> void:
 	w.my_pos = Map.PIER_END.get_center()
 	await _wait(0.4)
 	Jobs.cast()
-	await _wait(9.5)
+	await _wait(0.5)
+	if Rpg.sheet.get("level", 1) < Rpg.LEVEL_GATES.sea:
+		check(Jobs._fish.is_empty() or not Net.is_server(), "Sv.%d altında deniz balıkçılığı kilitli" % Rpg.LEVEL_GATES.sea)
+	else:
+		await _wait(9.0)
 	check(Jobs.my_fish.size() >= 2, "balık yakalandı (%d)" % Jobs.my_fish.size())
 	w.my_pos = Vector2(1200, 2100)
 	await _wait(0.3)
@@ -193,6 +198,29 @@ func _on_ok() -> void:
 		Jobs.ask_market()
 		await _wait(0.4)
 	check(Net.my_money() > before, "market işinden para kazanıldı")
+
+	print("== RPG")
+	await _wait(0.5)
+	var sh := Rpg.sheet
+	check(not sh.is_empty(), "karakter kartı geldi (Sv.%d, %d XP)" % [sh.get("level", 0), sh.get("xp", 0)])
+	check(int(sh.xp) > 0 and int(sh.skills.cashier.xp) > 0, "işlerden XP ve kasiyerlik XP'si kazanıldı")
+	check(float(sh.energy) < float(sh.max_energy), "işler enerji harcadı (%d/%d)" % [int(sh.energy), sh.max_energy])
+	check(sh.quests.size() == 3, "3 günlük görev var")
+	Rpg.buy("simit")
+	await _wait(0.4)
+	check(not Rpg.sheet.items.has("simit"), "market dışında alışveriş reddedildi")
+	for b in Map.BUILDINGS:
+		if b.type == "market":
+			w.my_pos = b.rect.get_center()
+	await _wait(0.4)
+	Rpg.buy("simit")
+	await _wait(0.4)
+	check(int(Rpg.sheet.items.get("simit", 0)) == 1, "markette simit alındı")
+	var e0 := float(Rpg.sheet.energy)
+	Rpg.use("simit")
+	await _wait(0.4)
+	check(not Rpg.sheet.items.has("simit") and float(Rpg.sheet.energy) > e0, "simit yendi, enerji arttı")
+	w.my_pos = Map.SPAWN
 
 	print("== Poker (2 bot ile, panel açık)")
 	w.zone = {"type": "poker", "label": "x"}

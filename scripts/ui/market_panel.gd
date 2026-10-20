@@ -1,5 +1,5 @@
 extends "res://scripts/ui/game_panel.gd"
-## Market kasiyeri: sepeti hesapla, müşteriye doğru para üstünü ver.
+## Market: kasiyer olarak çalış (sepeti hesapla, doğru para üstünü ver) ya da alışveriş yap.
 
 var receipt: RichTextLabel
 var paid_label: Label
@@ -14,10 +14,25 @@ var _total := 1.0
 var _active := false
 var _earned := 0
 var _served := 0
+var job_box: VBoxContainer
+var shop_box: VBoxContainer
+var shop_money: Label
 
 
 func _ready() -> void:
-	build("Market — Kasiyer", Vector2(620, 520))
+	build("Market", Vector2(640, 540))
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 8)
+	body.add_child(tabs)
+	add_button(tabs, "Kasiyer Olarak Çalış", _show.bind(false))
+	add_button(tabs, "Alışveriş", _show.bind(true))
+	body.add_child(HSeparator.new())
+	_build_shop()
+	# Kasiyerlik içeriği kendi kutusuna gider (aşağıdaki kod "body" kullanmaya devam eder).
+	job_box = VBoxContainer.new()
+	job_box.add_theme_constant_override("separation", 8)
+	body.add_child(job_box)
+	body = job_box
 	add_label(body, "Ürünleri kafandan topla, müşterinin verdiği paradan çıkar ve para üstünü gir.", 15, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	receipt = add_rich(body, 20, 130)
 	paid_label = add_label(body, "", 22, Color("#facc15"))
@@ -42,6 +57,55 @@ func _ready() -> void:
 	start_btn = add_button(body, "Kasaya Geç", _next)
 	Jobs.market_case.connect(_on_case)
 	Jobs.job_result.connect(_on_result)
+
+
+func _show(shop: bool) -> void:
+	shop_box.visible = shop
+	job_box.visible = not shop
+	if shop:
+		Rpg.refresh()
+
+
+func _build_shop() -> void:
+	shop_box = VBoxContainer.new()
+	shop_box.add_theme_constant_override("separation", 8)
+	shop_box.visible = false
+	body.add_child(shop_box)
+	shop_money = add_label(shop_box, "", 15, Color("#94a3b8"))
+	add_label(shop_box, "Yiyecekler (çantaya gider, Karakter Kartı'ndan ye)", 18, Color("#93c5fd"))
+	var foods := GridContainer.new()
+	foods.columns = 2
+	shop_box.add_child(foods)
+	for k in Rpg.FOODS:
+		var f: Dictionary = Rpg.FOODS[k]
+		add_label(foods, "%s — +%d enerji" % [f.name, f.energy], 16).custom_minimum_size = Vector2(300, 0)
+		add_button(foods, "Al (%s)" % U.money(f.price), Rpg.buy.bind(k))
+	shop_box.add_child(HSeparator.new())
+	add_label(shop_box, "Aletler (kalıcı avantaj)", 18, Color("#93c5fd"))
+	var tools := GridContainer.new()
+	tools.columns = 2
+	tools.name = "tools"
+	shop_box.add_child(tools)
+	Rpg.sheet_changed.connect(_refresh_shop)
+	_refresh_shop()
+
+
+func _refresh_shop() -> void:
+	var tools: GridContainer = shop_box.get_node("tools")
+	for c in tools.get_children():
+		c.queue_free()
+	var owned: Array = Rpg.sheet.get("tools", [])
+	for k in Rpg.TOOLS:
+		var t: Dictionary = Rpg.TOOLS[k]
+		add_label(tools, "%s — %s" % [t.name, t.desc], 15).custom_minimum_size = Vector2(380, 0)
+		var b := add_button(tools, "Sende" if owned.has(k) else "Al (%s)" % U.money(t.price), Rpg.buy.bind(k))
+		b.disabled = owned.has(k)
+	var items: Dictionary = Rpg.sheet.get("items", {})
+	var bag := []
+	for k in items:
+		bag.append("%s ×%d" % [Rpg.FOODS[k].name, items[k]])
+	shop_money.text = "Enerji: %d / %d    Çanta: %s" % [int(Rpg.sheet.get("energy", 0)),
+		int(Rpg.sheet.get("max_energy", 100)), ", ".join(bag) if bag else "boş"]
 
 
 func _next() -> void:
@@ -103,4 +167,7 @@ func _on_result(d: Dictionary) -> void:
 	if d.ok:
 		_served += 1
 	stats_label.text = "Bu vardiya: %d müşteri, net kazanç %s" % [_served, U.money(_earned)]
+	if d.get("stop", false):
+		start_btn.visible = true     # enerji bitti: otomatik devam etme
+		return
 	later(1.8, _next)

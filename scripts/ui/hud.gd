@@ -4,6 +4,7 @@ extends Control
 const U = preload("res://scripts/util.gd")
 
 signal character_requested
+signal profile_requested
 
 var money_label: Label
 var name_label: Label
@@ -16,6 +17,10 @@ var toast_box: VBoxContainer
 var sound_btn: Button
 var music_btn: Button
 var _last_money := -1
+var level_label: Label
+var xp_bar: ProgressBar
+var energy_bar: ProgressBar
+var energy_label: Label
 
 
 func _ready() -> void:
@@ -29,8 +34,19 @@ func _ready() -> void:
 	top.add_child(tv)
 	name_label = _label(tv, "", 15, Color("#aab3c9"))
 	money_label = _label(tv, "", 26, Color("#86efac"))
+	var lv := HBoxContainer.new()
+	tv.add_child(lv)
+	level_label = _label(lv, "Sv.1", 15, Color("#facc15"))
+	level_label.custom_minimum_size = Vector2(52, 0)
+	xp_bar = _bar(lv, Color("#facc15"))
+	var en := HBoxContainer.new()
+	tv.add_child(en)
+	energy_label = _label(en, "⚡", 15, Color("#4ade80"))
+	energy_label.custom_minimum_size = Vector2(52, 0)
+	energy_bar = _bar(en, Color("#22c55e"))
 	var btns := HBoxContainer.new()
 	tv.add_child(btns)
+	_small_button(btns, "Profil (C)", func(): profile_requested.emit())
 	_small_button(btns, "Karakter", func(): character_requested.emit())
 	sound_btn = _small_button(btns, "", Sfx.toggle_mute)
 	music_btn = _small_button(btns, "", Sfx.toggle_music)
@@ -79,7 +95,7 @@ func _ready() -> void:
 	# Sağ alt: kontroller
 	var help_box := _box(self)
 	_place(help_box, Vector2(1, 1), Vector2(-12, -12), Vector2(-12, -12))
-	_label(help_box, "WASD / Oklar: yürü    E: binaya gir    Esc: kapat    Enter: sohbet", 13, Color(1, 1, 1, 0.8))
+	_label(help_box, "WASD: yürü   E: gir   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
 
 	# Üst orta: bildirimler
 	toast_box = VBoxContainer.new()
@@ -89,6 +105,8 @@ func _ready() -> void:
 	_place(toast_box, Vector2(0.5, 0), Vector2(-260, 14), Vector2(260, 300))
 
 	Net.roster_changed.connect(_refresh)
+	Rpg.sheet_changed.connect(_refresh_rpg)
+	_refresh_rpg()
 	Net.chat_received.connect(_on_chat)
 	Net.toast.connect(func(t, g): show_toast(t, g); Sfx.play("notify" if g else "error", -6.0))
 	_refresh()
@@ -102,6 +120,48 @@ func _small_button(parent: Node, text: String, cb: Callable) -> Button:
 	b.pressed.connect(cb)
 	parent.add_child(b)
 	return b
+
+
+func _bar(parent: Node, col: Color) -> ProgressBar:
+	var b := ProgressBar.new()
+	b.show_percentage = false
+	b.custom_minimum_size = Vector2(150, 10)
+	b.size_flags_vertical = SIZE_SHRINK_CENTER
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = col
+	fill.set_corner_radius_all(4)
+	b.add_theme_stylebox_override("fill", fill)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(1, 1, 1, 0.12)
+	bg.set_corner_radius_all(4)
+	b.add_theme_stylebox_override("background", bg)
+	parent.add_child(b)
+	return b
+
+
+func _refresh_rpg() -> void:
+	var s := Rpg.sheet
+	if s.is_empty():
+		return
+	level_label.text = "Sv.%d" % s.level
+	xp_bar.value = 100.0 * (int(s.xp) - int(s.cur)) / maxi(1, int(s.next) - int(s.cur))
+	xp_bar.tooltip_text = "XP %d / %d" % [s.xp, s.next]
+	_refresh_energy()
+
+
+func _refresh_energy() -> void:
+	var s := Rpg.sheet
+	if s.is_empty():
+		return
+	var e := Rpg.energy_now()
+	energy_bar.value = 100.0 * e / float(s.max_energy)
+	energy_label.text = "⚡%d" % int(e)
+	energy_bar.tooltip_text = "Enerji %d / %d" % [int(e), s.max_energy]
+
+
+func _process(_delta: float) -> void:
+	if Engine.get_process_frames() % 30 == 0:
+		_refresh_energy()
 
 
 func _refresh_sound() -> void:
@@ -164,8 +224,9 @@ func _refresh() -> void:
 	for i in mini(list.size(), 10):
 		var p = list[i]
 		var me: bool = p.name == Net.my_name
-		t += "[color=#%s]●[/color] %s%s  [color=#86efac]%s[/color]\n" % [
-			Color(p.color).to_html(false), "[b]" if me else "", U.esc(p.name) + ("[/b]" if me else ""), U.money(int(p.money))]
+		t += "[color=#%s]●[/color] %s%s [color=#facc15]Sv.%d[/color]  [color=#86efac]%s[/color]\n" % [
+			Color(p.color).to_html(false), "[b]" if me else "", U.esc(p.name) + ("[/b]" if me else ""),
+			int(p.get("level", 1)), U.money(int(p.money))]
 	t += "[color=#7c859e]%d oyuncu çevrimiçi[/color]" % list.size()
 	ranking.text = t
 

@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "0.2"
+const VERSION := "0.3"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -186,6 +186,7 @@ func _reset_peer() -> void:
 	Land.reset()
 	Poker.reset()
 	Jobs.reset()
+	Rpg.reset()
 
 
 func _on_connected() -> void:
@@ -308,7 +309,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 		rec["appearance"] = Avatar.default_for(pname)
 	var app := Avatar.sanitize(rec["appearance"])
 	players[id] = {"name": pname, "money": int(rec.get("money", START_MONEY)),
-		"color": Avatar.shirt_color(app), "appearance": app}
+		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec)}
 	positions[id] = Map.SPAWN + Vector2(randf_range(-120, 120), randf_range(-30, 30))
 	_dirty = true
 	tell(self, id, "welcome", {"name": pname, "pos": positions[id], "appearance": app, "new": is_new})
@@ -316,6 +317,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Land.send_state(id)
 	Poker.send_state(id)
 	Jobs.send_inventory(id)
+	Rpg.send_sheet(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""

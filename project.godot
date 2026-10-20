@@ -16,6 +16,7 @@ Land="*res://scripts/land.gd"
 Casino="*res://scripts/casino.gd"
 Poker="*res://scripts/poker.gd"
 Jobs="*res://scripts/jobs.gd"
+Rpg="*res://scripts/rpg.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

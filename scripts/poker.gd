@@ -560,6 +560,7 @@ func _next_street() -> void:
 func _win_uncontested(i: int) -> void:
 	var pot := _pot()
 	seats[i].chips += pot
+	_reward_winner(seats[i])
 	message = "%s %d kazandı (herkes pas geçti)." % [seats[i].name, pot]
 	_log(message)
 	stage = "showdown"
@@ -611,6 +612,7 @@ func _showdown() -> void:
 	var parts: Array = []
 	for w in won:
 		seats[w].chips += won[w]
+		_reward_winner(seats[w])
 		parts.append("%s %d kazandı (%s)" % [seats[w].name, won[w], hand_name(scores[w])])
 	for i in alive:
 		if not won.has(i):
@@ -618,6 +620,12 @@ func _showdown() -> void:
 	message = ", ".join(parts)
 	_log(message)
 	next_hand_at = _now() + 7.0
+
+
+func _reward_winner(s: Dictionary) -> void:
+	if not s.bot and Net.players.has(int(s.id)):
+		Rpg.add_xp(int(s.id), "", 15)
+		Rpg.quest_event(int(s.id), "poker")
 
 
 func _end_hand() -> void:

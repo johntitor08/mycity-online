@@ -79,6 +79,7 @@ func _ready() -> void:
 	hud = HUD.new()
 	ui_layer.add_child(hud)
 	hud.character_requested.connect(open_character_editor)
+	hud.profile_requested.connect(open_profile)
 	_make_nature()
 
 
@@ -155,6 +156,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			if panel == null:
 				_open_panel()
 				get_viewport().set_input_as_handled()
+		KEY_C:
+			if panel == null:
+				open_profile()
+				get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
 			if panel != null:
 				_close_panel()
@@ -190,6 +195,16 @@ func _open_panel() -> void:
 		panel.focus_plot = zone.plot
 	if zone.type == "fishing":
 		panel.spot = Map.fishing_spot(my_pos)
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("open", -4.0)
+
+
+## Karakter Kartı (C tuşu / HUD "Profil").
+func open_profile() -> void:
+	if panel != null:
+		return
+	panel = preload("res://scripts/ui/profile_panel.gd").new()
 	panel.closed.connect(_close_panel)
 	ui_layer.add_child(panel)
 	Sfx.play("open", -4.0)
@@ -292,10 +307,11 @@ func _draw() -> void:
 		var info = Net.roster.get(id)
 		if info:
 			var a: Dictionary = anim.get(id, {"facing": "down", "moving": false})
-			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), info.name, false, a.facing, a.moving]])
+			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), "%s · Sv.%d" % [info.name, int(info.get("level", 1))], false, a.facing, a.moving]])
 	var mine = Net.roster.get(Net.my_id())
 	var my_app = mine.get("appearance", {}) if mine else Net.my_appearance
-	items.append([my_pos.y, "p", [my_pos, my_app, Net.my_name, true, my_facing, my_moving]])
+	var my_level: int = int(mine.get("level", 1)) if mine else 1
+	items.append([my_pos.y, "p", [my_pos, my_app, "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving]])
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
 		if it[1] == "n":
