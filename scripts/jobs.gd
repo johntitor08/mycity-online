@@ -41,7 +41,7 @@ const SEA_FISH := [
 	["Köpekbalığı", 0.4, 2000, 4000],
 	["Hazine Sandığı", 0.15, 4000, 8000],
 ]
-const SPOT_NAMES := {"lake": "Göl", "sea": "Deniz"}
+const SPOT_NAMES := {"lake": "Göl", "sea": "Deniz", "boat": "Açık Deniz"}
 
 # [belirti, doğru tedavi]
 const CASES := [
@@ -175,11 +175,17 @@ func req_cast(_d: Dictionary) -> void:
 	var id := _player()
 	if id == 0 or _fish.has(id):
 		return
-	var spot := Map.fishing_spot(Net.positions.get(id, Vector2(-1000, -1000)))
+	var pos: Vector2 = Net.positions.get(id, Vector2(-1000, -1000))
+	var spot := Map.fishing_spot(pos)
+	if spot == "" and str(Net.players[id].get("ride", "")) == "boat" and Map.in_sea(pos):
+		spot = "boat"     # teknede açık deniz: deniz balıkları, nadir şansı daha yüksek
+	if spot != "lake" and spot != "" and Env.weather == "storm":
+		Net.notify(id, "Fırtına var! Denizde balık tutmak tehlikeli, gölde dene.", false)
+		return
 	if spot == "":
 		Net.notify(id, "Balık tutmak için bir iskelenin ucuna git.", false)
 		return
-	if spot == "sea" and Rpg.level(id) < Rpg.LEVEL_GATES.sea:
+	if spot != "lake" and Rpg.level(id) < Rpg.LEVEL_GATES.sea:
 		Net.notify(id, "Deniz balıkçılığı için seviye %d gerekli." % Rpg.LEVEL_GATES.sea, false)
 		return
 	if _bag(id).size() >= BAG_SIZE:
@@ -187,7 +193,8 @@ func req_cast(_d: Dictionary) -> void:
 		return
 	if not Rpg.use_energy(id, 2):
 		return
-	_fish[id] = {"bite_at": _now() + randf_range(3.0, 8.0), "bitten": false, "bite_time": 0.0, "spot": spot,
+	var wait := randf_range(2.0, 5.0) if Env.is_rainy() else randf_range(3.0, 8.0)
+	_fish[id] = {"bite_at": _now() + wait, "bitten": false, "bite_time": 0.0, "spot": spot,
 		"window": BITE_WINDOW + Rpg.perk(id, "fish_window")}
 	Net.tell(self, id, "on_fish", {"state": "cast", "spot": spot})
 
@@ -202,7 +209,8 @@ func req_reel(_d: Dictionary) -> void:
 	if not t.bitten:
 		Net.tell(self, id, "on_fish", {"state": "early"})
 		return
-	var f := _roll_fish(SEA_FISH if t.spot == "sea" else LAKE_FISH, Rpg.perk(id, "fish_rare"))
+	var rare := Rpg.perk(id, "fish_rare") * (1.3 if t.spot == "boat" else 1.0)
+	var f := _roll_fish(LAKE_FISH if t.spot == "lake" else SEA_FISH, rare)
 	_bag(id).append({"name": f[0], "price": f[1]})
 	Net.mark_dirty()
 	Net.tell(self, id, "on_fish", {"state": "caught", "fish": f[0], "price": f[1], "spot": t.spot})
@@ -219,6 +227,8 @@ func _roll_fish(table: Array, rare: float = 1.0) -> Array:
 	var total := 0.0
 	for f in table:
 		var w: float = f[1]
+		if Env.is_night() and Env.NIGHT_FISH.has(f[0]):
+			w *= 2.0      # gece balıkları
 		if f[3] >= 100:
 			w *= rare
 		elif f[3] <= 3:
@@ -306,7 +316,7 @@ func req_hospital_answer(d: Dictionary) -> void:
 		res["text"] = "Süre doldu, hasta başka doktora gitti."
 	elif choice == t.correct:
 		res["ok"] = true
-		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay"))
+		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay") * (1.2 if Env.is_night() else 1.0))
 		res["text"] = "Doğru tedavi! Hasta iyileşti. +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "medicine", 10)
 		Rpg.quest_event(id, "patient")
@@ -363,7 +373,7 @@ func req_market_answer(d: Dictionary) -> void:
 		res["text"] = "Müşteri beklemekten sıkılıp gitti."
 	elif change == t.change:
 		res["ok"] = true
-		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay"))
+		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay") * (1.2 if Env.is_night() else 1.0))
 		res["text"] = "Doğru para üstü! +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "cashier", 12)
 		Rpg.quest_event(id, "customer")

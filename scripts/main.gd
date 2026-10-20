@@ -40,6 +40,9 @@ func _ready() -> void:
 	if "--test-istemci" in args or "--test-host" in args:
 		add_child(load("res://tests/test_client.gd").new())
 		return
+	if "--test-yardimci" in args:
+		add_child(load("res://tests/test_helper.gd").new())
+		return
 	if "--foto" in args:
 		add_child(load("res://tests/screenshot.gd").new())
 		return

@@ -5,6 +5,7 @@ const U = preload("res://scripts/util.gd")
 
 signal character_requested
 signal profile_requested
+signal transfer_requested(to_name: String)
 
 var money_label: Label
 var name_label: Label
@@ -21,6 +22,7 @@ var level_label: Label
 var xp_bar: ProgressBar
 var energy_bar: ProgressBar
 var energy_label: Label
+var clock_label: Label
 
 
 func _ready() -> void:
@@ -33,6 +35,7 @@ func _ready() -> void:
 	var tv := VBoxContainer.new()
 	top.add_child(tv)
 	name_label = _label(tv, "", 15, Color("#aab3c9"))
+	clock_label = _label(tv, "", 14, Color("#fde68a"))
 	money_label = _label(tv, "", 26, Color("#86efac"))
 	var lv := HBoxContainer.new()
 	tv.add_child(lv)
@@ -66,7 +69,10 @@ func _ready() -> void:
 	ranking.fit_content = true
 	ranking.scroll_active = false
 	ranking.custom_minimum_size = Vector2(230, 0)
+	ranking.meta_underlined = false
+	ranking.meta_clicked.connect(func(meta): transfer_requested.emit(str(meta)))
 	rv.add_child(ranking)
+	_label(rv, "İsme tıkla: para gönder", 11, Color("#7c859e"))
 
 	# Sol alt: sohbet
 	var chat := _box(self)
@@ -95,7 +101,7 @@ func _ready() -> void:
 	# Sağ alt: kontroller
 	var help_box := _box(self)
 	_place(help_box, Vector2(1, 1), Vector2(-12, -12), Vector2(-12, -12))
-	_label(help_box, "WASD: yürü   E: gir   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
+	_label(help_box, "WASD: yürü   E: gir   F: araç   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
 
 	# Üst orta: bildirimler
 	toast_box = VBoxContainer.new()
@@ -162,6 +168,7 @@ func _refresh_energy() -> void:
 func _process(_delta: float) -> void:
 	if Engine.get_process_frames() % 30 == 0:
 		_refresh_energy()
+		clock_label.text = Env.clock_text()
 
 
 func _refresh_sound() -> void:
@@ -224,8 +231,9 @@ func _refresh() -> void:
 	for i in mini(list.size(), 10):
 		var p = list[i]
 		var me: bool = p.name == Net.my_name
+		var nm := U.esc(p.name) if me else "[url=%s]%s[/url]" % [p.name, U.esc(p.name)]
 		t += "[color=#%s]●[/color] %s%s [color=#facc15]Sv.%d[/color]  [color=#86efac]%s[/color]\n" % [
-			Color(p.color).to_html(false), "[b]" if me else "", U.esc(p.name) + ("[/b]" if me else ""),
+			Color(p.color).to_html(false), "[b]" if me else "", nm + ("[/b]" if me else ""),
 			int(p.get("level", 1)), U.money(int(p.money))]
 	t += "[color=#7c859e]%d oyuncu çevrimiçi[/color]" % list.size()
 	ranking.text = t

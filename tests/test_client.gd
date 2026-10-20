@@ -247,6 +247,7 @@ func _on_ok() -> void:
 	check(Land.view[free_plot].owner == "", "arsa satıldı")
 	print("== Son para: %d" % Net.my_money())
 	if Net.is_server():
+		await _test_04(get_parent().world)
 		_finish()
 		return
 	print("== Şifre")
@@ -254,6 +255,149 @@ func _on_ok() -> void:
 	Net.leave()
 	await _wait(0.5)
 	Net.join("Testci", "127.0.0.1", _port, Net.hash_password("Testci", "yanlis"))
+
+
+func _helper_listing():
+	for l in Bazaar.listings:
+		if l.seller == "Yardimci" and l.kind == "food":
+			return l
+	return null
+
+
+## 0.4 özellikleri (yalnızca ev sahibi modunda: test için sunucu tarafından para/XP verilir).
+func _test_04(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	print("== 0.4: Gün/gece ve hava")
+	check(Env.hour >= 0.0 and Env.hour < 24.0, "oyun saati çalışıyor (%s)" % Env.clock_text())
+	Env.force_weather("rain")
+	await _wait(0.3)
+	check(Env.is_rainy() and Env.clock_text().contains("Yağmurlu"), "yağmur başladı ve saatte görünüyor")
+	Env.force_weather("storm")
+	Net.add_money(me, 60000)
+	Rpg.add_xp(me, "", 2600)
+	await _wait(0.3)
+	check(Rpg.level(me) >= 6, "test için seviye 6+ (Sv.%d)" % Rpg.level(me))
+	w.my_pos = Map.PIER_END.get_center()
+	await _wait(0.3)
+	Jobs.cast()
+	await _wait(0.3)
+	check(not Jobs._fish.has(me), "fırtınada deniz balıkçılığı kapalı")
+	Env.force_weather("clear")
+
+	print("== 0.4: Araçlar")
+	w.my_pos = Map.building("galeri").rect.get_center()
+	await _wait(0.3)
+	for k in ["bike", "car", "boat"]:
+		Garage.buy(k)
+	await _wait(0.5)
+	check(Garage.owned.size() == 3, "bisiklet, araba ve tekne alındı")
+	w.my_pos = Map.SPAWN
+	await _wait(0.3)
+	Garage.ride("boat")
+	await _wait(0.3)
+	check(w.my_ride() == "", "karada tekneye binilemiyor")
+	Garage.ride("car")
+	await _wait(0.3)
+	check(w.my_ride() == "car", "arabaya binildi (oyuncu listesinde görünüyor)")
+	Garage.ride("")
+	await _wait(0.2)
+	w.my_pos = Vector2(400, 2150)
+	await _wait(0.3)
+	Garage.ride("boat")
+	await _wait(0.3)
+	check(w.my_ride() == "boat", "denizde tekneye binildi")
+	Jobs.cast()
+	await _wait(0.3)
+	check(Jobs._fish.has(me) and Jobs._fish[me].spot == "boat", "tekneden açık deniz balıkçılığı")
+	Jobs._fish.erase(me)
+	Garage.ride("")
+	await _wait(0.2)
+
+	print("== 0.4: Ev ve mobilya")
+	var plot := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			plot = i
+			break
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Land.buy(plot)
+	await _wait(0.3)
+	Land.build_up(plot)
+	await _wait(0.4)
+	check(int(Land.view[plot].level) == 1, "arsaya ev inşa edildi")
+	w.my_pos = Map.building("mobilya").rect.get_center()
+	await _wait(0.3)
+	for k in ["bed", "chair", "rug", "lamp"]:
+		Homes.buy(k)
+	await _wait(0.5)
+	check(Homes.depot.size() == 4, "4 mobilya depoya geldi")
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Homes.enter(plot)
+	await _wait(0.5)
+	check(w._room == plot, "eve girildi (ışınlandı)")
+	Homes.place(plot, "bed", 1, 1)
+	await _wait(0.3)
+	Homes.place(plot, "chair", 2, 2)      # yatağın üstü: reddedilmeli
+	await _wait(0.3)
+	Homes.place(plot, "rug", 0, 2)        # halı başka eşyanın altına girebilir
+	await _wait(0.3)
+	Homes.place(plot, "lamp", 8, 1)
+	await _wait(0.3)
+	var furn: Array = Land.view[plot].furniture
+	check(furn.size() == 3, "3 eşya yerleşti, çakışan sandalye reddedildi (%d)" % furn.size())
+	check(int(Homes.depot.get("chair", 0)) == 1, "reddedilen sandalye depoda kaldı")
+	Rpg.use_energy(me, 40)
+	await _wait(0.2)
+	var e0 := float(Rpg.sheet.energy)
+	w.my_pos = Homes.furniture_rect(plot, 1, furn[0]).get_center()
+	await _wait(5.8)
+	check(float(Rpg.sheet.energy) >= e0 + 4.0, "yatakta enerji hızla doldu (%d → %d)" % [int(e0), int(Rpg.sheet.energy)])
+	Homes.set_door(plot, true)
+	await _wait(0.3)
+	check(bool(Land.view[plot].get("door_open", false)), "kapı misafirlere açıldı")
+	Homes.exit_home()
+	await _wait(0.5)
+	check(w._room == -1, "evden çıkıldı")
+
+	print("== 0.4: Pazar yeri ve para gönderme")
+	w.my_pos = Map.building("pazar").rect.get_center()
+	await _wait(0.3)
+	Bazaar.list_item("furniture", "chair", 500)
+	await _wait(0.3)
+	var mine: Array = Bazaar.listings.filter(func(l): return l.seller == Net.my_name)
+	check(mine.size() == 1 and not Homes.depot.has("chair"), "sandalye ilana çıktı (emanete alındı)")
+	Bazaar.cancel(int(mine[0].id))
+	await _wait(0.3)
+	check(int(Homes.depot.get("chair", 0)) == 1, "ilan kaldırıldı, sandalye geri geldi")
+	var helper := 0
+	for _k in 60:
+		helper = Net.id_by_name("Yardimci")
+		if helper != 0 and _helper_listing() != null:
+			break
+		await _wait(0.5)
+	if helper == 0 or _helper_listing() == null:
+		print("  (yardımcı istemci yok: oyuncular arası ticaret testleri atlandı)")
+	else:
+		var l = _helper_listing()
+		var hm0 := int(Net.players[helper].money)
+		Bazaar.buy(int(l.id))
+		await _wait(0.4)
+		check(int(Rpg.sheet.items.get("simit", 0)) >= 1, "yardımcının ilanındaki simit satın alındı")
+		check(int(Net.players[helper].money) == hm0 + 24, "satıcıya 25 TL - %5 komisyon = 24 TL geçti")
+		var hm1 := int(Net.players[helper].money)
+		Bazaar.send_money("Yardimci", 300)
+		await _wait(0.3)
+		check(int(Net.players[helper].money) == hm1 + 300, "yardımcıya 300 TL gönderildi")
+	Bazaar.list_item("plot", plot, 9999)
+	await _wait(0.3)
+	check(Bazaar.plot_listed(plot), "arsa ilana çıktı")
+	Land.sell(plot)
+	await _wait(0.4)
+	check(not Bazaar.plot_listed(plot) and Land.view[plot].owner == "", "arsa bankaya satılınca ilan düştü")
+	check(int(Homes.depot.get("bed", 0)) == 1, "satılan evdeki mobilyalar depoya döndü")
 
 
 func _finish() -> void:

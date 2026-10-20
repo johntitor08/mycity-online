@@ -105,7 +105,102 @@ func _ready() -> void:
 	w._open_panel()
 	await _wait(3.0)
 	_shot("poker")
+	w._close_panel()
+	await _shots_04(w)
 	get_tree().quit()
+
+
+func _shots_04(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Net.add_money(1, 80000)
+	Rpg.add_xp(1, "", 2600)
+	w.my_pos = Map.building("galeri").rect.get_center()
+	await _wait(0.4)
+	for k in ["bike", "car", "boat"]:
+		Garage.buy(k)
+	# sahte oyuncular araçlarda
+	var fakes := {9101: ["Selin", "car", Vector2(1300, 450), {"skin": 1, "hair": 1, "hair_color": 3, "shirt": 0, "pants": 1}],
+		9102: ["Kerem", "bike", Vector2(1480, 470), {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 7, "pants": 0}],
+		9103: ["Derya", "car", Vector2(1004, 640), {"skin": 0, "hair": 2, "hair_color": 4, "shirt": 9, "pants": 2}]}
+	for id in fakes:
+		var f: Array = fakes[id]
+		Net.players[id] = {"name": f[0], "money": 5000, "color": Avatar.shirt_color(f[3]), "appearance": f[3], "level": 7, "ride": f[1]}
+		Net.positions[id] = f[2]
+	Net._broadcast_roster()
+	await _wait(0.5)
+	Garage.ride("car")
+	w.my_pos = Vector2(1200, 470)
+	w.my_facing = "right"
+	await _wait(1.2)
+	_shot("araclar")
+	# gece
+	Env.hour = 22.0
+	await _wait(1.0)
+	_shot("gece")
+	# fırtına
+	Env.hour = 15.0
+	Env.force_weather("storm")
+	Garage.ride("")
+	w.my_pos = Vector2(1400, 1800)
+	await _wait(1.5)
+	_shot("firtina")
+	Env.force_weather("clear")
+	# ev içi: ev kur, mobilya al ve yerleştir
+	var plot := 5
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Land.buy(plot)
+	await _wait(0.3)
+	Land.build_up(plot)
+	Land.build_up(plot)
+	await _wait(0.4)
+	w.my_pos = Map.building("mobilya").rect.get_center()
+	await _wait(0.3)
+	for k in ["bed", "rug", "sofa", "tv", "table", "chair", "chair", "plant", "plant", "lamp", "bookshelf", "aquarium", "fridge", "desk", "armchair"]:
+		Homes.buy(k)
+	await _wait(0.6)
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Homes.enter(plot)
+	await _wait(0.6)
+	for f in [["bed", 1, 1], ["rug", 5, 4], ["sofa", 5, 2], ["tv", 6, 7], ["table", 11, 4], ["chair", 10, 4], ["chair", 13, 5],
+			["plant", 0, 8], ["plant", 15, 0], ["lamp", 4, 1], ["bookshelf", 8, 0], ["aquarium", 11, 0], ["fridge", 14, 8], ["desk", 1, 6], ["armchair", 9, 5]]:
+		Homes.place(plot, f[0], f[1], f[2])
+		await _wait(0.12)
+	Homes.set_door(plot, true)
+	await _wait(0.4)
+	Net.positions[9102] = Map.interior_rect(plot, 2).get_center() + Vector2(120, 60)
+	Net.players[9102]["ride"] = ""
+	Net._broadcast_roster()
+	w.my_pos = Map.interior_rect(plot, 2).get_center() + Vector2(-60, 40)
+	await _wait(1.2)
+	_shot("ev")
+	Env.hour = 23.0
+	await _wait(0.8)
+	_shot("ev_gece")
+	Env.hour = 13.0
+	w.panel = null
+	Homes.exit_home()
+	await _wait(0.5)
+	# pazar
+	w.my_pos = Map.building("pazar").rect.get_center()
+	await _wait(0.3)
+	Bazaar.list_item("furniture", "chair", 450)
+	Bazaar._store().append({"id": 900, "seller": "Selin", "kind": "fish", "item": {"name": "Orkinos", "price": 720}, "label": "Orkinos (değeri 720 TL)", "price": 650})
+	Bazaar._store().append({"id": 901, "seller": "Kerem", "kind": "plot", "item": 11, "label": "Arsa #12 (Boş arsa)", "price": 18000})
+	Bazaar._broadcast()
+	await _wait(0.4)
+	w.zone = {"type": "pazar", "label": "Pazar"}
+	w._open_panel()
+	await _wait(0.8)
+	_shot("pazar")
+	w._close_panel()
+	w.zone = {"type": "galeri", "label": "Galeri"}
+	w._open_panel()
+	await _wait(0.6)
+	_shot("galeri")
+	w._close_panel()
 
 
 func _shot(n: String) -> void:

@@ -45,6 +45,13 @@ func server_init() -> void:
 		if saved is Array and i < saved.size() and saved[i] is Dictionary:
 			p.owner = str(saved[i].get("owner", ""))
 			p.level = clampi(int(saved[i].get("level", 0)), 0, 3)
+			p["door_open"] = bool(saved[i].get("door_open", false))
+			var furn: Array = []
+			if saved[i].get("furniture") is Array:
+				for f in saved[i].furniture:
+					if f is Dictionary and Homes.FURNITURE.has(str(f.get("k", ""))):
+						furn.append({"k": str(f.k), "x": int(f.get("x", 0)), "y": int(f.get("y", 0))})
+			p["furniture"] = furn
 		plots.append(p)
 	if _timer == null:
 		_timer = Timer.new()
@@ -165,6 +172,8 @@ func req_sell(d: Dictionary) -> void:
 	if p.owner != Net.players[id].name:
 		return
 	var value := sell_value(p)
+	Bazaar.drop_plot_listing(i)
+	Homes.clear_plot(i, str(p.owner))
 	p.owner = ""
 	p.level = 0
 	Net.add_money(id, value)

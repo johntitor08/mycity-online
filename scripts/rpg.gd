@@ -387,12 +387,15 @@ func send_sheet(id: int) -> void:
 		"energy": float(r.energy), "max_energy": max_energy(lvl), "skills": skills,
 		"items": r.items.duplicate(), "tools": r.tools.duplicate(), "quests": quests,
 		"regen_beach": _on_beach(id),
+		"regen_bed": Homes.on_bed(Land.plots, Net.positions.get(id, Vector2(-9999, -9999))),
 	})
 
 
 func _on_beach(id: int) -> bool:
+	if Env.is_rainy():
+		return false      # yağmurda plajda dinlenilmez
 	var p: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
-	return Map.BEACH.has_point(p) or Map.in_sea(p)
+	return Map.BEACH.has_point(p) or (Map.in_sea(p) and Map.interior_at(p) < 0)
 
 
 ## Her 5 sn: plaj/denizdekilere ek enerji, yüzme görevi.
@@ -407,13 +410,17 @@ func _process(delta: float) -> void:
 		var p: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
 		if Map.in_sea(p):
 			quest_event(id, "swim")
-		if _on_beach(id):
+		var bonus := 0.0
+		if Homes.on_bed(Land.plots, p):
+			bonus = 5.0           # yatakta: ~1 enerji/sn
+		elif _on_beach(id):
+			bonus = 2.0 * 5.0 / ENERGY_REGEN_SEC    # normal hızın 2 katı ek: toplam 3 kat
+		if bonus > 0.0:
 			var r := _rec(id)
 			if r.is_empty():
 				continue
 			var lvl := level_of(int(r.xp))
 			_update_energy(r, lvl)
 			if float(r.energy) < max_energy(lvl):
-				# normal hızın 2 katı ek: toplamda 3 kat
-				r["energy"] = minf(float(max_energy(lvl)), float(r.energy) + 2.0 * 5.0 / ENERGY_REGEN_SEC)
+				r["energy"] = minf(float(max_energy(lvl)), float(r.energy) + bonus)
 				send_sheet(id)

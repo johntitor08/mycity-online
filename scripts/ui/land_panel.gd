@@ -50,6 +50,8 @@ func _refresh() -> void:
 		add_label(info, "%s  •  %s" % [owner_text, Land.LEVEL_NAMES[int(p.level)]], 17,
 			Color("#86efac") if mine else Color.WHITE)
 		add_label(info, "Arsa değeri %s  •  Kira %s/dk" % [U.money(int(p.price)), U.money(Land.income_of(p))], 14, Color("#94a3b8"))
+		if focus_plot >= 0 and int(p.level) >= 1 and (mine or p.get("door_open", false)):
+			add_button(h, "Eve Gir", func(): Homes.enter(i); close())
 		if p.owner == "":
 			var b := add_button(h, "Satın Al (%s)" % U.money(int(p.price)), Land.buy.bind(i))
 			b.disabled = money < int(p.price)

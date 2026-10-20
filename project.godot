@@ -17,6 +17,10 @@ Casino="*res://scripts/casino.gd"
 Poker="*res://scripts/poker.gd"
 Jobs="*res://scripts/jobs.gd"
 Rpg="*res://scripts/rpg.gd"
+Env="*res://scripts/env.gd"
+Garage="*res://scripts/garage.gd"
+Homes="*res://scripts/homes.gd"
+Bazaar="*res://scripts/bazaar.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

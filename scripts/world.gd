@@ -12,6 +12,10 @@ const PANELS := {
 	"poker": preload("res://scripts/ui/poker_panel.gd"),
 	"realestate": preload("res://scripts/ui/land_panel.gd"),
 	"fishing": preload("res://scripts/ui/fish_panel.gd"),
+	"galeri": preload("res://scripts/ui/garage_panel.gd"),
+	"pazar": preload("res://scripts/ui/bazaar_panel.gd"),
+	"mobilya": preload("res://scripts/ui/furniture_shop_panel.gd"),
+	"home": preload("res://scripts/ui/home_panel.gd"),
 }
 const BUILDING_TEX := {
 	"hospital": preload("res://assets/buildings/hospital.svg"),
@@ -19,7 +23,16 @@ const BUILDING_TEX := {
 	"casino": preload("res://assets/buildings/casino.svg"),
 	"poker": preload("res://assets/buildings/poker.svg"),
 	"realestate": preload("res://assets/buildings/realestate.svg"),
+	"galeri": preload("res://assets/buildings/galeri.svg"),
+	"pazar": preload("res://assets/buildings/pazar.svg"),
+	"mobilya": preload("res://assets/buildings/mobilya.svg"),
 }
+const CAR_BODY := preload("res://assets/vehicles/car_body.svg")
+const CAR_DETAIL := preload("res://assets/vehicles/car_detail.svg")
+const BIKE_TEX := preload("res://assets/vehicles/bike.svg")
+const Lighting = preload("res://scripts/lighting.gd")
+const WeatherOverlay = preload("res://scripts/ui/weather_overlay.gd")
+const FACING_ANGLE := {"right": 0.0, "down": PI / 2.0, "left": PI, "up": -PI / 2.0}
 const PLOT_TEX := [
 	null,
 	preload("res://assets/plots/house.svg"),
@@ -58,6 +71,11 @@ var nature: Array = []     # [konum, PROPS indeksi, ölçek]
 var _was_swimming := false
 var decor: Array = []      # [konum, tür] çim/çiçek süsleri
 var _t := 0.0
+var lighting: Node2D
+var weather: Control
+var furn_tex := {}          # mobilya türü -> doku
+var placing := ""           # mobilya yerleştirme modu (tür) ya da ""
+var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
 
 
 func _ready() -> void:
@@ -80,6 +98,18 @@ func _ready() -> void:
 	ui_layer.add_child(hud)
 	hud.character_requested.connect(open_character_editor)
 	hud.profile_requested.connect(open_profile)
+	hud.transfer_requested.connect(open_transfer)
+	ui_layer.layer = 2
+	var wl := CanvasLayer.new()
+	wl.layer = 1
+	add_child(wl)
+	weather = WeatherOverlay.new()
+	wl.add_child(weather)
+	lighting = Lighting.new()
+	add_child(lighting)
+	for k in Homes.FURNITURE:
+		furn_tex[k] = load("res://assets/furniture/%s.svg" % k)
+	Homes.teleported.connect(_on_teleport)
 	_make_nature()
 
 
@@ -98,21 +128,32 @@ func _process(delta: float) -> void:
 			dir.x += 1
 		if dir != Vector2.ZERO:
 			my_facing = _facing_of(dir)
-			var step := dir.normalized() * SPEED * delta * (0.55 if Map.in_sea(my_pos) else 1.0)
-			# Göle yürünmez; eksen eksen dene ki kıyı boyunca kayabilelim.
+			var ride := my_ride()
+			var mult := Garage.speed_of(ride)
+			if ride == "" and Map.in_sea(my_pos):
+				mult = 0.55
+			var step := dir.normalized() * SPEED * delta * mult
+			# Eksen eksen dene ki kıyı/duvar boyunca kayabilelim.
 			for s in [step, Vector2(step.x, 0), Vector2(0, step.y)]:
-				var np: Vector2 = (my_pos + s).clamp(Map.WORLD.position + Vector2(20, 20), Map.WORLD.end - Vector2(20, 20))
-				if not Map.in_water(np):
+				var np: Vector2 = _clamp_to_area(my_pos + s)
+				if _can_stand(np, ride):
 					my_moving = np != my_pos
 					my_pos = np
 					break
 	Net.update_my_pos(my_pos, delta)
 	camera.position = my_pos
-	var swimming := Map.in_sea(my_pos)
+	_update_area()
+	var swimming := Map.in_sea(my_pos) and my_ride() == ""
 	if swimming and not _was_swimming:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
-	Sfx.set_ambience(clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0))
+	var outside := _room < 0
+	Sfx.set_ambience(clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0) if outside else 0.0)
+	Sfx.set_environment((1.0 if Env.weather == "storm" else 0.6) if Env.is_rainy() and outside else 0.0,
+		Env.darkness() * 0.8 if outside and not Env.is_rainy() else 0.0,
+		my_moving and my_ride() in ["car", "boat"], 1.0 if my_ride() == "car" else 0.8)
+	lighting.update(my_pos)
+	weather.inside = not outside
 
 	var me := Net.my_id()
 	for id in Net.pos_view:
@@ -136,6 +177,106 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+func my_ride() -> String:
+	return str(Net.roster.get(Net.my_id(), {}).get("ride", ""))
+
+
+## Bulunduğum alan: ev içiysem oda, değilsem şehir.
+func _clamp_to_area(p: Vector2) -> Vector2:
+	if _room >= 0:
+		var lvl := int(Land.view[_room].level) if _room < Land.view.size() else 1
+		var r := Map.interior_rect(_room, lvl).grow(-18)
+		return p.clamp(r.position, r.end)
+	return p.clamp(Map.WORLD.position + Vector2(20, 20), Map.WORLD.end - Vector2(20, 20))
+
+
+func _can_stand(p: Vector2, ride: String) -> bool:
+	if _room >= 0:
+		return true
+	if Map.in_water(p):
+		return false              # göl
+	if ride == "boat":
+		return Map.in_sea(p)      # tekne karaya çıkamaz
+	if ride != "":
+		return not Map.in_sea(p)  # bisiklet/araba denize giremez
+	return true
+
+
+func _update_area() -> void:
+	var room := Map.interior_at(my_pos)
+	if room == _room:
+		return
+	_room = room
+	var r := Map.WORLD
+	if room >= 0:
+		var lvl := int(Land.view[room].level) if room < Land.view.size() else 1
+		r = Map.interior_rect(room, lvl).grow(160)
+	camera.limit_left = int(r.position.x)
+	camera.limit_top = int(r.position.y)
+	camera.limit_right = int(r.end.x)
+	camera.limit_bottom = int(r.end.y)
+	camera.reset_smoothing()
+	if room < 0:
+		placing = ""
+
+
+func _on_teleport(pos: Vector2) -> void:
+	my_pos = pos
+	camera.position = pos
+	Net.update_my_pos(my_pos, 1.0)
+	_update_area()
+	camera.reset_smoothing()
+	Sfx.play("door")
+
+
+## F: araca bin / in.
+func _toggle_vehicle() -> void:
+	var ride := my_ride()
+	if ride != "":
+		if ride == "boat" and not _near_shore():
+			hud.show_toast("Tekneden inmek için kıyıya ya da iskeleye yaklaş.", false)
+			return
+		Garage.ride("")
+		return
+	if _room >= 0:
+		return
+	if Map.in_sea(my_pos):
+		if Garage.owned.has("boat"):
+			Garage.ride("boat")
+			Sfx.play("splash_small")
+		else:
+			hud.show_toast("Teknen yok. Galeri'den alabilirsin.", false)
+		return
+	for k in ["car", "bike"]:
+		if Garage.owned.has(k):
+			Garage.ride(k)
+			Sfx.play("bell" if k == "bike" else "door")
+			return
+	hud.show_toast("Aracın yok. Galeri'den bisiklet ya da araba alabilirsin.", false)
+
+
+func _near_shore() -> bool:
+	for off in [Vector2(0, -90), Vector2(60, 0), Vector2(-60, 0)]:
+		if not Map.in_sea(my_pos + off):
+			return true
+	return false
+
+
+## Fare altındaki karo (ev içinde, yerleştirme için).
+func _mouse_tile() -> Vector2i:
+	if _room < 0:
+		return Vector2i(-1, -1)
+	var lvl := int(Land.view[_room].level)
+	var r := Map.interior_rect(_room, lvl)
+	var m := get_global_mouse_position() - r.position
+	return Vector2i(int(floor(m.x / Map.TILE)), int(floor(m.y / Map.TILE)))
+
+
+func start_placing(k: String) -> void:
+	placing = k
+	hud.show_toast("Sol tık: yerleştir · Sağ tık: eşyayı kaldır · Esc: bitir")
+
+
 func _facing_of(v: Vector2) -> String:
 	if absf(v.x) > absf(v.y):
 		return "right" if v.x > 0 else "left"
@@ -144,6 +285,22 @@ func _facing_of(v: Vector2) -> String:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and panel == null:
+		if _room >= 0 and _room < Land.view.size() and Land.view[_room].owner == Net.my_name:
+			if event.button_index == MOUSE_BUTTON_LEFT and placing != "":
+				var t := _mouse_tile()
+				var sz: Vector2i = Homes.FURNITURE[placing].size
+				Homes.place(_room, placing, t.x - int(sz.x / 2.0), t.y - int(sz.y / 2.0))
+				Sfx.play("place")
+				if int(Homes.depot.get(placing, 0)) <= 1:
+					placing = ""
+				return
+			if event.button_index == MOUSE_BUTTON_RIGHT:
+				var list: Array = Land.view[_room].get("furniture", [])
+				for idx in range(list.size() - 1, -1, -1):
+					if Homes.furniture_rect(_room, int(Land.view[_room].level), list[idx]).has_point(get_global_mouse_position()):
+						Homes.pickup(_room, idx)
+						Sfx.play("place", -4.0, 1.3)
+						return
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			camera.zoom = (camera.zoom * 1.1).clamp(Vector2(0.6, 0.6), Vector2(2, 2))
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
@@ -160,9 +317,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			if panel == null:
 				open_profile()
 				get_viewport().set_input_as_handled()
+		KEY_F:
+			if panel == null:
+				_toggle_vehicle()
+				get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
 			if panel != null:
 				_close_panel()
+				get_viewport().set_input_as_handled()
+			elif placing != "":
+				placing = ""
 				get_viewport().set_input_as_handled()
 		KEY_ENTER, KEY_KP_ENTER:
 			if panel == null:
@@ -172,6 +336,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _update_zone() -> void:
 	var z := {}
+	if _room >= 0:
+		var lvl := int(Land.view[_room].level) if _room < Land.view.size() else 1
+		if Map.interior_door(_room, lvl).grow(10).has_point(my_pos):
+			z = {"type": "exit_home", "label": "Evden Çık"}
+		else:
+			z = {"type": "home", "label": "Ev menüsü", "plot": _room}
+		zone = z
+		hud.set_hint("" if panel != null or placing != "" else "[E]  %s" % z.label)
+		return
 	for b in Map.BUILDINGS:
 		if b.rect.has_point(my_pos):
 			z = {"type": b.type, "label": b.label}
@@ -190,14 +363,31 @@ func _update_zone() -> void:
 func _open_panel() -> void:
 	if zone.is_empty():
 		return
+	if zone.type == "exit_home":
+		Homes.exit_home()
+		return
 	panel = PANELS[zone.type].new()
 	if zone.has("plot"):
 		panel.focus_plot = zone.plot
 	if zone.type == "fishing":
 		panel.spot = Map.fishing_spot(my_pos)
+	if panel.has_signal("place_requested"):
+		panel.place_requested.connect(func(k):
+			_close_panel()
+			start_placing(k))
 	panel.closed.connect(_close_panel)
 	ui_layer.add_child(panel)
 	Sfx.play("open", -4.0)
+
+
+## HUD'da bir oyuncunun adına tıklanınca: para gönder.
+func open_transfer(to_name: String) -> void:
+	if panel != null or to_name == Net.my_name:
+		return
+	panel = preload("res://scripts/ui/transfer_panel.gd").new()
+	panel.to_name = to_name
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
 
 
 ## Karakter Kartı (C tuşu / HUD "Profil").
@@ -295,6 +485,10 @@ func _draw() -> void:
 	_draw_roads()
 	_draw_beach()
 	_draw_lake()
+	_draw_interiors()
+	for lp in Map.lamp_positions():
+		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
+		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
 	for i in Map.PLOT_COUNT:
 		_draw_plot(i)
 	for b in Map.BUILDINGS:
@@ -307,18 +501,20 @@ func _draw() -> void:
 		var info = Net.roster.get(id)
 		if info:
 			var a: Dictionary = anim.get(id, {"facing": "down", "moving": false})
-			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), "%s · Sv.%d" % [info.name, int(info.get("level", 1))], false, a.facing, a.moving]])
+			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), "%s · Sv.%d" % [info.name, int(info.get("level", 1))], false, a.facing, a.moving, str(info.get("ride", "")), info.get("color", Color.WHITE)]])
 	var mine = Net.roster.get(Net.my_id())
 	var my_app = mine.get("appearance", {}) if mine else Net.my_appearance
 	var my_level: int = int(mine.get("level", 1)) if mine else 1
-	items.append([my_pos.y, "p", [my_pos, my_app, "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving]])
+	var my_col: Color = mine.get("color", Color.WHITE) if mine else Color.WHITE
+	items.append([my_pos.y, "p", [my_pos, my_app, "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving, my_ride(), my_col]])
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
 		if it[1] == "n":
 			_draw_nature(it[2])
 		else:
 			var a: Array = it[2]
-			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5])
+			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7])
+	_draw_placement_ghost()
 
 
 func _text(pos: Vector2, text: String, size: int, color: Color, width: float = -1, outline: bool = true) -> void:
@@ -385,8 +581,8 @@ func _draw_building(b: Dictionary) -> void:
 	var r: Rect2 = b.rect
 	draw_rect(Rect2(r.position + Vector2(10, 14), r.size), Color(0, 0, 0, 0.22))
 	draw_texture_rect(BUILDING_TEX[b.type], r, false)
-	# Tabela SVG'de y=86..118 aralığında boş bırakıldı.
-	_text(r.position + Vector2(0, 110), b.label.to_upper(), 22, Color.WHITE, r.size.x)
+	# Tabela SVG'de boş bırakıldı (eski binalarda y=86..118, yenilerde sign_y).
+	_text(r.position + Vector2(0, float(b.get("sign_y", 110))), b.label.to_upper(), 22, Color.WHITE, r.size.x)
 
 
 func _draw_plot(i: int) -> void:
@@ -483,7 +679,91 @@ func _draw_beach() -> void:
 	_text(Vector2(pr.position.x - 60, pr.end.y + 24), "DENİZ İSKELESİ", 16, Color.WHITE, pr.size.x + 120)
 
 
-func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: String, moving: bool) -> void:
+## Ekranda görünen ev içlerini çiz (oda, duvar, kapı, mobilyalar).
+func _draw_interiors() -> void:
+	var vsize := get_viewport_rect().size / camera.zoom
+	var view := Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(200)
+	for i in Land.view.size():
+		var p: Dictionary = Land.view[i]
+		var lvl := int(p.level)
+		if lvl < 1:
+			continue
+		var r := Map.interior_rect(i, lvl)
+		if not view.intersects(r):
+			continue
+		draw_rect(r.grow(28), Color("#3f2d22"))                # duvarlar
+		draw_rect(r, Color("#c9a271"))                         # parke
+		var off := 0
+		for y in range(int(r.position.y), int(r.end.y), 24):
+			draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color("#b38b5d"), 1)
+			for x in range(int(r.position.x) + off, int(r.end.x), 96):
+				draw_line(Vector2(x, y), Vector2(x, y + 24), Color("#b38b5d"), 1)
+			off = 48 - off
+		draw_rect(Rect2(r.position.x, r.position.y - 28, r.size.x, 28), Color("#e9dcc6"))   # arka duvar
+		for wx in range(int(r.position.x) + 60, int(r.end.x) - 60, 200):
+			draw_rect(Rect2(wx, r.position.y - 24, 60, 20), Color("#93c5fd") if Env.darkness() < 0.5 else Color("#1e293b"))
+		var door := Map.interior_door(i, lvl)
+		draw_rect(Rect2(door.position.x, r.end.y - 6, door.size.x, 34), Color("#7c4a1e"))
+		draw_rect(Rect2(door.position.x + 8, r.end.y - 30, door.size.x - 16, 24), Color("#9f1239"))   # paspas
+		_text(Vector2(r.position.x, r.position.y - 36), "%s'in evi%s" % [p.owner, "  (kapı açık)" if p.get("door_open", false) else ""], 18, Color.WHITE, r.size.x)
+		var furn: Array = p.get("furniture", [])
+		for floor_pass in [true, false]:
+			for f in furn:
+				if bool(Homes.FURNITURE[f.k].get("floor", false)) == floor_pass:
+					draw_texture_rect(furn_tex[f.k], Homes.furniture_rect(i, lvl, f), false)
+
+
+func _draw_placement_ghost() -> void:
+	if placing == "" or _room < 0:
+		return
+	var lvl := int(Land.view[_room].level)
+	var t := _mouse_tile()
+	var sz: Vector2i = Homes.FURNITURE[placing].size
+	var f := {"k": placing, "x": t.x - int(sz.x / 2.0), "y": t.y - int(sz.y / 2.0)}
+	var fr := Homes.furniture_rect(_room, lvl, f)
+	var ok := Map.interior_rect(_room, lvl).encloses(fr)
+	draw_texture_rect(furn_tex[placing], fr, false, Color(1, 1, 1, 0.6))
+	draw_rect(fr, Color("#22c55e") if ok else Color("#ef4444"), false, 3)
+
+
+func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color) -> void:
+	var ang: float = FACING_ANGLE.get(facing, 0.0)
+	match ride:
+		"car":
+			draw_set_transform(p + Vector2(4, 6), ang, Vector2.ONE)
+			draw_rect(Rect2(-46, -24, 92, 48), Color(0, 0, 0, 0.25))
+			draw_set_transform(p, ang, Vector2.ONE)
+			draw_texture_rect(CAR_BODY, Rect2(-48, -26, 96, 52), false, col)
+			draw_texture_rect(CAR_DETAIL, Rect2(-48, -26, 96, 52), false)
+		"bike":
+			draw_set_transform(p + Vector2(0, 8), ang, Vector2.ONE)
+			draw_texture_rect(BIKE_TEX, Rect2(-32, -12, 64, 24), false)
+		"boat":
+			var bob := sin(_t * 3.0) * 2.0
+			var flip := -1.0 if facing == "left" else 1.0
+			draw_set_transform(p + Vector2(0, 10 + bob), sin(_t * 1.7) * 0.05, Vector2(0.8 * flip, 0.8))
+			draw_texture_rect(BOAT_TEX, Rect2(-65, -30, 130, 60), false)
+	draw_set_transform(Vector2.ZERO)
+
+
+func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: String, moving: bool,
+		ride: String = "", col: Color = Color.WHITE) -> void:
+	var name_col := Color("#fde68a") if me else Color.WHITE
+	match ride:
+		"car":
+			_draw_vehicle(p, ride, facing, col)
+			_text(p + Vector2(-90, -40), pname, 16, name_col, 180)
+			return
+		"bike":
+			_draw_vehicle(p, ride, facing, col)
+			Avatar.draw(self, p, app, facing, 0)
+			_text(p + Vector2(-90, -56), pname, 16, name_col, 180)
+			return
+		"boat":
+			_draw_vehicle(p, ride, facing, col)
+			Avatar.draw(self, p + Vector2(0, -6), app, facing, 0, 1.0, true)
+			_text(p + Vector2(-90, -44), pname, 16, name_col, 180)
+			return
 	var swim := Map.in_sea(p)
 	if swim:
 		var r := 18.0 + sin(_t * 4.0) * 2.0

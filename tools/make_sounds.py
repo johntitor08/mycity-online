@@ -196,7 +196,52 @@ def music():
     save("music_city", out, 0.55)
 
 
+# ---------------------------------------------------------------- 0.4: hava, gece, araçlar, ev
+
+def loop_fade(x, fade_sec=0.4):
+    """Döngünün ek yerinde tık olmasın diye uçları birbirine karıştırır."""
+    f = int(SR * fade_sec)
+    x = x.copy()
+    x[:f] = x[:f] * np.linspace(0, 1, f) + x[-f:] * np.linspace(1, 0, f)
+    return x[:-f]
+
+
+def weather_and_more():
+    # yağmur: yüksek geçiren gürültü + rastgele damla tıkırtıları
+    dur = 6.0
+    r = highpass(lowpass(noise(dur), 6000), 800) * 0.5
+    for _ in range(260):
+        mix_at(r, highpass(noise(0.015), 2500) * env(int(SR * 0.015), 0.001, decay=0.003) * rng.uniform(0.2, 0.8),
+               rng.uniform(0, dur - 0.05))
+    save("rain", loop_fade(r), 0.45)
+    # gök gürültüsü: alçak geçiren gürültü, yavaş sönen gürleme
+    th = lowpass(noise(3.0), 180) * env(int(SR * 3.0), 0.05, decay=0.9)
+    th += 0.6 * lowpass(noise(3.0), 900) * env(int(SR * 3.0), 0.005, decay=0.15)
+    save("thunder", th, 0.9)
+    # cırcır böceği (gece): titreşen yüksek ton darbeleri
+    dur = 6.0
+    c = np.zeros(int(SR * dur))
+    t = 0.0
+    while t < dur - 0.3:
+        chirp = tone(4400 + rng.uniform(-150, 150), 0.12, "sine", release=0.03) * (0.5 + 0.5 * np.sign(np.sin(2 * np.pi * 45 * t_of(0.12))))
+        mix_at(c, chirp * rng.uniform(0.4, 1.0), t)
+        t += rng.uniform(0.35, 0.9)
+    save("crickets", loop_fade(c), 0.25)
+    # motor (araba/tekne): alçak testere + titreşim, döngü
+    dur = 2.0
+    tt = t_of(dur)
+    m = (2 * ((tt * 55) % 1) - 1) * 0.6 + 0.4 * np.sin(2 * np.pi * 110 * tt)
+    m *= 0.8 + 0.2 * np.sin(2 * np.pi * 12 * tt)
+    save("engine", loop_fade(lowpass(m, 900), 0.2), 0.4)
+    save("bell", seq(tone(2350, 0.25, "sine", decay=0.08) + 0.5 * tone(3520, 0.25, "sine", decay=0.05),
+                     tone(2350, 0.4, "sine", decay=0.12) + 0.5 * tone(3520, 0.4, "sine", decay=0.07)), 0.5)
+    save("place", tone(120, 0.18, "sine", decay=0.05) + 0.4 * lowpass(noise(0.18), 1200) * env(int(SR * 0.18), decay=0.03), 0.6)
+    save("door", seq(lowpass(noise(0.12), 2500) * env(int(SR * 0.12), 0.01, decay=0.04),
+                     tone(180, 0.15, "sine", decay=0.05)), 0.5)
+
+
 if __name__ == "__main__":
     effects()
     waves()
     music()
+    weather_and_more()

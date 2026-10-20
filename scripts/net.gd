@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "0.3"
+const VERSION := "0.4"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -142,6 +142,7 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 	dedicated = as_dedicated
 	_load()
 	Land.server_init()
+	Env.server_start()
 	if dedicated:
 		# Ekransız sunucu sınırsız kare hızında dönüp bir çekirdeği %100 kullanmasın.
 		Engine.max_fps = 30
@@ -193,6 +194,10 @@ func _reset_peer() -> void:
 	Poker.reset()
 	Jobs.reset()
 	Rpg.reset()
+	Env.reset()
+	Garage.reset()
+	Homes.reset()
+	Bazaar.reset()
 
 
 func _on_connected() -> void:
@@ -315,7 +320,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 		rec["appearance"] = Avatar.default_for(pname)
 	var app := Avatar.sanitize(rec["appearance"])
 	players[id] = {"name": pname, "money": int(rec.get("money", START_MONEY)),
-		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec)}
+		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec), "ride": ""}
 	positions[id] = Map.SPAWN + Vector2(randf_range(-120, 120), randf_range(-30, 30))
 	_dirty = true
 	tell(self, id, "welcome", {"name": pname, "pos": positions[id], "appearance": app, "new": is_new})
@@ -324,6 +329,10 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Poker.send_state(id)
 	Jobs.send_inventory(id)
 	Rpg.send_sheet(id)
+	Env.send_state(id)
+	Garage.send_state(id)
+	Homes.send_state(id)
+	Bazaar.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -432,8 +441,15 @@ func update_my_pos(p: Vector2, delta: float) -> void:
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func send_pos(p: Vector2) -> void:
 	var id := sender()
-	if players.has(id):
-		positions[id] = p.clamp(Map.WORLD.position, Map.WORLD.end)
+	if not players.has(id):
+		return
+	var room := Map.interior_at(p)
+	if Map.INTERIOR_AREA.has_point(p):
+		# Ev içleri harita dışında: sadece izinli olunan odada bulunulabilir.
+		if room >= 0 and Homes.may_be_in(id, room):
+			positions[id] = p
+		return
+	positions[id] = p.clamp(Map.WORLD.position, Map.WORLD.end)
 
 
 @rpc("authority", "call_local", "unreliable_ordered")
@@ -518,3 +534,6 @@ func _load() -> void:
 			save_data["players"] = parsed["players"]
 		if parsed.get("plots") is Array:
 			save_data["plots"] = parsed["plots"]
+		if parsed.get("bazaar") is Array:
+			save_data["bazaar"] = parsed["bazaar"]
+			save_data["bazaar_next"] = int(parsed.get("bazaar_next", 1))

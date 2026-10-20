@@ -5,7 +5,8 @@ extends Node
 signal settings_changed
 
 const SOUNDS := ["click", "open", "coin", "cash", "lose", "error", "notify", "success", "splash",
-	"splash_small", "bite", "catch", "card", "chip", "tick", "dice", "gallop"]
+	"splash_small", "bite", "catch", "card", "chip", "tick", "dice", "gallop",
+	"thunder", "bell", "place", "door"]
 const SETTINGS_PATH := "user://ayarlar.cfg"
 const MUSIC_DB := -9.0
 
@@ -16,6 +17,9 @@ var _pool: Array = []
 var _next := 0
 var music: AudioStreamPlayer
 var ambience: AudioStreamPlayer
+var rain: AudioStreamPlayer
+var crickets: AudioStreamPlayer
+var engine: AudioStreamPlayer
 var _enabled := true
 
 
@@ -33,6 +37,12 @@ func _ready() -> void:
 	music = _looping("res://assets/sounds/music_city.wav", MUSIC_DB)
 	ambience = _looping("res://assets/sounds/waves.wav", -80.0)
 	ambience.play()
+	rain = _looping("res://assets/sounds/rain.wav", -80.0)
+	rain.play()
+	crickets = _looping("res://assets/sounds/crickets.wav", -80.0)
+	crickets.play()
+	engine = _looping("res://assets/sounds/engine.wav", -80.0)
+	engine.play()
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
 	muted = cfg.get_value("ses", "sessiz", false)
@@ -73,6 +83,16 @@ func play(sound: String, db: float = 0.0, pitch: float = 1.0) -> void:
 func set_ambience(strength: float) -> void:
 	if _enabled:
 		ambience.volume_db = linear_to_db(clampf(strength, 0.0001, 1.0)) - 6.0
+
+
+## Dünya sahnesi her karede çağırır: hava ve gece sesleri, motor.
+func set_environment(rain_level: float, night_level: float, engine_on: bool, engine_pitch: float = 1.0) -> void:
+	if not _enabled:
+		return
+	rain.volume_db = linear_to_db(clampf(rain_level, 0.0001, 1.0)) - 4.0
+	crickets.volume_db = linear_to_db(clampf(night_level, 0.0001, 1.0)) - 10.0
+	engine.volume_db = -10.0 if engine_on else -80.0
+	engine.pitch_scale = engine_pitch
 
 
 func toggle_mute() -> void:

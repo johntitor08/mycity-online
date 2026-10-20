@@ -30,6 +30,23 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## Gün/gece, hava, araçlar, pazar ve evler (0.4)
+
+- **Gün/gece:** 1 oyun günü = 48 dakika (saat sunucu saatinden hesaplanır). Akşam şehir kararır,
+  sokak lambaları, vitrinler ve ev içi ışıkları yanar. Gece "gece balıkları" (yayın, turna, levrek,
+  lüfer, kalkan, köpekbalığı) 2 kat sık çıkar; hastane ve market gece vardiyası %20 fazla öder.
+- **Hava:** Açık, bulutlu, yağmurlu, fırtına (sunucu birkaç dakikada bir değiştirir). Yağmurda balık
+  daha çabuk vurur, plajın enerji bonusu kalkar; fırtınada deniz balıkçılığı ve tekne kapalı, şimşek çakar.
+- **Araçlar (Galeri, F tuşu):** Bisiklet (Sv.2, 1.500 TL, 1,6× hız), Sürat Teknesi (Sv.4, 6.000 TL,
+  denizde 2,2×, teknede açık deniz balıkçılığı), Araba (Sv.6, 12.000 TL, 2,4×, oyuncunun renginde).
+- **Pazar Yeri:** Balık, yiyecek, mobilya ve arsa ilanı. Eşya satılana kadar emanette durur;
+  satıcıya %5 komisyon düşülerek ödenir (çevrimdışıysa kaydına). İlan kaldırılınca eşya geri gelir.
+- **Para gönderme:** Zenginler listesinde bir isme tıkla (Sv.3 gerekir, en fazla 100.000 TL).
+- **Ev içi (Mobilyacı + arsadaki "Eve Gir"):** Ev, villa ve gökdelenin büyüyen birer odası var
+  (12×8, 16×10, 18×12 karo). 13 çeşit mobilya; ev menüsünden "Yerleştir" → sol tık, sağ tık kaldır.
+  Yatağın üstünde durmak enerjiyi ~20 kat hızlı doldurur, lambader gece ışık verir.
+  Kapı açılırsa herkes girebilir; kilitlenince misafirler dışarı alınır.
+
 ## RPG sistemi
 
 **C** tuşu (ya da HUD'daki "Profil") Karakter Kartı'nı açar.
@@ -63,8 +80,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.3
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.3
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.4
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.4
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -123,7 +140,8 @@ Hesaplar oyuncu adına bağlıdır; aynı adla tekrar girersen paran ve arsalar�
 | Hastane | Belirtiye göre doğru tedaviyi seç, 12 sn süre | 25–49 TL, yanlışta -15 |
 | Market | Sepeti topla, doğru para üstünü ver, 25 sn süre | 50–125 TL, yanlışta -20 |
 
-Kontroller: **WASD/Oklar** yürü, **E** binaya gir, **Esc** kapat, **Enter** sohbet, **fare tekerleği** yakınlaştır.
+Kontroller: **WASD/Oklar** yürü, **E** binaya gir, **F** araca bin/in, **C** Karakter Kartı,
+**Esc** kapat, **Enter** sohbet, **fare tekerleği** yakınlaştır.
 Sol üstte **Ses** (tümünü kapat/aç) ve **Müzik** düğmeleri var; tercih kaydedilir.
 
 ## Ses ve müzik
@@ -161,6 +179,11 @@ scripts/
   poker.gd    (autoload) Texas Hold'em kuralları, el değerlendirme, botlar
   jobs.gd     (autoload) balık, hastane, market
   rpg.gd      (autoload) seviye/XP, yetenekler, enerji, eşyalar, günlük görevler
+  env.gd      (autoload) gün/gece saati ve hava durumu
+  garage.gd   (autoload) araçlar
+  homes.gd    (autoload) ev içleri ve mobilyalar
+  bazaar.gd   (autoload) pazar yeri ve para gönderme
+  lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)
   avatar.gd   karakter seçenekleri ve katmanlı çizim
   map.gd      harita yerleşimi (ortak sabitler)

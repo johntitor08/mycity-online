@@ -518,6 +518,150 @@ def characters():
         save(f"characters/{layer}.svg", svg(CW * 3, CH * 3, parts))
 
 
+# ---------------------------------------------------------------- 0.4: yeni binalar
+
+def galeri():
+    W, H = 320, 220
+    p = [
+        rect(4, 4, W - 8, 70, "#334155", 8),
+        path(f"M14 40H{W - 14}", "none", 3, "#facc15"),
+        rect(4, 72, W - 8, 144, "#e2e8f0"),
+        rect(4, 196, W - 8, 20, "#94a3b8"),
+        rect(16, 120, 288, 76, "url(#glass)", 4, 3),
+        path("M112 120v76M208 120v76", "none", 2),
+    ]
+    # vitrindeki araba (yandan)
+    p += [path("M40 180C42 160 60 152 80 150L104 140C116 134 132 134 142 140L160 152C172 154 178 162 178 180Z", "#ef4444", 2.5),
+          rect(96, 144, 20, 10, "#bae6fd", 2, 1.5), rect(120, 144, 18, 10, "#bae6fd", 2, 1.5),
+          circle(70, 182, 9, "#1f2937", 2), circle(150, 182, 9, "#1f2937", 2),
+          circle(70, 182, 3, "#9ca3af", 0), circle(150, 182, 3, "#9ca3af", 0)]
+    # bisiklet
+    p += [circle(230, 182, 11, "none", 2.5), circle(268, 182, 11, "none", 2.5),
+          path("M230 182L246 162L268 182M246 162L258 162M240 158h10", "none", 2.5, "#2563eb")]
+    p.append(rect(W / 2 - 92, 78, 184, 32, "#0f172a", 7, 3, "#facc15"))
+    save("buildings/galeri.svg", svg(W, H, p, GLASS))
+
+
+def mobilya():
+    W, H = 320, 220
+    p = [
+        poly([(4, 74), (40, 6), (280, 6), (316, 74)], "#a16207"),
+        path("M40 6L60 74M100 6L110 74M160 6V74M220 6L210 74M280 6L260 74", "none", 1.5, "#78350f"),
+        rect(4, 72, W - 8, 144, "#fef3c7"),
+        rect(4, 196, W - 8, 20, "#d6c39a"),
+        rect(16, 120, 120, 76, "url(#glass)", 4, 3),
+        rect(184, 120, 120, 76, "url(#glass)", 4, 3),
+        # vitrin: koltuk ve lamba
+        rect(28, 162, 70, 24, "#8b5cf6", 6, 2), rect(28, 150, 70, 16, "#7c3aed", 6, 2),
+        rect(110, 140, 4, 46, "#374151", 0, 1.5), path("M100 140h24l-6-14h-12z", "#fde68a", 2),
+        # vitrin: saksı ve kitaplık
+        rect(196, 132, 44, 56, "#92400e", 2, 2), path("M200 148h36M200 166h36", "none", 2),
+        rect(262, 170, 18, 18, "#b45309", 3, 2), circle(271, 160, 12, "#22c55e", 2),
+        rect(142, 140, 36, 76, "#78350f", 3, 3), circle(170, 180, 2.5, "#facc15", 0),
+    ]
+    p.append(rect(W / 2 - 92, 78, 184, 32, "#78350f", 7, 3))
+    save("buildings/mobilya.svg", svg(W, H, p, GLASS))
+
+
+def pazar():
+    W, H = 320, 220
+    p = [rect(4, 70, W - 8, 146, "#fde7c4", 6), rect(4, 196, W - 8, 20, "#d6b98a")]
+    # tenteli tezgâhlar
+    for i, (x, col) in enumerate(((14, "#ef4444"), (116, "#22c55e"), (218, "#3b82f6"))):
+        p.append(rect(x + 6, 134, 76, 56, "#a16207", 3, 2.5))
+        for k in range(4):
+            p.append(rect(x + k * 22, 112, 22, 22, col if k % 2 == 0 else "#ffffff", 0, 0))
+        p.append(rect(x, 112, 88, 22, "none", 0, 2.5))
+        for k in range(4):
+            p.append(path(f"M{x + k * 22} 134a11 8 0 0 0 22 0z", col if k % 2 == 0 else "#ffffff", 2))
+        goods = (("#f97316", "#dc2626"), ("#84cc16", "#facc15"), ("#38bdf8", "#e879f9"))[i]
+        for k in range(5):
+            p.append(circle(x + 16 + k * 14, 150 - (k % 2) * 4, 6, goods[k % 2], 1.5))
+    p += [rect(4, 4, W - 8, 64, "#9a3412", 8), path(f"M14 34H{W - 14}", "none", 2, "#fdba74")]
+    p.append(rect(W / 2 - 92, 78, 184, 32, "#9a3412", 7, 3))
+    # tabela y=86..118 kuralına uymak için tabelayı aşağı kaydır
+    p[-1] = rect(W / 2 - 92, 76, 184, 32, "#9a3412", 7, 3)
+    save("buildings/pazar.svg", svg(W, H, p))
+
+
+# ---------------------------------------------------------------- 0.4: araçlar (üstten, sağa bakar)
+
+def vehicles():
+    # Araba gövdesi (beyaz: oyuncu rengiyle boyanır) + sabit ayrıntılar
+    W, H = 96, 52
+    body = [rect(6, 6, 84, 40, "#f8fafc", 14, 3), path("M20 10h40M20 42h40", "none", 1.5, "#cbd5e1")]
+    save("vehicles/car_body.svg", svg(W, H, body))
+    det = [
+        rect(10, 2, 16, 8, "#111827", 3, 1.5), rect(66, 2, 16, 8, "#111827", 3, 1.5),
+        rect(10, 42, 16, 8, "#111827", 3, 1.5), rect(66, 42, 16, 8, "#111827", 3, 1.5),
+        path("M58 12L70 16V36L58 40Z", "#7dd3fc", 2),            # ön cam
+        path("M22 14L30 16V36L22 38Z", "#7dd3fc", 2),             # arka cam
+        rect(32, 15, 24, 22, "#000000", 4, 0, OL, 'opacity="0.12"'),  # tavan gölgesi
+        rect(86, 10, 5, 8, "#fef08a", 2, 1), rect(86, 34, 5, 8, "#fef08a", 2, 1),
+        rect(5, 10, 4, 8, "#ef4444", 1, 1), rect(5, 34, 4, 8, "#ef4444", 1, 1),
+    ]
+    save("vehicles/car_detail.svg", svg(W, H, det))
+    # Bisiklet (üstten)
+    W, H = 64, 24
+    p = [rect(2, 9, 18, 6, "#1f2937", 3, 1.5), rect(44, 9, 18, 6, "#1f2937", 3, 1.5),
+         path("M12 12H52", "none", 3, "#2563eb"), path("M46 4V20", "none", 3, "#374151"),
+         rect(22, 8, 10, 8, "#111827", 3, 1.5)]
+    save("vehicles/bike.svg", svg(W, H, p))
+
+
+# ---------------------------------------------------------------- 0.4: mobilyalar (üstten, 1 karo = 48 birim)
+
+T = 48
+
+
+def furniture():
+    items = {}
+    # yatak 2x3
+    w, h = 2 * T, 3 * T
+    items["bed"] = (w, h, [rect(3, 3, w - 6, h - 6, "#92400e", 6), rect(9, 9, w - 18, h - 18, "#f8fafc", 4, 2),
+                           rect(14, 14, w - 28, 26, "#e0e7ff", 6, 2), rect(9, 52, w - 18, h - 61, "#60a5fa", 4, 2),
+                           path(f"M9 60H{w - 9}", "none", 2, "#93c5fd")])
+    # koltuk 3x1 (+derinlik için 3x1.4)
+    w, h = 3 * T, int(1.4 * T)
+    items["sofa"] = (w, h, [rect(3, 3, w - 6, h - 6, "#7c3aed", 10), rect(14, 18, w - 28, h - 24, "#a78bfa", 6, 2),
+                            path(f"M{w / 3} 20V{h - 8}M{2 * w / 3} 20V{h - 8}", "none", 2, "#7c3aed")])
+    w = h = T
+    items["armchair"] = (w, h, [rect(3, 3, w - 6, h - 6, "#b45309", 10), rect(11, 14, w - 22, h - 20, "#f59e0b", 6, 2)])
+    w = h = 2 * T
+    items["table"] = (w, h, [ellipse(w / 2, h / 2, w / 2 - 6, h / 2 - 6, "#a16207"),
+                             ellipse(w / 2, h / 2, w / 2 - 16, h / 2 - 16, "none", 1.5, "#78350f"),
+                             circle(w / 2 - 12, h / 2 - 6, 7, "#f8fafc", 1.5), circle(w / 2 + 14, h / 2 + 8, 5, "#ef4444", 1.5)])
+    w = h = T
+    items["chair"] = (w, h, [rect(8, 8, w - 16, h - 16, "#a16207", 4), rect(8, 6, w - 16, 9, "#78350f", 3, 2)])
+    w, h = 2 * T, T
+    items["tv"] = (w, h, [rect(8, 22, w - 16, 20, "#57534e", 3, 2), rect(10, 6, w - 20, 16, "#111827", 2, 2.5),
+                          rect(14, 9, w - 28, 10, "#38bdf8", 1, 0, OL, 'opacity="0.7"')])
+    w = h = T
+    items["plant"] = (w, h, [circle(w / 2, h / 2, 14, "#b45309"), circle(w / 2 - 6, h / 2 - 4, 11, "#16a34a", 2),
+                             circle(w / 2 + 7, h / 2 - 2, 10, "#22c55e", 2), circle(w / 2, h / 2 + 6, 9, "#15803d", 2)])
+    w, h = 3 * T, 2 * T
+    items["rug"] = (w, h, [rect(4, 4, w - 8, h - 8, "#be123c", 8, 2), rect(14, 14, w - 28, h - 28, "none", 6, 2.5, "#fde68a"),
+                           ellipse(w / 2, h / 2, 26, 16, "#fde68a", 2)])
+    w, h = 2 * T, T
+    items["bookshelf"] = (w, h, [rect(3, 6, w - 6, h - 12, "#78350f", 3)] +
+                          [rect(8 + k * 11, 10, 9, h - 20, c, 1, 1.2) for k, c in
+                           enumerate(["#ef4444", "#3b82f6", "#22c55e", "#facc15", "#a855f7", "#f97316", "#14b8a6", "#e11d48"])])
+    w = h = T
+    items["fridge"] = (w, h, [rect(5, 5, w - 10, h - 10, "#e5e7eb", 5), path(f"M5 {h / 2 - 2}H{w - 5}", "none", 2),
+                              rect(w - 14, 10, 4, 10, "#9ca3af", 2, 1)])
+    items["lamp"] = (w, h, [circle(w / 2, h / 2, 16, "#fde68a"), circle(w / 2, h / 2, 9, "#fef9c3", 2),
+                            circle(w / 2, h / 2, 3, "#78350f", 0)])
+    w, h = 2 * T, T
+    items["aquarium"] = (w, h, [rect(4, 6, w - 8, h - 12, "#0ea5e9", 4), rect(8, 10, w - 16, h - 20, "#7dd3fc", 3, 1.5),
+                                path("M20 22q4-4 8 0q-4 4-8 0zM52 18q4-4 8 0q-4 4-8 0zM66 28q4-4 8 0q-4 4-8 0z", "#f97316", 1),
+                                path("M14 34q3-8 0-14M80 34q3-8 0-14", "none", 2, "#16a34a")])
+    items["desk"] = (w, h, [rect(3, 8, w - 6, h - 14, "#a16207", 4), rect(26, 10, 36, 20, "#111827", 3, 2),
+                            rect(29, 13, 30, 14, "#60a5fa", 2, 0), rect(30, 32, 28, 6, "#374151", 2, 1.5),
+                            circle(70, 34, 3, "#e5e7eb", 1)])
+    for name, (w, h, parts) in items.items():
+        save(f"furniture/{name}.svg", svg(w, h, parts))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -530,3 +674,8 @@ if __name__ == "__main__":
     trees()
     beach()
     characters()
+    galeri()
+    mobilya()
+    pazar()
+    vehicles()
+    furniture()

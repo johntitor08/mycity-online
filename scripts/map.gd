@@ -15,6 +15,10 @@ const BUILDINGS := [
 		"wall": Color(0.12, 0.30, 0.20), "roof": Color(0.10, 0.10, 0.12)},
 	{"type": "realestate", "label": "Emlak Ofisi", "rect": Rect2(1880, 100, 300, 260),
 		"wall": Color(0.85, 0.85, 0.80), "roof": Color(0.20, 0.35, 0.70)},
+	# 0.4: ana yolun altındaki yeni sıra (tabela yazısı y=102'de)
+	{"type": "galeri", "label": "Galeri", "rect": Rect2(1110, 540, 320, 220), "sign_y": 102},
+	{"type": "pazar", "label": "Pazar Yeri", "rect": Rect2(1500, 540, 320, 220), "sign_y": 100},
+	{"type": "mobilya", "label": "Mobilyacı", "rect": Rect2(1890, 540, 320, 220), "sign_y": 102},
 ]
 
 # Yollar (çizim ve ağaç yerleşimi için)
@@ -56,6 +60,8 @@ static func in_water(p: Vector2) -> bool:
 
 ## Deniz: yüzülebilir (iskele hariç).
 static func in_sea(p: Vector2) -> bool:
+	if p.x > WORLD.end.x:
+		return false      # harita dışı (ev içleri) deniz değildir
 	return p.y > SEA.position.y + sin(p.x / 60.0) * 6.0 and not PIER.has_point(p)
 
 
@@ -66,3 +72,72 @@ static func fishing_spot(p: Vector2) -> String:
 	if PIER_END.grow(30).has_point(p):
 		return "sea"
 	return ""
+
+
+## Sokak lambaları (yol kenarları).
+static func lamp_positions() -> Array:
+	var out: Array = []
+	for x in range(80, 2400, 240):
+		out.append(Vector2(x, 384))
+	for y in range(560, 1600, 220):
+		out.append(Vector2(952, y))
+	for x in range(1160, 2400, 240):
+		out.append(Vector2(x, 868))
+	return out
+
+
+## Bina tipine göre konum (ör. "market").
+static func building(type: String) -> Dictionary:
+	for b in BUILDINGS:
+		if b.type == type:
+			return b
+	return {}
+
+
+# ------------------------------------------------------------------ ev içleri
+# Her arsanın içi harita dışında kendi hücresinde durur; eve girmek oraya ışınlanmaktır.
+const INTERIOR_ORIGIN := Vector2(3200, 200)
+const INTERIOR_CELL := Vector2(1100, 800)
+const INTERIOR_AREA := Rect2(3000, 0, 4700, 2700)
+const TILE := 48.0
+const ROOM_TILES := {1: Vector2i(12, 8), 2: Vector2i(16, 10), 3: Vector2i(18, 12)}
+
+
+static func room_tiles(level: int) -> Vector2i:
+	return ROOM_TILES.get(clampi(level, 1, 3), Vector2i(12, 8))
+
+
+## Arsanın ev içi odası (dünya koordinatı).
+static func interior_rect(i: int, level: int) -> Rect2:
+	var cell := INTERIOR_ORIGIN + Vector2((i % 4) * INTERIOR_CELL.x, int(i / 4.0) * INTERIOR_CELL.y)
+	var t := room_tiles(level)
+	return Rect2(cell, Vector2(t.x, t.y) * TILE)
+
+
+## Noktanın bulunduğu ev içi (arsa indeksi) ya da -1.
+static func interior_at(p: Vector2) -> int:
+	if not INTERIOR_AREA.has_point(p):
+		return -1
+	var rel := p - INTERIOR_ORIGIN
+	var col := int(floor(rel.x / INTERIOR_CELL.x))
+	var row := int(floor(rel.y / INTERIOR_CELL.y))
+	if col < 0 or col > 3 or row < 0 or row > 2:
+		return -1
+	return row * 4 + col
+
+
+## Odanın kapısı (alt orta) ve girişte durulacak nokta.
+static func interior_door(i: int, level: int) -> Rect2:
+	var r := interior_rect(i, level)
+	return Rect2(r.get_center().x - TILE, r.end.y - TILE, TILE * 2, TILE)
+
+
+static func interior_spawn(i: int, level: int) -> Vector2:
+	var r := interior_rect(i, level)
+	return Vector2(r.get_center().x, r.end.y - TILE * 1.6)
+
+
+## Evden çıkınca arsanın önü.
+static func plot_front(i: int) -> Vector2:
+	var r := plot_rect(i)
+	return Vector2(r.get_center().x, r.end.y - 20)
