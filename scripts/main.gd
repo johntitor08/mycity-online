@@ -7,7 +7,7 @@ const World = preload("res://scripts/world.gd")
 const CharacterPanel = preload("res://scripts/ui/character_panel.gd")
 const SETTINGS_PATH := "user://ayarlar.cfg"
 ## 7/24 açık resmi sunucu (boşsa menüde buton görünmez). Biçim: "adres" ya da "adres:port".
-const OFFICIAL_SERVER := ""
+const OFFICIAL_SERVER := "traded-rolled.tun.ply.gg:12861"
 
 var menu: Control
 var world: Node2D
@@ -111,7 +111,7 @@ func _build_menu() -> void:
 	v.add_child(row)
 	buttons = [_button(row, "Sunucu Kur ve Oyna", _on_host), _button(row, "Sunucuya Katıl", _on_join)]
 	if OFFICIAL_SERVER != "":
-		var official := _button(v, "Resmi Sunucuya Katıl (7/24 açık)", _on_join_official)
+		var official := _button(v, "Resmi Sunucuya Katıl", _on_join_official)
 		official.add_theme_color_override("font_color", Color("#facc15"))
 		buttons.append(official)
 	var row2 := HBoxContainer.new()

@@ -6,6 +6,7 @@ markette kasiyer olarak çalış. Seviye/XP, meslek yetenekleri, enerji, eşyala
 RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var.
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
+**Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
 
 ![Şehir](docs/ekran/sehir2.png)
 

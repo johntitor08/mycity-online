@@ -155,6 +155,12 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 
 
 func join(player_name: String, address: String, port: int, pass_hash: String = "", appearance = null) -> String:
+	# Alan adlarında IPv4'ü tercih et: Godot ilk bulduğu adresi (çoğu zaman IPv6) kullanır,
+	# IPv6'sı olmayan ağlarda bağlantı takılır.
+	if not address.is_valid_ip_address():
+		var v4 := IP.resolve_hostname(address, IP.TYPE_IPV4)
+		if v4 != "":
+			address = v4
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_client(address, port)
 	if err != OK:
