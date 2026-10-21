@@ -769,6 +769,28 @@ def pets():
     sheet("parrot", [parrot(0), parrot(1)])
 
 
+# ---------------------------------------------------------------- 0.6: karakol
+
+def karakol():
+    W, H = 320, 220
+    p = [
+        rect(4, 8, W - 8, 66, "#1e3a8a", 6),
+        path(f"M4 40H{W - 4}", "none", 4, "#f8fafc"),
+        rect(4, 72, W - 8, 144, "#e0e7ff"),
+        rect(4, 196, W - 8, 20, "#94a3b8"),
+        # tepe lambaları
+        rect(118, 0, 36, 12, "#ef4444", 4, 2), rect(166, 0, 36, 12, "#3b82f6", 4, 2),
+    ]
+    for x in (22, 72, 212, 262):
+        p += [rect(x, 126, 38, 50, "url(#glass)", 3, 2.5), path(f"M{x} 151h38", "none", 1.5), path(f"M{x + 6} 126v50M{x + 13} 126v50M{x + 19} 126v50M{x + 26} 126v50M{x + 32} 126v50", "none", 1.2, "#475569")]
+    # kapı ve rozet
+    p += [rect(130, 120, 60, 76, "#1e40af", 4), path("M160 120v76", "none", 2), circle(152, 160, 2.5, "#facc15", 0), circle(168, 160, 2.5, "#facc15", 0),
+          rect(120, 196, 80, 8, "#cbd5e1", 2, 2),
+          path("M160 14l14 6v10c0 9-6 14-14 18c-8-4-14-9-14-18v-10z", "#facc15", 2.5), circle(160, 30, 4, "#1e3a8a", 0)]   # çatıda rozet
+    p.append(rect(W / 2 - 92, 78, 184, 32, "#172554", 7, 3, "#facc15"))
+    save("buildings/karakol.svg", svg(W, H, p, GLASS))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -790,3 +812,4 @@ if __name__ == "__main__":
     muhtarlik()
     businesses()
     pets()
+    karakol()

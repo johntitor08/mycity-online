@@ -73,7 +73,7 @@ func may_be_in(id: int, i: int) -> bool:
 	if i < 0 or i >= Land.plots.size():
 		return false
 	var p: Dictionary = Land.plots[i]
-	if int(p.level) < 1 or p.owner == "" or Biz.is_biz(p):
+	if int(p.level) < 1 or p.owner == "" or str(p.get("kind", "home")) != "home":
 		return false
 	return p.owner == Net.players[id].name or bool(p.get("door_open", false))
 
@@ -181,7 +181,7 @@ func req_enter(d: Dictionary) -> void:
 	if not Net.players.has(id) or i < 0 or i >= Land.plots.size():
 		return
 	var plot: Dictionary = Land.plots[i]
-	if int(plot.level) < 1 or Biz.is_biz(plot):
+	if int(plot.level) < 1 or str(plot.get("kind", "home")) != "home":
 		Net.notify(id, "Bu arsada girilecek bir ev yok.", false)
 		return
 	if not Map.plot_rect(i).grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):

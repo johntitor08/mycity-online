@@ -100,7 +100,12 @@ func _player() -> int:
 	if not multiplayer.is_server():
 		return 0
 	var id := Net.sender()
-	return id if Net.players.has(id) else 0
+	if not Net.players.has(id):
+		return 0
+	if Police.is_jailed(id):
+		Net.notify(id, "Hapisteyken çalışamazsın.", false)
+		return 0
+	return id
 
 
 # ================================================================== istemci API
@@ -218,6 +223,7 @@ func req_reel(_d: Dictionary) -> void:
 	Rpg.add_xp(id, "fishing", 5 + mini(int(f[1]) / 10, 200))
 	Rpg.quest_event(id, "fish")
 	Story.event(id, "fish", {"fish": f[0]})
+	Events.on_fish(id, f[0], int(f[1]))
 	if f[1] >= 500:
 		Net.announce("%s bir %s yakaladı! (%s)" % [Net.players[id].name, f[0], U.money(f[1])])
 
@@ -317,7 +323,8 @@ func req_hospital_answer(d: Dictionary) -> void:
 		res["text"] = "Süre doldu, hasta başka doktora gitti."
 	elif choice == t.correct:
 		res["ok"] = true
-		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0))
+		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0)
+			* Events.pay_mult() * Clans.pay_mult(id))
 		res["text"] = "Doğru tedavi! Hasta iyileşti. +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "medicine", 10)
 		Rpg.quest_event(id, "patient")
@@ -375,7 +382,8 @@ func req_market_answer(d: Dictionary) -> void:
 		res["text"] = "Müşteri beklemekten sıkılıp gitti."
 	elif change == t.change:
 		res["ok"] = true
-		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0))
+		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0)
+			* Events.pay_mult() * Clans.pay_mult(id))
 		res["text"] = "Doğru para üstü! +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "cashier", 12)
 		Rpg.quest_event(id, "customer")

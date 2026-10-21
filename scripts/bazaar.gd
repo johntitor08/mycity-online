@@ -8,7 +8,7 @@ signal listings_changed
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 
-const KIND_NAMES := {"fish": "Balık", "food": "Yiyecek", "furniture": "Mobilya", "plot": "Arsa"}
+const KIND_NAMES := {"fish": "Balık", "food": "Yiyecek", "furniture": "Mobilya", "plot": "Arsa", "crop": "Ürün"}
 const COMMISSION := 0.05
 const MAX_LISTINGS := 8
 const MAX_PRICE := 1000000
@@ -53,8 +53,8 @@ func plot_listed(i: int) -> bool:
 # ------------------------------------------------------------------ istemci API
 
 ## ref: balık için çantadaki sıra, yiyecek/mobilya için tür, arsa için indeks
-func list_item(kind: String, ref, price: int) -> void:
-	Net.ask(self, "req_list", {"kind": kind, "ref": ref, "price": price})
+func list_item(kind: String, ref, price: int, qty: int = 1) -> void:
+	Net.ask(self, "req_list", {"kind": kind, "ref": ref, "price": price, "qty": qty})
 
 
 func buy(listing_id: int) -> void:
@@ -144,6 +144,18 @@ func req_list(d: Dictionary) -> void:
 			item = k
 			label = Homes.FURNITURE[k].name
 			Homes.send_state(id)
+		"crop":
+			var k := str(d.get("ref", ""))
+			var store := Farm.barn(rec)
+			var qty := clampi(int(d.get("qty", 1)), 1, int(store.get(k, 0)))
+			if not Farm.CROPS.has(k) or int(store.get(k, 0)) <= 0:
+				return
+			store[k] = int(store[k]) - qty
+			if int(store[k]) <= 0:
+				store.erase(k)
+			item = {"k": k, "n": qty}
+			label = "%d %s" % [qty, Farm.CROPS[k].name]
+			Farm.send_state(id)
 		"plot":
 			var i := int(d.get("ref", -1))
 			if i < 0 or i >= Land.plots.size() or Land.plots[i].owner != me:
@@ -192,6 +204,13 @@ func _give(player_name: String, l: Dictionary, check_only: bool) -> String:
 				rec["furniture"] = {}
 			if not check_only:
 				rec.furniture[l.item] = int(rec.furniture.get(l.item, 0)) + 1
+		"crop":
+			var store := Farm.barn(rec)
+			var k := str(l.item.k)
+			if int(store.get(k, 0)) + int(l.item.n) > Farm.MAX_STACK:
+				return "Ambarında yer yok."
+			if not check_only:
+				store[k] = int(store.get(k, 0)) + int(l.item.n)
 		"plot":
 			var owned := 0
 			for p in Land.plots:
@@ -213,6 +232,7 @@ func _refresh_owner(player_name: String) -> void:
 		Jobs.send_inventory(pid)
 		Rpg.send_sheet(pid)
 		Homes.send_state(pid)
+		Farm.send_state(pid)
 
 
 @rpc("any_peer", "call_remote", "reliable")

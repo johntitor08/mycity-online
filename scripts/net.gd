@@ -10,14 +10,14 @@ signal connected_ok
 signal connection_failed(reason: String)
 signal disconnected(reason: String)
 signal roster_changed
-signal chat_received(from_name: String, text: String, color: Color)
+signal chat_received(from_name: String, text: String, color: Color, channel: String)
 signal toast(text: String, good: bool)
 
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "0.5"
+const VERSION := "0.6"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -143,6 +143,7 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 	_load()
 	Land.server_init()
 	Env.server_start()
+	Events.server_start()
 	if dedicated:
 		# Ekransız sunucu sınırsız kare hızında dönüp bir çekirdeği %100 kullanmasın.
 		Engine.max_fps = 30
@@ -200,6 +201,10 @@ func _reset_peer() -> void:
 	Bazaar.reset()
 	Pets.reset()
 	Story.reset()
+	Farm.reset()
+	Clans.reset()
+	Events.reset()
+	Police.reset()
 
 
 func _on_connected() -> void:
@@ -223,10 +228,13 @@ func _on_peer_disconnected(id: int) -> void:
 	# Önce oyunlardan çıkar (masadaki fişler paraya dönsün), sonra sil.
 	Poker.on_player_left(id)
 	Jobs.on_player_left(id)
+	Events.on_player_left(id)
+	Police.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
 	_broadcast_roster()
+	Clans.on_presence(pname)
 	announce("%s şehirden ayrıldı." % pname)
 	log_line("%s çıktı (%d oyuncu çevrimiçi)" % [pname, players.size()])
 
@@ -322,8 +330,11 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 		rec["appearance"] = Avatar.default_for(pname)
 	var app := Avatar.sanitize(rec["appearance"])
 	players[id] = {"name": pname, "money": int(rec.get("money", START_MONEY)),
-		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec), "ride": "", "pet": {}}
+		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec), "ride": "", "pet": {},
+		"clan": "", "clan_color": "", "wanted": 0, "police": false}
 	positions[id] = Map.SPAWN + Vector2(randf_range(-120, 120), randf_range(-30, 30))
+	if Police.jailed_rec(rec):
+		positions[id] = Map.jail_spawn()
 	_dirty = true
 	tell(self, id, "welcome", {"name": pname, "pos": positions[id], "appearance": app, "new": is_new})
 	_broadcast_roster()
@@ -337,6 +348,11 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Bazaar.send_state(id)
 	Pets.send_state(id)
 	Story.send_state(id)
+	Farm.send_state(id)
+	Clans.send_state(id)
+	Clans.on_presence(pname)
+	Events.send_state(id)
+	Police.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -447,6 +463,11 @@ func send_pos(p: Vector2) -> void:
 	var id := sender()
 	if not players.has(id):
 		return
+	if Police.is_jailed(id):
+		positions[id] = p.clamp(Map.JAIL.position, Map.JAIL.end)     # hapisten çıkılamaz
+		return
+	if Map.JAIL.has_point(p):
+		return
 	var room := Map.interior_at(p)
 	if Map.INTERIOR_AREA.has_point(p):
 		# Ev içleri harita dışında: sadece izinli olunan odada bulunulabilir.
@@ -483,8 +504,13 @@ func _process(delta: float) -> void:
 
 # ------------------------------------------------------------------ sohbet
 
-func send_chat(text: String) -> void:
-	ask(self, "req_chat", {"text": text})
+## channel: "all" (herkes), "clan" (klan üyeleri), "local" (yakındakiler), "pm" (to: oyuncu adı)
+func send_chat(text: String, channel: String = "all", to: String = "") -> void:
+	ask(self, "req_chat", {"text": text, "ch": channel, "to": to})
+
+
+const LOCAL_CHAT_RANGE := 700.0
+var _chat_t := {}
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -495,12 +521,48 @@ func req_chat(d: Dictionary) -> void:
 	var text := str(d.get("text", "")).strip_edges().left(200)
 	if text == "":
 		return
-	tell_all(self, "on_chat", {"name": players[id].name, "text": text, "color": players[id].color})
+	var now := Time.get_ticks_msec()
+	if now - int(_chat_t.get(id, -10000)) < 400:
+		return            # sel koruması
+	_chat_t[id] = now
+	var me: String = players[id].name
+	var msg := {"name": me, "text": text, "color": players[id].color, "ch": "all"}
+	match str(d.get("ch", "all")):
+		"clan":
+			var tag := Clans.tag_of_name(me)
+			if tag == "":
+				notify(id, "Bir klanda değilsin. Klan penceresinden kurabilir ya da katılabilirsin.", false)
+				return
+			msg.ch = "clan"
+			for mid in Clans.online_members(tag):
+				tell(self, mid, "on_chat", msg)
+		"local":
+			msg.ch = "local"
+			var here: Vector2 = positions.get(id, Vector2.ZERO)
+			for pid in players:
+				if positions.get(pid, Vector2(-1e6, -1e6)).distance_to(here) <= LOCAL_CHAT_RANGE:
+					tell(self, pid, "on_chat", msg)
+		"pm":
+			var to := _account_key(str(d.get("to", "")))
+			var tid := id_by_name(to)
+			if tid == 0 or tid == id:
+				notify(id, "Özel mesaj için çevrimiçi bir oyuncu adı yaz: /m isim mesaj", false)
+				return
+			msg.ch = "pm"
+			msg["to"] = to
+			tell(self, tid, "on_chat", msg)
+			tell(self, id, "on_chat", msg)
+		_:
+			tell_all(self, "on_chat", msg)
 
 
 @rpc("authority", "call_local", "reliable")
 func on_chat(d: Dictionary) -> void:
-	chat_received.emit(d.name, d.text, d.color)
+	var ch := str(d.get("ch", "all"))
+	var nm := str(d.name)
+	if ch == "pm" and nm == my_name:
+		nm = "→ %s" % d.get("to", "")
+	chat_received.emit(nm, d.text, d.color, ch)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -534,10 +596,14 @@ func _load() -> void:
 	var f := FileAccess.open(save_path, FileAccess.READ)
 	var parsed = JSON.parse_string(f.get_as_text())
 	if parsed is Dictionary:
+		# Bilinmeyen/yeni bölümler (klanlar, yarış rekorları...) olduğu gibi korunur.
+		for k in parsed:
+			if not k in ["players", "plots"]:
+				save_data[k] = parsed[k]
 		if parsed.get("players") is Dictionary:
 			save_data["players"] = parsed["players"]
 		if parsed.get("plots") is Array:
 			save_data["plots"] = parsed["plots"]
-		if parsed.get("bazaar") is Array:
-			save_data["bazaar"] = parsed["bazaar"]
-			save_data["bazaar_next"] = int(parsed.get("bazaar_next", 1))
+		if not save_data.get("bazaar") is Array:
+			save_data.erase("bazaar")
+		save_data["bazaar_next"] = int(parsed.get("bazaar_next", 1))

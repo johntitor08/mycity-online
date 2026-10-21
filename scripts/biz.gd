@@ -80,7 +80,7 @@ func build(id: int, i: int) -> void:
 	if p.is_empty():
 		return
 	if int(p.level) > 0 and not is_biz(p):
-		Net.notify(id, "Bu arsada ev var; işletme için boş arsa gerekir.", false)
+		Net.notify(id, "Bu arsa dolu; işletme için boş arsa gerekir.", false)
 		return
 	var lvl := int(p.level) + 1
 	if lvl > 3:
@@ -138,6 +138,18 @@ func req_restock(d: Dictionary) -> void:
 				var f: Dictionary = bag.pop_back()
 				added += maxi(1, int(int(f.price) / 5.0))
 			Jobs.send_inventory(id)
+		"crops":
+			var store := Farm.barn(rec)
+			for k in store.keys():
+				if not Farm.CROPS.has(k):
+					continue
+				var per := maxi(1, int(Farm.CROPS[k].price / 6.0))
+				while int(store[k]) > 0 and added < room:
+					store[k] = int(store[k]) - 1
+					added += per
+				if int(store[k]) <= 0:
+					store.erase(k)
+			Farm.send_state(id)
 		"food":
 			var items: Dictionary = Rpg.ensure(rec).items
 			for k in items.keys():
@@ -202,6 +214,7 @@ func _tick() -> void:
 		f *= clampf(1.6 - 0.6 * float(b.price), 0.2, 1.3)
 		f *= 1.0 + 0.25 * int(b.staff)
 		f *= 0.6 + 0.1 * float(b.rating)
+		f *= Events.customer_mult()
 		var oid := Net.id_by_name(str(p.owner))
 		if oid != 0 and Map.plot_rect(i).grow(80).has_point(Net.positions.get(oid, Vector2(-9999, -9999))):
 			f *= 1.3      # patron dükkânda

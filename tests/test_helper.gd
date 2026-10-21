@@ -12,7 +12,7 @@ func _ready() -> void:
 	Net.connection_failed.connect(_retry)
 	Net.disconnected.connect(func(_r): get_tree().quit(0))
 	_join()
-	get_tree().create_timer(300.0).timeout.connect(func(): get_tree().quit(0))
+	get_tree().create_timer(900.0).timeout.connect(func(): get_tree().quit(0))
 
 
 func _join() -> void:

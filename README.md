@@ -3,7 +3,8 @@
 Çok oyunculu 2D şehir oyunu: arsa al ve üzerine bina dik, kumarhanede bahis oyna,
 Texas Hold'em poker oyna, gölde ve denizde balık tut, plajda yüz, hastanede doktor ve
 markette kasiyer olarak çalış. Seviye/XP, meslek yetenekleri, enerji, eşyalar ve günlük görevlerle
-RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var.
+RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var. Çiftlik ve mevsimler,
+klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri, polis ve suç sistemi (0.6).
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 **Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
@@ -29,6 +30,41 @@ Menüde:
 - **Sunucuya Katıl**: Arkadaşının IP adresini ve portunu yazıp bağlan.
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
+
+## Çiftlik, klanlar, etkinlikler, polis ve suç (0.6)
+
+| | |
+|---|---|
+| ![Tarla](docs/ekran/tarla.png) | ![Festival](docs/ekran/festival.png) |
+| ![Yarış](docs/ekran/yaris.png) | ![Karakol](docs/ekran/karakol.png) |
+
+- **Çiftlik ve mevsimler:** Boş arsaya **tarla kur** (Sv.2, 1.200 TL): 6 tarh. Buğday, domates,
+  mısır, lahana, çilek, balkabağı, karpuz ek (seviyeyle açılır). Ekinler gerçek zamanla büyür,
+  çevrimdışıyken de. Sulanmayan ekin yarı verim verir; yağmur/kar kendiliğinden sular, fırtına
+  büyüyen ekine zarar verebilir, olgun ekin uzun süre toplanmazsa çürür. Gübre +1 ürün.
+  Mevsimler (her biri 3 oyun günü, ~2,4 saat) ekinin hızını, Hal fiyatını, havayı ve şehrin
+  görünümünü değiştirir (sonbaharda sararan ağaçlar, kışın kar). Ürünleri Pazar Yeri'ndeki
+  **Hal**'de sat, pazarda ilana koy ya da işletmene malzeme yap. Yeni yetenek: Çiftçilik.
+- **Klanlar:** HUD'daki **Klan** butonu. Klan kur (Sv.3, 5.000 TL, 2-4 harflik etiket) ya da
+  katıl (açık klan / başvuru). Ortak kasa (herkes yatırır, lider çeker), en fazla 10 üye. Üyelerin
+  kazandığı XP ve etkinlik zaferleri klan puanı getirir; klan seviyesi her üyenin maaşını artırır
+  (+%2/seviye). Klanlar arası sıralama; isimlerin önünde [ETİKET] görünür.
+- **Sohbet kanalları:** Genel / Klan / Yakın (700 px) seçicisi; kısayollar `/k mesaj`, `/y mesaj`,
+  `/m isim mesaj` (özel). Sağ üstte bir isme tıklayınca "Özel Mesaj Yaz".
+- **Etkinlikler:** Sunucu ~9 dakikada bir sırayla etkinlik başlatır, üstte bant çıkar:
+  **Yarış Günü** (pistte en hızlı tur), **Balık Turnuvası** (en değerli tek balık),
+  **Hazine Avı** (sarı alanda saklı sandığı ilk bulan 4.000 TL alır), **Şehir Festivali**
+  (maaşlar +%25, işletmelere 1,5 kat müşteri, bayraklar, gece havai fişek). İlk üçe para, XP ve
+  klan puanı.
+- **Yarış pisti:** Ana yolun doğu ucundaki damalı bayraktan tur başlat (her zaman açık):
+  batı ucu → güneydeki yolun sonu → doğu yolu → bitiş. Sunucu kontrol noktalarını denetler,
+  rekor tablosu tutulur.
+- **Polis ve suç (G tuşu):** Seviye 3'ten itibaren yankesicilik (yakındaki oyuncu) ve soygun
+  (başkasının evi, dükkân kasası ya da tarlası). Suç **aranma yıldızı** verir (3 dk'da bir düşer).
+  Sokaktaki devriye ve görevdeki polisler arananları yakalar: hapis (yıldız × 45 sn), para cezası;
+  **kefaletle** erken çıkılır. **Karakol**'da Sv.4'ten itibaren polis ol: arananları G ile tutukla,
+  ihbar vakalarını çöz (yeni yetenek: Polislik). Güvenlik: Cüzdan Zinciri, Çelik Kilit ve Alarm.
+  Seviye 3 altındaki oyuncular suç işleyemez ve soyulamaz.
 
 ## İşletmeler, evcil hayvanlar, NPC'ler ve hikâye (0.5)
 
@@ -98,8 +134,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.5
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.5
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.6
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.6
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -197,13 +233,17 @@ scripts/
   poker.gd    (autoload) Texas Hold'em kuralları, el değerlendirme, botlar
   jobs.gd     (autoload) balık, hastane, market
   rpg.gd      (autoload) seviye/XP, yetenekler, enerji, eşyalar, günlük görevler
-  env.gd      (autoload) gün/gece saati ve hava durumu
+  env.gd      (autoload) gün/gece saati, hava durumu ve mevsimler
   garage.gd   (autoload) araçlar
   homes.gd    (autoload) ev içleri ve mobilyalar
   bazaar.gd   (autoload) pazar yeri ve para gönderme
   pets.gd     (autoload) evcil hayvanlar
   biz.gd      (autoload) işletmeler (dakikalık satış)
   story.gd    (autoload) hikâye görevleri ve NPC diyalogları
+  farm.gd     (autoload) tarlalar, ekinler, Hal
+  clans.gd    (autoload) klanlar, ortak kasa, klan puanı ve sıralaması
+  events.gd   (autoload) zamanlanmış etkinlikler ve yarış pisti
+  police.gd   (autoload) suç, aranma, hapishane, polislik, güvenlik ürünleri
   npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)
@@ -214,8 +254,6 @@ scripts/
   ui/         HUD ve bina pencereleri
 assets/       SVG görseller (binalar, arsalar, doğa, plaj, karakter katmanları) ve WAV sesler
 tools/        make_art.py (görseller), make_sounds.py (sesler)
-assets/       SVG görseller (binalar, arsalar, doğa, karakter katmanları)
-tools/        make_art.py: görsel üreteci
 tests/        otomatik test istemcisi ve ekran görüntüsü modu
 deploy/       VPS kurulumu: systemd servisi, kurulum/güncelleme, yedekleme, log betikleri
 fonts/        DejaVu Sans (kart ♠♥♦♣ ve zar simgeleri için yedek font; lisansı LICENSE-DejaVu.txt)

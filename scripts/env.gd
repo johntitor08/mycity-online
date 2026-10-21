@@ -8,15 +8,46 @@ const DAY_SECONDS := 48.0 * 60.0          # 1 oyun günü = 48 gerçek dakika
 const WEATHER_NAMES := {"clear": "Açık", "cloudy": "Bulutlu", "rain": "Yağmurlu", "storm": "Fırtına"}
 const WEATHER_WEIGHTS := {"clear": 50.0, "cloudy": 25.0, "rain": 18.0, "storm": 7.0}
 const NIGHT_FISH := ["Yayın Balığı", "Turna", "Levrek", "Lüfer", "Kalkan", "Köpekbalığı"]
+# Mevsimler: her biri 3 oyun günü (~2,4 gerçek saat) sürer.
+const SEASONS := ["spring", "summer", "autumn", "winter"]
+const SEASON_NAMES := {"spring": "İlkbahar", "summer": "Yaz", "autumn": "Sonbahar", "winter": "Kış"}
+const SEASON_DAYS := 3
+# Mevsime göre hava olasılıkları (kışın yağış kar olarak görünür)
+const SEASON_WEATHER := {
+	"spring": {"clear": 45.0, "cloudy": 25.0, "rain": 24.0, "storm": 6.0},
+	"summer": {"clear": 68.0, "cloudy": 16.0, "rain": 10.0, "storm": 6.0},
+	"autumn": {"clear": 35.0, "cloudy": 30.0, "rain": 25.0, "storm": 10.0},
+	"winter": {"clear": 38.0, "cloudy": 30.0, "rain": 24.0, "storm": 8.0},
+}
 
 var hour := 9.0           # 0..24
 var weather := "clear"
+var season := "spring"
+var _season_forced := false
 var _weather_left := 0.0
 var _sync := 0.0
 
 
 static func hour_from_unix(unix: float) -> float:
 	return fmod(unix / (DAY_SECONDS / 24.0), 24.0)
+
+
+static func season_from_unix(unix: float) -> String:
+	return SEASONS[int(floor(unix / (DAY_SECONDS * SEASON_DAYS))) % 4]
+
+
+func is_snowy() -> bool:
+	return season == "winter" and is_rainy()
+
+
+func weather_name() -> String:
+	if season == "winter":
+		match weather:
+			"rain":
+				return "Karlı"
+			"storm":
+				return "Tipi"
+	return WEATHER_NAMES.get(weather, weather)
 
 
 func is_night() -> bool:
@@ -42,7 +73,7 @@ func clock_text() -> String:
 	var h := int(hour)
 	var m := int((hour - h) * 60.0)
 	var part := "Gece" if is_night() else ("Akşam" if hour >= 17.0 else ("Sabah" if hour < 11.0 else "Öğlen"))
-	return "%02d:%02d  %s · %s" % [h, m, part, WEATHER_NAMES.get(weather, weather)]
+	return "%02d:%02d  %s · %s · %s" % [h, m, part, weather_name(), SEASON_NAMES.get(season, season)]
 
 
 func reset() -> void:
@@ -51,6 +82,7 @@ func reset() -> void:
 
 func server_start() -> void:
 	hour = hour_from_unix(Time.get_unix_time_from_system())
+	season = season_from_unix(Time.get_unix_time_from_system())
 	weather = "clear"
 	_weather_left = randf_range(240.0, 600.0)
 
@@ -66,17 +98,23 @@ func _process(delta: float) -> void:
 	if _sync >= 10.0:
 		_sync = 0.0
 		hour = hour_from_unix(Time.get_unix_time_from_system())
+		var s := season_from_unix(Time.get_unix_time_from_system())
+		if s != season and not _season_forced:
+			season = s
+			Net.announce("%s geldi! %s" % [SEASON_NAMES[s], {"spring": "Çilek ekme zamanı.", "summer": "Domates, mısır ve karpuz bu mevsim hızlı büyür.",
+				"autumn": "Buğday ve balkabağı zamanı.", "winter": "Tarlalar yavaşlar; lahana kışı sever."}[s]])
 		_broadcast()
 
 
 func _pick_weather() -> void:
+	var weights: Dictionary = SEASON_WEATHER.get(season, WEATHER_WEIGHTS)
 	var total := 0.0
-	for k in WEATHER_WEIGHTS:
-		total += WEATHER_WEIGHTS[k]
+	for k in weights:
+		total += weights[k]
 	var r := randf() * total
 	var pick := "clear"
-	for k in WEATHER_WEIGHTS:
-		r -= WEATHER_WEIGHTS[k]
+	for k in weights:
+		r -= weights[k]
 		if r <= 0.0:
 			pick = k
 			break
@@ -86,12 +124,13 @@ func _pick_weather() -> void:
 	weather = pick
 	match pick:
 		"rain":
-			Net.announce("Yağmur başladı. Balıklar daha çabuk vuruyor!")
+			Net.announce("Kar yağmaya başladı. Tarlalar kendiliğinden sulanıyor." if season == "winter" else "Yağmur başladı. Balıklar daha çabuk vuruyor, tarlalar sulanıyor!")
 		"storm":
-			Net.announce("Fırtına çıktı! Deniz iskelesi kapandı, denize girmeyin.")
+			Net.announce("Fırtına çıktı! Deniz iskelesi kapandı, denize girmeyin. Ekinler zarar görebilir!")
+			Farm.on_storm()
 		"clear":
 			Net.announce("Hava açtı. Plaj seni bekliyor!")
-	Net.log_line("Hava: %s" % WEATHER_NAMES[pick])
+	Net.log_line("Hava: %s" % weather_name())
 	_broadcast()
 
 
@@ -103,16 +142,25 @@ func force_weather(w: String) -> void:
 		_broadcast()
 
 
+## Test için: mevsimi hemen değiştir.
+func force_season(s: String) -> void:
+	if Net.is_server() and SEASON_NAMES.has(s):
+		season = s
+		_season_forced = true
+		_broadcast()
+
+
 func _broadcast() -> void:
-	Net.tell_all(self, "on_env", {"hour": hour, "weather": weather})
+	Net.tell_all(self, "on_env", {"hour": hour, "weather": weather, "season": season})
 
 
 func send_state(id: int) -> void:
-	Net.tell(self, id, "on_env", {"hour": hour, "weather": weather})
+	Net.tell(self, id, "on_env", {"hour": hour, "weather": weather, "season": season})
 
 
 @rpc("authority", "call_local", "reliable")
 func on_env(d: Dictionary) -> void:
 	hour = float(d.hour)
 	weather = str(d.weather)
+	season = str(d.get("season", season))
 	changed.emit()

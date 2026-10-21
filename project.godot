@@ -1,4 +1,11 @@
 ; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
 config_version=5
 
 [application]
@@ -24,6 +31,10 @@ Bazaar="*res://scripts/bazaar.gd"
 Pets="*res://scripts/pets.gd"
 Biz="*res://scripts/biz.gd"
 Story="*res://scripts/story.gd"
+Farm="*res://scripts/farm.gd"
+Clans="*res://scripts/clans.gd"
+Events="*res://scripts/events.gd"
+Police="*res://scripts/police.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

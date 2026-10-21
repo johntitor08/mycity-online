@@ -10,6 +10,12 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--sadece06" in OS.get_cmdline_user_args():
+		Net.add_money(1, 200000)
+		Rpg.add_xp(1, "", 9000)
+		await _shots_06(w)
+		get_tree().quit()
+		return
 	Land.buy(0)
 	Net.send_chat("Selam! Pokere gelen var mı?")
 	w.my_pos = Vector2(1220, 600)
@@ -108,7 +114,175 @@ func _ready() -> void:
 	w._close_panel()
 	await _shots_04(w)
 	await _shots_05(w)
+	await _shots_06(w)
 	get_tree().quit()
+
+
+func _shots_06(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0      # saat gerçek saate dönmesin
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env.hour = 11.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Garage.ride("")
+	w.camera.zoom = Vector2(1, 1)
+	# tarla: karışık ekinler
+	var plot := 9
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Land.buy(plot)
+	await _wait(0.3)
+	Land.build_up(plot, "farm")
+	await _wait(0.3)
+	var crops := ["domates", "misir", "karpuz", "bugday", "cilek", "kabak"]
+	var progress := [1.2, 0.7, 0.4, 1.2, 0.15, 1.2]
+	var now := Time.get_unix_time_from_system()
+	for k in 6:
+		var g := Farm.grow_time(crops[k], "summer")
+		Land.plots[plot].farm.beds[k] = {"c": crops[k], "t": now - g * progress[k], "g": g, "w": k % 2 == 0, "f": k == 0, "dmg": false}
+	Land._broadcast()
+	# komşu tarla
+	Land.plots[10].owner = "Zeynep"
+	Land.plots[10].level = 1
+	Land.plots[10]["kind"] = "farm"
+	Land.plots[10]["farm"] = Farm.default_data()
+	for k in 6:
+		Land.plots[10].farm.beds[k] = {"c": "bugday" if k < 3 else "lahana", "t": now - 200.0, "g": 240.0, "w": true, "f": false, "dmg": false}
+	Land._broadcast()
+	w.my_pos = Map.plot_rect(plot).get_center() + Vector2(130, 110)
+	w.camera.zoom = Vector2(1.5, 1.5)
+	await _wait(1.5)
+	_shot("tarla")
+	w.camera.zoom = Vector2(1, 1)
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	w.zone = {"type": "realestate", "label": "x", "plot": plot}
+	w._open_panel()
+	await _wait(0.8)
+	_shot("tarla_panel")
+	w._close_panel()
+	# mevsimler
+	Env.force_season("autumn")
+	w.my_pos = Vector2(1500, 300)
+	await _wait(1.2)
+	_shot("sonbahar")
+	Env.force_season("winter")
+	Env.force_weather("rain")
+	await _wait(1.5)
+	_shot("kis")
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	# klanlar ve sohbet
+	Clans.create("Boğaz Kartalları", "BGZ")
+	await _wait(0.3)
+	Clans.deposit(2500)
+	Clans._store()["KRT"] = {"name": "Karadeniz Fırtınası", "tag": "KRT", "leader": "Mehmet", "members": ["Mehmet", "Can", "Selin"], "bank": 900, "points": 1900, "open": true, "requests": [], "color": 5}
+	Clans._store()["AYZ"] = {"name": "Ayazağa Esnafı", "tag": "AYZ", "leader": "Ayşe", "members": ["Ayşe"], "bank": 0, "points": 320, "open": false, "requests": [], "color": 6}
+	Clans._store()["BGZ"]["members"].append("Zeynep")
+	Clans._store()["BGZ"]["requests"].append("Kerem")
+	Clans.add_points("BGZ", 640)
+	Clans._process(5.0)
+	await _wait(0.4)
+	Net.send_chat("Akşam balık turnuvasına herkes gelsin!", "clan")
+	await _wait(0.5)
+	Net.send_chat("Burada kimse var mı?", "local")
+	await _wait(0.5)
+	w.open_simple_panel("res://scripts/ui/clan_panel.gd")
+	await _wait(0.8)
+	_shot("klan")
+	w._close_panel()
+	# sahte oyuncular: biri aranıyor, biri klanlı
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}, {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}]
+	Net.save_data.players["Kerem"] = {"money": 4200, "fish": [], "crime": {"wanted": 3, "t": Time.get_unix_time_from_system() + 9000.0, "jail_until": 0.0, "crimes": 3, "arrests": 0}}
+	Net.players[9201] = {"name": "Kerem", "money": 4200, "color": Avatar.shirt_color(apps[0]), "appearance": apps[0], "level": 7, "wanted": 3, "clan": "", "police": false}
+	Net.players[9202] = {"name": "Zeynep", "money": 8800, "color": Avatar.shirt_color(apps[1]), "appearance": apps[1], "level": 9, "wanted": 0, "clan": "BGZ", "clan_color": "#4ade80", "police": false}
+	Net._broadcast_roster()
+	# yarış
+	Garage.buy("car")
+	w.my_pos = Map.building("galeri").rect.get_center()
+	await _wait(0.3)
+	Garage.buy("car")
+	await _wait(0.3)
+	w.my_pos = Map.RACE_START
+	await _wait(0.3)
+	Garage.ride("car")
+	Events.race_start()
+	await _wait(3.4)
+	w.my_pos = Map.RACE_CPS[0]
+	await _wait(0.3)
+	w.my_pos = Vector2(1005, 1330)
+	w.my_facing = "down"
+	Net.positions[9202] = Vector2(1020, 1220)
+	await _wait(1.5)
+	_shot("yaris")
+	Events.race_quit()
+	Garage.ride("")
+	await _wait(0.3)
+	# hazine avı
+	Events.start_event("treasure")
+	Events._active.pos = Vector2(2200, 1580)
+	Events._active.area = Vector2(2120, 1500)
+	Events._active.near = {}
+	Events._broadcast()
+	w.my_pos = Vector2(2000, 1560)
+	await _wait(1.5)
+	_shot("hazine")
+	Events._finish()
+	# festival gecesi
+	Events.start_event("festival")
+	Env.hour = 22.0
+	w.my_pos = Map.SPAWN + Vector2(0, 40)
+	Net.positions[9201] = Map.SPAWN + Vector2(120, 10)
+	Net.positions[9202] = Map.SPAWN + Vector2(-110, 30)
+	await _wait(3.0)
+	_shot("festival")
+	Events._finish()
+	Env.hour = 12.0
+	# karakol: görevde polis, aranan oyuncu, devriye arabası
+	w.my_pos = Map.building("karakol").rect.get_center()
+	await _wait(0.3)
+	Police.set_duty(true)
+	Police.buy_security("lock", plot)
+	await _wait(0.3)
+	Net.positions[9201] = Map.building("karakol").rect.get_center() + Vector2(130, 190)
+	w.my_pos = Map.building("karakol").rect.get_center() + Vector2(-20, 190)
+	w.my_facing = "right"
+	w.npc.cars[0].lane = 2
+	w.npc.cars[0].x = 2300.0
+	await _wait(1.5)
+	_shot("karakol")
+	w.zone = {"type": "karakol", "label": "x"}
+	w._open_panel()
+	await _wait(0.3)
+	w.panel._next_case()
+	await _wait(0.8)
+	_shot("karakol_panel")
+	w._close_panel()
+	Police.set_duty(false)
+	await _wait(0.3)
+	# hapishane
+	Police.crime(Net.save_data.players[Net.my_name])["wanted"] = 2
+	Police.jail(1, 2, 0)
+	await _wait(1.5)
+	_shot("hapis")
+	Police.bail()
+	await _wait(0.5)
+	# etkinlik penceresi
+	Events.start_event("fish")
+	Events.on_fish(1, "Orkinos", 720)
+	Events._active.scores["Zeynep"] = [1500.0, "Kılıç Balığı 1.500 TL"]
+	Events._active.scores["Kerem"] = [310.0, "Kalkan 310 TL"]
+	Events._broadcast()
+	await _wait(0.3)
+	w.open_simple_panel("res://scripts/ui/event_panel.gd")
+	await _wait(0.8)
+	_shot("etkinlik")
+	w._close_panel()
+	w.open_profile()
+	await _wait(0.8)
+	_shot("profil06")
+	w._close_panel()
 
 
 func _shots_05(w) -> void:

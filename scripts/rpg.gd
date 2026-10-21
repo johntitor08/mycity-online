@@ -13,12 +13,16 @@ const SKILLS := {
 	"medicine": "Doktorluk",
 	"cashier": "Kasiyerlik",
 	"realestate": "Emlakçılık",
+	"farming": "Çiftçilik",
+	"police": "Polislik",
 }
 const SKILL_PERKS := {
 	"fishing": "Her seviye: nadir balık şansı +%8, çekme süresi +0,1 sn",
 	"medicine": "Her seviye: maaş +%5, teşhis süresi +0,5 sn",
 	"cashier": "Her seviye: maaş +%5, süre +1 sn",
 	"realestate": "Her seviye: kira geliri +%5",
+	"farming": "Her seviye: hasat +%5",
+	"police": "Her seviye: devriye maaşı +%5, süre +0,5 sn",
 }
 const FOODS := {
 	"simit": {"name": "Simit", "price": 15, "energy": 10},
@@ -40,6 +44,9 @@ const QUESTS := {
 	"bet": ["Kumarhanede bahis oyna", 3],
 	"swim": ["Denizde yüz", 1],
 	"build": ["Arsa al ya da inşa et", 1],
+	"harvest": ["Tarlada hasat yap", 2],
+	"race": ["Yarış pistinde tur tamamla", 1],
+	"patrol": ["Karakolda olay çöz", 3],
 }
 const QUEST_XP := 80
 const QUEST_MONEY := 300
@@ -152,6 +159,12 @@ static func _perk_rec(r: Dictionary, kind: String) -> float:
 			return 1.0 * sk.call("cashier") + (5.0 if tools.has("calc") else 0.0)
 		"rent":
 			return 1.0 + 0.05 * sk.call("realestate") + (0.15 if tools.has("card") else 0.0)
+		"farm_yield":
+			return 1.0 + 0.05 * sk.call("farming")
+		"police_pay":
+			return 1.0 + 0.05 * sk.call("police")
+		"police_time":
+			return 0.5 * sk.call("police")
 	return 1.0
 
 
@@ -197,6 +210,7 @@ func add_xp(id: int, skill_key: String, amount: int) -> void:
 		return
 	var old_level := level_of(int(r.xp))
 	r["xp"] = int(r.xp) + amount
+	Clans.on_xp(id, amount)
 	var new_level := level_of(int(r.xp))
 	if skill_key != "" and SKILLS.has(skill_key):
 		var old_sk := skill_level_of(int(r.skills[skill_key]))

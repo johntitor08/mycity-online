@@ -1,5 +1,6 @@
 extends "res://scripts/ui/game_panel.gd"
-## Pazar Yeri: oyuncuların ilanları (balık, yiyecek, mobilya, arsa). Satın al, ilan ver, ilanını kaldır.
+## Pazar Yeri: oyuncuların ilanları (balık, yiyecek, mobilya, arsa, ürün). Satın al, ilan ver, ilanını kaldır.
+## Hal: tarla ürünlerini şehre sabit fiyattan sat (mevsim dışı ürün daha pahalı).
 
 var listings_box: VBoxContainer
 var sell_box: VBoxContainer
@@ -8,8 +9,12 @@ var create: VBoxContainer
 var kind_opt: OptionButton
 var item_opt: OptionButton
 var price_spin: SpinBox
+var qty_row: HBoxContainer
+var qty_spin: SpinBox
+var hal: VBoxContainer
+var hal_box: VBoxContainer
 var _items: Array = []      # item_opt sırasıyla ref değerleri
-const KINDS := ["fish", "food", "furniture", "plot"]
+const KINDS := ["fish", "food", "furniture", "plot", "crop"]
 
 
 func _ready() -> void:
@@ -19,6 +24,7 @@ func _ready() -> void:
 	body.add_child(tabs)
 	add_button(tabs, "İlanlar", _show.bind(false))
 	add_button(tabs, "İlan Ver", _show.bind(true))
+	add_button(tabs, "Hal (ürün sat)", _show_hal)
 	add_label(tabs, "   Satıştan %%%d pazar komisyonu kesilir." % int(Bazaar.COMMISSION * 100), 13, Color("#94a3b8"))
 	body.add_child(HSeparator.new())
 
@@ -46,7 +52,12 @@ func _ready() -> void:
 	kind_opt.item_selected.connect(func(_i): _fill_items())
 	create.add_child(kind_opt)
 	item_opt = OptionButton.new()
+	item_opt.item_selected.connect(func(_i): _update_qty())
 	create.add_child(item_opt)
+	qty_row = HBoxContainer.new()
+	create.add_child(qty_row)
+	add_label(qty_row, "Adet:", 17)
+	qty_spin = add_spin(qty_row, 1, Farm.MAX_STACK, 1, 1)
 	var row := HBoxContainer.new()
 	create.add_child(row)
 	add_label(row, "Fiyat:", 17)
@@ -55,6 +66,19 @@ func _ready() -> void:
 	add_button(create, "İlanı Yayınla", _publish).custom_minimum_size = Vector2(0, 40)
 	add_label(create, "Eşya satılana kadar emanette durur; ilanı kaldırırsan geri gelir. Arsa ilanı satılınca arsa ve evi alıcıya geçer (mobilyalar sende kalır).", 13, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
+	hal = VBoxContainer.new()
+	hal.visible = false
+	hal.add_theme_constant_override("separation", 8)
+	body.add_child(hal)
+	add_label(hal, "Hal: tarla ürünlerini şehre sat. Mevsimi dışındaki ürün %%%d daha pahalıya gider." % int((Farm.OUT_OF_SEASON_PRICE - 1.0) * 100), 15, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hal_box = VBoxContainer.new()
+	hal_box.add_theme_constant_override("separation", 6)
+	hal.add_child(hal_box)
+	add_button(hal, "Hepsini Sat", func(): Farm.sell("")).custom_minimum_size = Vector2(0, 40)
+	Farm.crops_changed.connect(_fill_hal)
+	Farm.crops_changed.connect(_fill_items)
+	Env.changed.connect(_fill_hal)
+	_fill_hal()
 	Bazaar.listings_changed.connect(_refresh)
 	Jobs.inventory_changed.connect(_fill_items)
 	Rpg.sheet_changed.connect(_fill_items)
@@ -67,6 +91,39 @@ func _ready() -> void:
 func _show(sell: bool) -> void:
 	create.visible = sell
 	browse.visible = not sell
+	hal.visible = false
+
+
+func _show_hal() -> void:
+	create.visible = false
+	browse.visible = false
+	hal.visible = true
+
+
+func _fill_hal() -> void:
+	for c in hal_box.get_children():
+		c.queue_free()
+	var any := false
+	for k in Farm.CROPS:
+		var n := int(Farm.my_crops.get(k, 0))
+		var c: Dictionary = Farm.CROPS[k]
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 10)
+		hal_box.add_child(h)
+		var dot := ColorRect.new()
+		dot.color = Color(c.color)
+		dot.custom_minimum_size = Vector2(14, 14)
+		dot.size_flags_vertical = SIZE_SHRINK_CENTER
+		h.add_child(dot)
+		var price := Farm.sell_price(k, Env.season)
+		var l := add_label(h, "%s  ×%d   •   %s/adet%s" % [c.name, n, U.money(price), "  (mevsim dışı!)" if c.season != Env.season else ""], 16,
+			Color.WHITE if n > 0 else Color("#64748b"))
+		l.size_flags_horizontal = SIZE_EXPAND_FILL
+		var b := add_button(h, "Sat (%s)" % U.money(price * n), func(): Farm.sell(k))
+		b.disabled = n <= 0
+		any = any or n > 0
+	if not any:
+		add_label(hal_box, "Ambarın boş. Arsana tarla kurup ekin yetiştirebilirsin.", 14, Color("#7c859e"))
 
 
 func _refresh() -> void:
@@ -121,15 +178,27 @@ func _fill_items() -> void:
 				if Land.view[i].owner == Net.my_name:
 					item_opt.add_item("Arsa #%d (%s)" % [i + 1, Land.building_name(Land.view[i])])
 					_items.append(i)
+		"crop":
+			for k in Farm.my_crops:
+				item_opt.add_item("%s ×%d" % [Farm.CROPS[k].name, Farm.my_crops[k]])
+				_items.append(k)
 	if _items.is_empty():
 		item_opt.add_item("(satılacak bir şeyin yok)")
 		item_opt.disabled = true
 	else:
 		item_opt.disabled = false
+	_update_qty()
+
+
+func _update_qty() -> void:
+	var is_crop: bool = KINDS[kind_opt.selected] == "crop"
+	qty_row.visible = is_crop
+	if is_crop and not _items.is_empty():
+		qty_spin.max_value = maxi(1, int(Farm.my_crops.get(_items[item_opt.selected], 1)))
 
 
 func _publish() -> void:
 	if _items.is_empty():
 		return
-	Bazaar.list_item(KINDS[kind_opt.selected], _items[item_opt.selected], int(price_spin.value))
+	Bazaar.list_item(KINDS[kind_opt.selected], _items[item_opt.selected], int(price_spin.value), int(qty_spin.value))
 	_show(false)

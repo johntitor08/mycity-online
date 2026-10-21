@@ -22,6 +22,8 @@ const BUILDINGS := [
 	# 0.5: doğu mahallesi
 	{"type": "petshop", "label": "Pet Shop", "rect": Rect2(2280, 100, 320, 260)},
 	{"type": "muhtarlik", "label": "Muhtarlık", "rect": Rect2(2280, 540, 320, 220), "sign_y": 102},
+	# 0.6: karakol (alt yolun altında)
+	{"type": "karakol", "label": "Karakol", "rect": Rect2(2290, 900, 320, 220), "sign_y": 102},
 ]
 
 # Görev veren NPC'ler (sabit duranlar): kimlik -> ad, konum, görünüm
@@ -43,6 +45,22 @@ const WALK_ROUTES := [
 ]
 # NPC arabaların şeritleri (y, yön)
 const TRAFFIC_LANES := [[425.0, 1.0], [465.0, -1.0], [810.0, 1.0], [840.0, -1.0]]
+
+# Yarış pisti: şehir yollarında kontrol noktaları (son nokta = başlangıç/bitiş çizgisi)
+const RACE_START := Vector2(2700, 445)
+const RACE_FLAG := Vector2(2700, 378)          # hakem bayrağı (yarış penceresi burada açılır)
+const RACE_CPS := [Vector2(200, 445), Vector2(1005, 1560), Vector2(2700, 825), Vector2(2700, 445)]
+const RACE_CP_RADIUS := 110.0
+
+# Hazine avı için olası saklanma yerleri
+const TREASURE_SPOTS := [
+	Vector2(60, 560), Vector2(880, 600), Vector2(860, 1500), Vector2(120, 1560), Vector2(2760, 980),
+	Vector2(2750, 1580), Vector2(2200, 1580), Vector2(1700, 1580), Vector2(40, 60), Vector2(940, 60),
+	Vector2(2760, 60), Vector2(2240, 470), Vector2(560, 1620), Vector2(2100, 1700), Vector2(400, 1820),
+]
+
+# Hapishane: harita dışında (ev içlerinin altında), tek büyük koğuş
+const JAIL := Rect2(3200, 2900, 864, 480)
 
 # Yollar (çizim ve ağaç yerleşimi için)
 const ROADS := [
@@ -95,6 +113,25 @@ static func fishing_spot(p: Vector2) -> String:
 	if PIER_END.grow(30).has_point(p):
 		return "sea"
 	return ""
+
+
+## Noktanın bulunduğu bölgenin adı (hazine ipuçları için).
+static func area_name(p: Vector2) -> String:
+	if p.y > BEACH.position.y - 20:
+		return "plaj"
+	if LAKE.grow(80).has_point(p):
+		return "göl kıyısı"
+	if p.y < 390:
+		return "kuzey sokakları" if p.x < 1400 else "kuzeydoğu sokakları"
+	if p.x > 2240:
+		return "doğu mahallesi"
+	if p.x < 960:
+		return "batı yakası"
+	return "arsalar bölgesi"
+
+
+static func jail_spawn() -> Vector2:
+	return JAIL.get_center() + Vector2(randf_range(-200, 200), randf_range(-80, 80))
 
 
 ## Sokak lambaları (yol kenarları).

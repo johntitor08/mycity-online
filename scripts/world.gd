@@ -18,7 +18,10 @@ const PANELS := {
 	"home": preload("res://scripts/ui/home_panel.gd"),
 	"petshop": preload("res://scripts/ui/pet_panel.gd"),
 	"muhtarlik": preload("res://scripts/ui/story_panel.gd"),
+	"karakol": preload("res://scripts/ui/police_panel.gd"),
+	"race": preload("res://scripts/ui/event_panel.gd"),
 }
+const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
 	null,
 	preload("res://assets/plots/bufe.svg"),
@@ -42,6 +45,7 @@ const BUILDING_TEX := {
 	"mobilya": preload("res://assets/buildings/mobilya.svg"),
 	"petshop": preload("res://assets/buildings/petshop.svg"),
 	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
+	"karakol": preload("res://assets/buildings/karakol.svg"),
 }
 const CAR_BODY := preload("res://assets/vehicles/car_body.svg")
 const CAR_DETAIL := preload("res://assets/vehicles/car_detail.svg")
@@ -92,6 +96,8 @@ var weather: Control
 var furn_tex := {}          # mobilya türü -> doku
 var placing := ""           # mobilya yerleştirme modu (tür) ya da ""
 var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
+var _jail := false          # hapishanede miyim
+var _g_action := {}         # G tuşunun şu anki eylemi (yankesicilik/soygun/tutuklama)
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
 var _label_queue: Array = []
@@ -153,6 +159,8 @@ func _ready() -> void:
 	npc = NpcSim.new()
 	Story.dialog.connect(_on_dialog)
 	hud.pet_requested.connect(open_pet_panel)
+	hud.clan_requested.connect(open_simple_panel.bind("res://scripts/ui/clan_panel.gd"))
+	hud.events_requested.connect(open_simple_panel.bind("res://scripts/ui/event_panel.gd"))
 	_make_nature()
 
 
@@ -190,7 +198,7 @@ func _process(delta: float) -> void:
 	if swimming and not _was_swimming:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
-	var outside := _room < 0
+	var outside := _room < 0 and not _jail
 	Sfx.set_ambience(clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0) if outside else 0.0)
 	Sfx.set_environment((1.0 if Env.weather == "storm" else 0.6) if Env.is_rainy() and outside else 0.0,
 		Env.darkness() * 0.8 if outside and not Env.is_rainy() else 0.0,
@@ -227,6 +235,9 @@ func my_ride() -> String:
 
 ## Bulunduğum alan: ev içiysem oda, değilsem şehir.
 func _clamp_to_area(p: Vector2) -> Vector2:
+	if _jail:
+		var j := Map.JAIL.grow(-18)
+		return p.clamp(j.position, j.end)
 	if _room >= 0:
 		var lvl := int(Land.view[_room].level) if _room < Land.view.size() else 1
 		var r := Map.interior_rect(_room, lvl).grow(-18)
@@ -235,7 +246,7 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 
 
 func _can_stand(p: Vector2, ride: String) -> bool:
-	if _room >= 0:
+	if _room >= 0 or _jail:
 		return true
 	if Map.in_water(p):
 		return false              # göl
@@ -248,11 +259,15 @@ func _can_stand(p: Vector2, ride: String) -> bool:
 
 func _update_area() -> void:
 	var room := Map.interior_at(my_pos)
-	if room == _room:
+	var jail := Map.JAIL.has_point(my_pos)
+	if room == _room and jail == _jail:
 		return
 	_room = room
+	_jail = jail
 	var r := Map.WORLD
-	if room >= 0:
+	if jail:
+		r = Map.JAIL.grow(160)
+	elif room >= 0:
 		var lvl := int(Land.view[room].level) if room < Land.view.size() else 1
 		r = Map.interior_rect(room, lvl).grow(160)
 	camera.limit_left = int(r.position.x)
@@ -365,6 +380,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			if panel == null:
 				_toggle_vehicle()
 				get_viewport().set_input_as_handled()
+		KEY_G:
+			if panel == null and not _g_action.is_empty():
+				_do_g_action()
+				get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
 			if panel != null:
 				_close_panel()
@@ -380,6 +399,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _update_zone() -> void:
 	var z := {}
+	_g_action = {}
+	if _jail:
+		zone = {}
+		hud.set_hint("" if panel != null else "Hapistesin — sol üstten kefalet ödeyebilirsin")
+		return
 	if _room >= 0:
 		var lvl := int(Land.view[_room].level) if _room < Land.view.size() else 1
 		if Map.interior_door(_room, lvl).grow(10).has_point(my_pos):
@@ -407,8 +431,60 @@ func _update_zone() -> void:
 	for i in Map.PLOT_COUNT:
 		if Map.plot_rect(i).has_point(my_pos):
 			z = {"type": "realestate", "label": "Arsa #%d" % (i + 1), "plot": i}
+	if my_pos.distance_to(Map.RACE_FLAG) < 80.0 or my_pos.distance_to(Map.RACE_START) < 60.0:
+		z = {"type": "race", "label": "Yarış Pisti — tur başlat"}
 	zone = z
-	hud.set_hint("" if z.is_empty() or panel != null else "[E]  %s" % z.label)
+	_g_action = _find_g_action()
+	var hint := "" if z.is_empty() else "[E]  %s" % z.label
+	if not _g_action.is_empty():
+		hint += ("\n" if hint != "" else "") + "[G]  %s" % _g_action.label
+	hud.set_hint("" if panel != null else hint)
+
+
+## G tuşu: görevdeki polis için tutuklama; diğerleri için yankesicilik ya da soygun.
+func _find_g_action() -> Dictionary:
+	var me = Net.roster.get(Net.my_id())
+	if me == null or int(me.get("level", 1)) < Police.CRIME_LEVEL:
+		return {}
+	var best_id := 0
+	var best_d := 1e9
+	for id in shown:
+		var info = Net.roster.get(id)
+		if info == null or not Map.WORLD.has_point(shown[id]):
+			continue
+		var d: float = shown[id].distance_to(my_pos)
+		if Police.on_duty():
+			if int(info.get("wanted", 0)) > 0 and d < Police.ARREST_RANGE and d < best_d:
+				best_id = id
+				best_d = d
+		elif d < Police.PICK_RANGE and d < best_d and int(info.get("level", 1)) >= Police.CRIME_LEVEL and not info.get("police", false):
+			best_id = id
+			best_d = d
+	if best_id != 0:
+		var nm: String = Net.roster[best_id].name
+		if Police.on_duty():
+			return {"kind": "arrest", "target": nm, "label": "Tutukla: %s %s" % [nm, "★".repeat(int(Net.roster[best_id].wanted))]}
+		return {"kind": "pick", "target": nm, "label": "Cebini yokla: %s (suç!)" % nm}
+	if Police.on_duty():
+		return {}
+	for i in Map.PLOT_COUNT:
+		if i < Land.view.size() and Map.plot_rect(i).has_point(my_pos):
+			var p: Dictionary = Land.view[i]
+			if p.owner != "" and p.owner != Net.my_name and int(p.level) >= 1:
+				var what := "tarlayı" if Farm.is_farm(p) else ("kasayı" if Biz.is_biz(p) else "evi")
+				return {"kind": "rob", "plot": i, "label": "Soy: %s'in %s (suç!)" % [p.owner, what]}
+	return {}
+
+
+func _do_g_action() -> void:
+	match _g_action.kind:
+		"arrest":
+			Police.arrest(_g_action.target)
+		"pick":
+			Police.pickpocket(_g_action.target)
+		"rob":
+			Police.rob(_g_action.plot)
+	Sfx.play("open", -8.0, 1.4)
 
 
 func _open_panel() -> void:
@@ -421,6 +497,8 @@ func _open_panel() -> void:
 		Story.talk(zone.npc)
 		return
 	panel = PANELS[zone.type].new()
+	if zone.type == "race":
+		panel.at_track = true
 	if zone.has("plot"):
 		panel.focus_plot = zone.plot
 	if zone.type == "fishing":
@@ -454,12 +532,25 @@ func open_pet_panel() -> void:
 	ui_layer.add_child(panel)
 
 
-## HUD'da bir oyuncunun adına tıklanınca: para gönder.
+## HUD butonlarından açılan basit pencereler (Klan, Etkinlik).
+func open_simple_panel(path: String) -> void:
+	if panel != null:
+		return
+	panel = load(path).new()
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("open", -4.0)
+
+
+## HUD'da bir oyuncunun adına tıklanınca: para gönder ya da özel mesaj.
 func open_transfer(to_name: String) -> void:
 	if panel != null or to_name == Net.my_name:
 		return
 	panel = preload("res://scripts/ui/transfer_panel.gd").new()
 	panel.to_name = to_name
+	panel.pm_requested.connect(func(n):
+		_close_panel()
+		hud.start_pm(n))
 	panel.closed.connect(_close_panel)
 	ui_layer.add_child(panel)
 
@@ -544,8 +635,11 @@ func _make_nature() -> void:
 
 func _draw() -> void:
 	_label_queue = []
-	draw_rect(Map.WORLD, Color("#5d9c4a"))
+	var winter := Env.season == "winter"
+	draw_rect(Map.WORLD, GRASS.get(Env.season, GRASS.spring))
 	for d in decor:
+		if winter and d[1] < 3:
+			continue      # kışın çiçek yok
 		var p: Vector2 = d[0]
 		match d[1]:
 			0:
@@ -558,9 +652,11 @@ func _draw() -> void:
 				draw_line(p, p + Vector2(-3, -7), Color("#4a8a3a"), 2)
 				draw_line(p, p + Vector2(2, -8), Color("#4a8a3a"), 2)
 	_draw_roads()
+	_draw_race_track()
 	_draw_beach()
 	_draw_lake()
 	_draw_interiors()
+	_draw_jail()
 	for lp in Map.lamp_positions():
 		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
 		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
@@ -568,6 +664,7 @@ func _draw() -> void:
 		_draw_plot(i)
 	for b in Map.BUILDINGS:
 		_draw_building(b)
+	_draw_event_world()
 	# Ağaçlar ve oyuncular y'ye göre sıralanarak çizilir (önde olan üstte görünür).
 	var items: Array = []
 	for n in nature:
@@ -576,12 +673,12 @@ func _draw() -> void:
 		var info = Net.roster.get(id)
 		if info:
 			var a: Dictionary = anim.get(id, {"facing": "down", "moving": false})
-			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), "%s · Sv.%d" % [info.name, int(info.get("level", 1))], false, a.facing, a.moving, str(info.get("ride", "")), info.get("color", Color.WHITE)]])
+			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), _name_of(info), false, a.facing, a.moving, str(info.get("ride", "")), info.get("color", Color.WHITE), info]])
 	var mine = Net.roster.get(Net.my_id())
 	var my_app = mine.get("appearance", {}) if mine else Net.my_appearance
 	var my_level: int = int(mine.get("level", 1)) if mine else 1
 	var my_col: Color = mine.get("color", Color.WHITE) if mine else Color.WHITE
-	items.append([my_pos.y, "p", [my_pos, my_app, "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving, my_ride(), my_col]])
+	items.append([my_pos.y, "p", [my_pos, my_app, _name_of(mine) if mine else "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving, my_ride(), my_col, mine if mine else {}]])
 	if _room < 0:
 		for w in npc.visible_walkers():
 			items.append([w.pos.y, "w", w])
@@ -589,7 +686,7 @@ func _draw() -> void:
 			items.append([c.pos.y, "w", c])
 		for c in npc.cars:
 			var lane: Array = Map.TRAFFIC_LANES[c.lane]
-			items.append([lane[0], "c", [Vector2(c.x, lane[0]), "right" if float(lane[1]) > 0 else "left", c.color]])
+			items.append([lane[0], "c", [Vector2(c.x, lane[0]), "right" if float(lane[1]) > 0 else "left", c.color, c.get("police", false)]])
 		for k in Map.NPCS:
 			items.append([Map.NPCS[k].pos.y, "q", k])
 	for id in npc.pets:
@@ -597,6 +694,8 @@ func _draw() -> void:
 		if info and info.get("pet") is Dictionary and not info.pet.is_empty():
 			var st: Dictionary = npc.pets[id]
 			items.append([st.pos.y, "pet", [st, info.pet]])
+	if Events.treasure_pos != null and Events.current.get("kind", "") == "treasure":
+		items.append([Events.treasure_pos.y, "t", Events.treasure_pos])
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
 		if it[1] == "n":
@@ -609,13 +708,17 @@ func _draw() -> void:
 			Avatar.draw(self, w.pos, w.app, w.get("facing", "down"), [1, 0, 2, 0][int(_t * 7.0 + w.pos.x * 0.01) % 4])
 		elif it[1] == "c":
 			_draw_vehicle(it[2][0], "car", it[2][1], it[2][2])
+			if it[2][3]:
+				_draw_siren(it[2][0])
 		elif it[1] == "q":
 			_draw_quest_npc(it[2])
+		elif it[1] == "t":
+			_draw_chest(it[2])
 		elif it[1] == "pet":
 			_draw_pet(it[2][0], it[2][1])
 		else:
 			var a: Array = it[2]
-			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7])
+			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
 	_draw_placement_ghost()
 	labels.items = _label_queue
 	labels.queue_redraw()
@@ -709,6 +812,9 @@ func _draw_plot(i: int) -> void:
 	draw_rect(r, Color("#f5f5f4"), false, 4)
 	_text(r.position + Vector2(10, 26), "#%d" % (i + 1), 18, Color.WHITE)
 	var level := int(p.level)
+	if Farm.is_farm(p) and p.get("farm") is Dictionary:
+		_draw_farm(r, p)
+		level = -1
 	if Biz.is_biz(p) and level >= 1:
 		var b: Dictionary = p.get("biz", {})
 		var heights := [0, 116, 126, 146]
@@ -743,7 +849,18 @@ func _draw_nature(n: Array) -> void:
 		draw_set_transform(p + Vector2(0, -2), 0, Vector2(1, 0.35))
 		draw_circle(Vector2.ZERO, h * (0.3 if n[1] < 3 else 0.22), Color(0, 0, 0, 0.18))
 		draw_set_transform(Vector2.ZERO)
-	_draw_tex_at(prop[0], p, h)
+	var tint := Color.WHITE
+	if n[1] <= 2:
+		match Env.season:
+			"autumn":
+				tint = Color(1.0, 0.72, 0.42) if n[1] != 1 else Color(0.9, 0.95, 0.85)
+			"winter":
+				tint = Color(0.82, 0.86, 0.9)
+	_draw_tex_at(prop[0], p, h, tint)
+	if Env.season == "winter" and n[1] <= 1:
+		draw_set_transform(p + Vector2(0, -h * 0.82), 0, Vector2(1, 0.45))
+		draw_circle(Vector2.ZERO, h * 0.22, Color(1, 1, 1, 0.9))     # karlı tepe
+		draw_set_transform(Vector2.ZERO)
 
 
 func _draw_beach() -> void:
@@ -798,7 +915,7 @@ func _draw_interiors() -> void:
 	for i in Land.view.size():
 		var p: Dictionary = Land.view[i]
 		var lvl := int(p.level)
-		if lvl < 1:
+		if lvl < 1 or str(p.get("kind", "home")) != "home":
 			continue
 		var r := Map.interior_rect(i, lvl)
 		if not view.intersects(r):
@@ -823,6 +940,169 @@ func _draw_interiors() -> void:
 			for f in furn:
 				if bool(Homes.FURNITURE[f.k].get("floor", false)) == floor_pass:
 					draw_texture_rect(furn_tex[f.k], Homes.furniture_rect(i, lvl, f), false)
+
+
+## Tarla: çit, korkuluk ve 6 tarh (ekinler büyüme durumuna göre).
+func _draw_farm(r: Rect2, p: Dictionary) -> void:
+	draw_rect(r.grow(-6), Color("#a47148"))
+	var now := Land.server_now()
+	var bw := 70.0
+	var bh := 52.0
+	var x0 := r.position.x + (r.size.x - 3 * bw - 2 * 12.0) / 2.0
+	for k in Farm.BEDS:
+		var b: Dictionary = p.farm.beds[k]
+		var br := Rect2(x0 + (k % 3) * (bw + 12.0), r.position.y + 42 + int(k / 3.0) * (bh + 10.0), bw, bh)
+		var st: Array = Farm.bed_state(b, now)
+		draw_rect(br, Color("#5b3a1e") if b.get("w", false) else Color("#7c4f2a"))
+		for fy in range(int(br.position.y) + 9, int(br.end.y), 13):
+			draw_line(Vector2(br.position.x + 3, fy), Vector2(br.end.x - 3, fy), Color(0, 0, 0, 0.18), 2)
+		if st[0] == "empty":
+			continue
+		var crop: Dictionary = Farm.CROPS.get(str(b.c), {})
+		var fruit := Color(crop.get("color", "#22c55e"))
+		for j in 6:
+			var c := br.position + Vector2(12 + (j % 3) * 23, 14 + int(j / 3.0) * 24)
+			match st[0]:
+				"growing":
+					var g: float = st[1]
+					if g < 0.35:
+						draw_circle(c, 2.5, Color("#86efac"))
+						draw_line(c, c + Vector2(-3, -4), Color("#4ade80"), 2)
+					else:
+						var leaf := Color("#65a30d") if not b.get("dmg", false) else Color("#a16207")
+						draw_circle(c, 4.0 + 5.0 * g, leaf)
+						draw_circle(c + Vector2(-3, -2), 2.5 + 3.0 * g, leaf.lightened(0.2))
+				"ready":
+					if b.c == "bugday":
+						for dx in [-5, 0, 5]:
+							draw_line(c + Vector2(dx, 6), c + Vector2(dx, -9), Color("#ca8a04"), 2)
+							draw_circle(c + Vector2(dx, -10), 2.5, fruit)
+					else:
+						draw_circle(c, 9.0, Color("#4d7c0f"))
+						var fr := 6.0 if b.c in ["kabak", "karpuz"] else 3.0
+						draw_circle(c + Vector2(2, 2), fr, fruit)
+						if fr < 5.0:
+							draw_circle(c + Vector2(-4, -1), fr, fruit)
+				"rotten":
+					draw_circle(c, 6.0, Color("#57534e"))
+		if st[0] == "ready":
+			var bob := sin(_t * 3.0 + k) * 2.0
+			draw_circle(br.position + Vector2(bw - 8, 6 + bob), 5, Color("#facc15"))
+	# çit
+	var fence := Color("#78350f")
+	draw_rect(r.grow(-4), fence, false, 3)
+	for x in range(int(r.position.x) + 4, int(r.end.x), 26):
+		draw_rect(Rect2(x - 2, r.position.y, 4, 10), fence)
+		draw_rect(Rect2(x - 2, r.end.y - 10, 4, 10), fence)
+	# korkuluk
+	var sc := r.position + Vector2(r.size.x - 70, 22)
+	draw_line(sc + Vector2(0, -8), sc + Vector2(0, 18), Color("#5b3a1e"), 3)
+	draw_line(sc + Vector2(-12, 0), sc + Vector2(12, 0), Color("#5b3a1e"), 3)
+	draw_circle(sc + Vector2(0, -10), 5, Color("#fde68a"))
+	draw_rect(Rect2(sc.x - 7, sc.y - 18, 14, 4), Color("#92400e"))
+
+
+## Yarış pisti: damalı başlangıç çizgisi, hakem bayrağı; yarıştayken sıradaki kontrol noktası.
+func _draw_race_track() -> void:
+	var st := Map.RACE_START
+	for row in 11:
+		for col in 2:
+			var c := Color.WHITE if (row + col) % 2 == 0 else Color("#111827")
+			draw_rect(Rect2(st.x - 10 + col * 10, 390 + row * 10, 10, 10), c)
+	var f := Map.RACE_FLAG
+	draw_rect(Rect2(f.x - 2, f.y - 50, 4, 52), Color("#374151"))
+	for row in 3:
+		for col in 4:
+			draw_rect(Rect2(f.x + 2 + col * 7, f.y - 50 + row * 7, 7, 7), Color.WHITE if (row + col) % 2 == 0 else Color("#111827"))
+	_text(f + Vector2(-80, -58), "YARIŞ PİSTİ", 15, Color("#fde68a"), 160)
+	var r := Events.race
+	var racing := str(r.get("state", "")) in ["countdown", "running"]
+	for k in Map.RACE_CPS.size() - 1:
+		var cp: Vector2 = Map.RACE_CPS[k]
+		var active := racing and int(r.get("next", 0)) == k
+		var a := 0.35 + 0.25 * sin(_t * 5.0) if active else 0.15
+		draw_arc(cp, Map.RACE_CP_RADIUS * (0.9 if active else 0.5), 0, TAU, 48, Color(1, 0.8, 0.1, a), 6 if active else 3)
+		draw_circle(cp + Vector2(-26, 0), 6, Color("#f97316"))
+		draw_circle(cp + Vector2(26, 0), 6, Color("#f97316"))
+		if active:
+			_text(cp + Vector2(-80, -Map.RACE_CP_RADIUS - 6), "KONTROL %d" % (k + 1), 18, Color("#facc15"), 160)
+	if racing:
+		var nxt: Vector2 = Map.RACE_CPS[int(r.get("next", 0))]
+		if int(r.get("next", 0)) == Map.RACE_CPS.size() - 1:
+			_text(nxt + Vector2(-80, -70), "BİTİŞ", 22, Color("#facc15"), 160)
+		var dir := (nxt - my_pos)
+		if dir.length() > 160.0:
+			var tip := my_pos + dir.normalized() * 70.0
+			var side := dir.normalized().orthogonal() * 12.0
+			draw_colored_polygon(PackedVector2Array([tip + dir.normalized() * 20.0, tip + side, tip - side]), Color(1, 0.8, 0.1, 0.9))
+
+
+## Etkinliklere göre dünya süsleri: hazine arama alanı ve sandık, festival bayrakları ve konfeti.
+func _draw_event_world() -> void:
+	var cur := Events.current
+	if cur.get("kind", "") == "treasure" and cur.has("area"):
+		var c: Vector2 = cur.area
+		var rad := float(cur.get("area_r", 300.0))
+		draw_circle(c, rad, Color(1, 0.85, 0.2, 0.10))
+		draw_arc(c, rad, 0, TAU, 64, Color(1, 0.85, 0.2, 0.6), 4)
+		_text(c + Vector2(-100, -rad - 8), "HAZİNE BURADA BİR YERDE", 16, Color("#fde68a"), 200)
+	if cur.get("kind", "") == "festival":
+		var cols := [Color("#ef4444"), Color("#facc15"), Color("#22c55e"), Color("#3b82f6"), Color("#a855f7")]
+		var lamps := Map.lamp_positions()
+		for k in lamps.size() - 1:
+			var a: Vector2 = lamps[k] + Vector2(0, -34)
+			var b: Vector2 = lamps[k + 1] + Vector2(0, -34)
+			if a.distance_to(b) > 300.0:
+				continue
+			for j in 8:
+				var q := a.lerp(b, (j + 0.5) / 8.0) + Vector2(0, sin((j + 0.5) / 8.0 * PI) * 14.0)
+				draw_colored_polygon(PackedVector2Array([q + Vector2(-6, 0), q + Vector2(6, 0), q + Vector2(0, 12)]), cols[(j + k) % cols.size()])
+			draw_line(a, b, Color(0, 0, 0, 0.4), 1)
+		for k in 60:
+			var px := Map.SPAWN.x + fmod(k * 97.0, 700.0) - 350.0
+			var py := Map.SPAWN.y - 120.0 + fmod(k * 53.0 + _t * (40.0 + k % 7 * 10.0), 260.0)
+			draw_rect(Rect2(px + sin(_t * 3.0 + k) * 8.0, py, 5, 3), cols[k % cols.size()])
+
+
+## Hapishane koğuşu (harita dışında).
+func _draw_jail() -> void:
+	var j := Map.JAIL
+	var vsize := get_viewport_rect().size / camera.zoom
+	if not Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(200).intersects(j):
+		return
+	draw_rect(j.grow(28), Color("#1f2937"))
+	draw_rect(j, Color("#6b7280"))
+	for x in range(int(j.position.x), int(j.end.x), 48):
+		draw_line(Vector2(x, j.position.y), Vector2(x, j.end.y), Color("#4b5563"), 1)
+	for y in range(int(j.position.y), int(j.end.y), 48):
+		draw_line(Vector2(j.position.x, y), Vector2(j.end.x, y), Color("#4b5563"), 1)
+	for x in range(int(j.position.x) + 10, int(j.end.x), 22):
+		draw_rect(Rect2(x, j.position.y - 28, 6, 36), Color("#9ca3af"))      # parmaklıklar
+	for k in 4:
+		draw_rect(Rect2(j.position.x + 60 + k * 200, j.end.y - 70, 120, 34), Color("#78350f"))   # sıralar
+	draw_rect(Rect2(j.end.x - 70, j.position.y + 30, 40, 40), Color("#e5e7eb"))
+	_text(Vector2(j.position.x, j.position.y - 36), "HAPİSHANE — süren dolunca serbest kalırsın", 18, Color("#fca5a5"), j.size.x)
+
+
+## Hazine sandığı (ağaçlarla birlikte y'ye göre sıralanarak çizilir).
+func _draw_chest(tp: Vector2) -> void:
+	draw_set_transform(tp + Vector2(0, 8), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 22, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(tp.x - 20, tp.y - 18, 40, 26), Color("#92400e"))
+	draw_rect(Rect2(tp.x - 20, tp.y - 26, 40, 10), Color("#b45309"))
+	draw_rect(Rect2(tp.x - 20, tp.y - 26, 40, 34), Color("#451a03"), false, 2)
+	draw_rect(Rect2(tp.x - 4, tp.y - 18, 8, 8), Color("#facc15"))
+	for k in 6:
+		var a := _t * 2.0 + k * TAU / 6.0
+		draw_circle(tp + Vector2(cos(a), sin(a) * 0.6) * 32.0 + Vector2(0, -10), 3.0, Color(1, 0.95, 0.4, 0.6 + 0.4 * sin(_t * 6 + k)))
+	_text(tp + Vector2(-60, -36), "HAZİNE!", 16, Color("#facc15"), 120)
+
+
+func _draw_siren(p: Vector2) -> void:
+	var on := int(_t * 4.0) % 2 == 0
+	draw_circle(p + Vector2(-6, 0), 5, Color("#ef4444") if on else Color("#7f1d1d"))
+	draw_circle(p + Vector2(6, 0), 5, Color("#3b82f6") if not on else Color("#1e3a8a"))
 
 
 func _draw_quest_npc(k: String) -> void:
@@ -893,23 +1173,45 @@ func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color) -> void
 	draw_set_transform(Vector2.ZERO)
 
 
+## İsim etiketi: [KLAN] Ad · Sv.N
+func _name_of(info: Dictionary) -> String:
+	var t := "%s · Sv.%d" % [info.get("name", ""), int(info.get("level", 1))]
+	if str(info.get("clan", "")) != "":
+		t = "[%s] %s" % [info.clan, t]
+	return t
+
+
+## İsim + üstünde rozetler (aranma yıldızları, polis).
+func _name(p: Vector2, y: float, pname: String, col: Color, extra: Dictionary) -> void:
+	_text(p + Vector2(-90, y), pname, 16, col, 180)
+	var badge := ""
+	var bcol := Color("#f87171")
+	if bool(extra.get("police", false)):
+		badge = "POLİS"
+		bcol = Color("#60a5fa")
+	elif int(extra.get("wanted", 0)) > 0:
+		badge = "★".repeat(int(extra.wanted))
+	if badge != "":
+		_text(p + Vector2(-90, y - 18), badge, 15, bcol, 180)
+
+
 func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: String, moving: bool,
-		ride: String = "", col: Color = Color.WHITE) -> void:
+		ride: String = "", col: Color = Color.WHITE, extra: Dictionary = {}) -> void:
 	var name_col := Color("#fde68a") if me else Color.WHITE
 	match ride:
 		"car":
 			_draw_vehicle(p, ride, facing, col)
-			_text(p + Vector2(-90, -40), pname, 16, name_col, 180)
+			_name(p, -40, pname, name_col, extra)
 			return
 		"bike":
 			_draw_vehicle(p, ride, facing, col)
 			Avatar.draw(self, p, app, facing, 0)
-			_text(p + Vector2(-90, -56), pname, 16, name_col, 180)
+			_name(p, -56, pname, name_col, extra)
 			return
 		"boat":
 			_draw_vehicle(p, ride, facing, col)
 			Avatar.draw(self, p + Vector2(0, -6), app, facing, 0, 1.0, true)
-			_text(p + Vector2(-90, -44), pname, 16, name_col, 180)
+			_name(p, -44, pname, name_col, extra)
 			return
 	var swim := Map.in_sea(p)
 	if swim:
@@ -929,4 +1231,4 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	if moving:
 		frame = [1, 0, 2, 0][int(_t * (6.0 if swim else 9.0)) % 4]
 	Avatar.draw(self, p, app, facing, frame, 1.0, swim)
-	_text(p + Vector2(-90, -56 + (22 if swim else 0)), pname, 16, Color("#fde68a") if me else Color.WHITE, 180)
+	_name(p, -56 + (22 if swim else 0), pname, name_col, extra)

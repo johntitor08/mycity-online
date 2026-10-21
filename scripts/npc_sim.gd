@@ -33,7 +33,9 @@ func _init() -> void:
 	for li in Map.TRAFFIC_LANES.size():
 		for k in CARS_PER_LANE:
 			cars.append({"lane": li, "x": _rng.randf() * Map.WORLD.size.x, "speed": _rng.randf_range(150.0, 230.0),
-				"color": Color.from_hsv(_rng.randf(), 0.55, 0.9)})
+				"color": Color.from_hsv(_rng.randf(), 0.55, 0.9), "police": false})
+	cars[0].police = true                 # devriye arabası
+	cars[0].color = Color("#e5e7eb")
 
 
 func _route_point(ri: int, d: float) -> Array:

@@ -15,22 +15,27 @@ const MAX_PER_PLAYER := 4
 
 var plots: Array = []   # sunucu: [{owner, level, price}]
 var view: Array = []    # herkes: sunucudan gelen kopya
+var _clock_offset := 0.0  # sunucu saati - yerel saat (tarla süreleri için)
 var _timer: Timer
 
 
 static func income_of(p: Dictionary) -> int:
-	if Biz.is_biz(p):
-		return 0          # işletmeler kira değil satış geliri getirir
+	if Biz.is_biz(p) or Farm.is_farm(p):
+		return 0          # işletme ve tarlalar kira değil satış/hasat geliri getirir
 	return int(int(p.price) * 0.006) + LEVEL_INCOME[int(p.level)]
 
 
 ## Arsadaki yapının adı (ev/villa/gökdelen ya da büfe/kafe/restoran).
 static func building_name(p: Dictionary) -> String:
+	if Farm.is_farm(p):
+		return "Tarla"
 	return Biz.NAMES[int(p.level)] if Biz.is_biz(p) else LEVEL_NAMES[int(p.level)]
 
 
 static func sell_value(p: Dictionary) -> int:
 	var total := int(p.price)
+	if Farm.is_farm(p):
+		return int((total + Farm.BUILD_COST) * SELL_RATIO)
 	var costs: Array = Biz.BUILD_COST if Biz.is_biz(p) else BUILD_COST
 	for l in range(1, int(p.level) + 1):
 		total += costs[l]
@@ -61,6 +66,20 @@ func server_init() -> void:
 					if saved[i].biz.has(k):
 						b[k] = saved[i].biz[k]
 				p["biz"] = b
+			elif str(saved[i].get("kind", "home")) == "farm" and saved[i].get("farm") is Dictionary:
+				p["kind"] = "farm"
+				var beds: Array = []
+				var old = saved[i].farm.get("beds", [])
+				for k in Farm.BEDS:
+					var b: Dictionary = Farm.empty_bed()
+					if old is Array and k < old.size() and old[k] is Dictionary and Farm.CROPS.has(str(old[k].get("c", ""))):
+						for key in b:
+							if old[k].has(key):
+								b[key] = old[k][key]
+					beds.append(b)
+				p["farm"] = {"beds": beds}
+			if saved[i].get("sec") is Dictionary:
+				p["sec"] = {"lock": bool(saved[i].sec.get("lock", false)), "alarm": bool(saved[i].sec.get("alarm", false))}
 			var furn: Array = []
 			if saved[i].get("furniture") is Array:
 				for f in saved[i].furniture:
@@ -159,6 +178,12 @@ func req_build(d: Dictionary) -> void:
 	var p: Dictionary = plots[i]
 	if p.owner != Net.players[id].name:
 		return
+	if Farm.is_farm(p):
+		Net.notify(id, "Tarla büyütülemez; satıp başka bir şey kurabilirsin.", false)
+		return
+	if int(p.level) == 0 and str(d.get("kind", "home")) == "farm":
+		Farm.build(id, i)
+		return
 	if Biz.is_biz(p) or (int(p.level) == 0 and str(d.get("kind", "home")) == "biz"):
 		Biz.build(id, i)
 		return
@@ -194,6 +219,8 @@ func req_sell(d: Dictionary) -> void:
 	if Biz.is_biz(p) and p.get("biz") is Dictionary:
 		value += int(p.biz.cash)      # kasadaki para da sahibine
 	p.erase("biz")
+	p.erase("farm")
+	p.erase("sec")
 	p["kind"] = "home"
 	Bazaar.drop_plot_listing(i)
 	Homes.clear_plot(i, str(p.owner))
@@ -206,14 +233,21 @@ func req_sell(d: Dictionary) -> void:
 
 
 func _broadcast() -> void:
-	Net.tell_all(self, "on_plots", {"plots": plots})
+	Net.tell_all(self, "on_plots", {"plots": plots, "now": Time.get_unix_time_from_system()})
 
 
 func send_state(id: int) -> void:
-	Net.tell(self, id, "on_plots", {"plots": plots})
+	Net.tell(self, id, "on_plots", {"plots": plots, "now": Time.get_unix_time_from_system()})
+
+
+## İstemci: sunucunun şu anki saati (unix).
+func server_now() -> float:
+	return Time.get_unix_time_from_system() + _clock_offset
 
 
 @rpc("authority", "call_local", "reliable")
 func on_plots(d: Dictionary) -> void:
+	if d.has("now"):
+		_clock_offset = float(d.now) - Time.get_unix_time_from_system()
 	view = d.plots.duplicate(true)
 	plots_changed.emit()

@@ -1,5 +1,5 @@
 extends "res://scripts/ui/game_panel.gd"
-## Emlak ofisi / arsa penceresi: satın al, ev ya da işletme kur, büyüt, sat; işletmeyi yönet.
+## Emlak ofisi / arsa penceresi: satın al, ev, işletme ya da tarla kur, büyüt, sat; işletmeyi ve tarlayı yönet.
 
 var focus_plot := -1
 var list: VBoxContainer
@@ -9,6 +9,13 @@ var cash_btn: Button
 var price_slider: HSlider
 var price_label: Label
 var staff_spin: SpinBox
+var farm: VBoxContainer
+var beds_grid: GridContainer
+var crop_opt: OptionButton
+var farm_info: Label
+var _crop_keys: Array = []
+var _bed_widgets: Array = []      # [{name, bar, state}]
+var _tick := 0.0
 
 
 func _ready() -> void:
@@ -26,7 +33,9 @@ func _ready() -> void:
 	list.add_theme_constant_override("separation", 6)
 	scroll.add_child(list)
 	_build_manage()
+	_build_farm()
 	Land.plots_changed.connect(_refresh)
+	Farm.crops_changed.connect(_refresh_farm)
 	Net.roster_changed.connect(_refresh)
 	Rpg.sheet_changed.connect(_refresh)
 	_refresh()
@@ -40,6 +49,8 @@ func _refresh() -> void:
 			continue
 		_row(i, Land.view[i])
 	_refresh_manage()
+	if farm != null:
+		_refresh_farm()
 
 
 func _row(i: int, p: Dictionary) -> void:
@@ -54,14 +65,18 @@ func _row(i: int, p: Dictionary) -> void:
 	h.add_theme_constant_override("separation", 10)
 	row.add_child(h)
 	add_label(h, "#%d" % (i + 1), 22, Color("#facc15")).custom_minimum_size = Vector2(46, 0)
+	var sec: Dictionary = p.get("sec", {})
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = SIZE_EXPAND_FILL
 	h.add_child(info)
 	var mine: bool = p.owner == Net.my_name
 	var is_biz := Biz.is_biz(p)
 	var owner_text: String = "Satılık" if p.owner == "" else ("Sahibi: SEN" if mine else "Sahibi: %s" % p.owner)
-	add_label(info, "%s  •  %s" % [owner_text, Land.building_name(p)], 17, Color("#86efac") if mine else Color.WHITE)
-	if is_biz:
+	var guard := ("  [kilitli]" if sec.get("lock", false) else "") + ("  [alarmlı]" if sec.get("alarm", false) else "")
+	add_label(info, "%s  •  %s%s" % [owner_text, Land.building_name(p), guard], 17, Color("#86efac") if mine else Color.WHITE)
+	if Farm.is_farm(p):
+		add_label(info, "Arsa değeri %s  •  6 tarh  •  %s" % [U.money(int(p.price)), _farm_summary(p)], 14, Color("#94a3b8"))
+	elif is_biz:
 		var b: Dictionary = p.biz
 		add_label(info, "Puan %.1f/5  •  Son dakika %d müşteri  •  Depo %d" % [float(b.rating), int(b.last_customers), int(b.stock)], 14, Color("#94a3b8"))
 	else:
@@ -77,13 +92,14 @@ func _row(i: int, p: Dictionary) -> void:
 	if lvl == 0:
 		buy_button(h, Land.BUILD_COST[1], Land.build_up.bind(i, "home"), 0, "Ev kur")
 		buy_button(h, Biz.BUILD_COST[1], Land.build_up.bind(i, "biz"), Biz.LEVEL_GATE[1], "Büfe aç")
-	elif lvl < 3:
+		buy_button(h, Farm.BUILD_COST, Land.build_up.bind(i, "farm"), Farm.LEVEL_GATE, "Tarla kur")
+	elif lvl < 3 and not Farm.is_farm(p):
 		if is_biz:
 			buy_button(h, Biz.BUILD_COST[lvl + 1], Land.build_up.bind(i, "biz"), Biz.LEVEL_GATE[lvl + 1], "%s'ye büyüt" % Biz.NAMES[lvl + 1])
 		else:
 			var gate: int = [0, 1, Rpg.LEVEL_GATES.villa, Rpg.LEVEL_GATES.tower][lvl + 1]
 			buy_button(h, Land.BUILD_COST[lvl + 1], Land.build_up.bind(i, "home"), gate, "%s inşa et" % Land.LEVEL_NAMES[lvl + 1])
-	if focus_plot >= 0 and lvl >= 1 and not is_biz:
+	if focus_plot >= 0 and lvl >= 1 and str(p.get("kind", "home")) == "home":
 		add_button(h, "Eve Gir", func(): Homes.enter(i); close())
 	add_button(h, "Sat (%s)" % U.money(Land.sell_value(p)), Land.sell.bind(i))
 
@@ -147,3 +163,131 @@ func _update_price_label() -> void:
 		return
 	var lvl := int(Land.view[focus_plot].level)
 	price_label.text = "×%.2f = %s/müşteri" % [price_slider.value, U.money(int(round(Biz.UNIT_PRICE[lvl] * price_slider.value)))]
+
+
+func _farm_summary(p: Dictionary) -> String:
+	var now := Land.server_now()
+	var counts := {"ready": 0, "growing": 0, "empty": 0, "rotten": 0}
+	for b in p.farm.beds:
+		var st: String = Farm.bed_state(b, now)[0]
+		counts[st] = int(counts[st]) + 1
+	return "%d olgun, %d büyüyor, %d boş" % [counts.ready, counts.growing, counts.empty + counts.rotten]
+
+
+## Tarla yönetimi (sadece kendi tarlanın yanındayken görünür).
+func _build_farm() -> void:
+	farm = VBoxContainer.new()
+	farm.add_theme_constant_override("separation", 8)
+	farm.visible = false
+	body.add_child(farm)
+	farm.add_child(HSeparator.new())
+	var head := HBoxContainer.new()
+	farm.add_child(head)
+	add_label(head, "Tarla", 20, Color("#facc15"))
+	farm_info = add_label(head, "", 14, Color("#94a3b8"))
+	farm_info.size_flags_horizontal = SIZE_EXPAND_FILL
+	farm_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	beds_grid = GridContainer.new()
+	beds_grid.columns = 3
+	beds_grid.add_theme_constant_override("h_separation", 8)
+	beds_grid.add_theme_constant_override("v_separation", 8)
+	farm.add_child(beds_grid)
+	for k in Farm.BEDS:
+		var card := PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color("#3b2a1a")
+		sb.set_corner_radius_all(8)
+		sb.set_content_margin_all(8)
+		card.add_theme_stylebox_override("panel", sb)
+		card.custom_minimum_size = Vector2(270, 0)
+		beds_grid.add_child(card)
+		var v := VBoxContainer.new()
+		card.add_child(v)
+		var nm := add_label(v, "", 16)
+		var bar := ProgressBar.new()
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 10)
+		v.add_child(bar)
+		var st := add_label(v, "", 13, Color("#cbd5e1"))
+		_bed_widgets.append({"name": nm, "bar": bar, "state": st, "box": sb})
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	farm.add_child(row)
+	crop_opt = OptionButton.new()
+	crop_opt.custom_minimum_size = Vector2(330, 0)
+	row.add_child(crop_opt)
+	add_button(row, "Boş tarhlara ek", _plant)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 8)
+	farm.add_child(row2)
+	add_button(row2, "Sula (⚡1)", func(): Farm.water(focus_plot))
+	add_button(row2, "Gübrele (%s/tarh, +1 ürün)" % U.money(Farm.FERTILIZER_PRICE), func(): Farm.fertilize(focus_plot))
+	add_button(row2, "Hasat et", func(): Farm.harvest(focus_plot))
+	add_label(farm, "Sulanmayan ekin yarı verim verir; yağmur ve kar tarlayı kendiliğinden sular. Fırtına büyüyen ekine zarar verebilir. Olgun ekini uzun süre toplamazsan çürür. Ürünleri Pazar Yeri'ndeki Hal'de sat ya da işletmene malzeme yap.", 13, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Env.changed.connect(_fill_crops)
+	Rpg.sheet_changed.connect(_fill_crops)
+	_fill_crops()
+
+
+func _plant() -> void:
+	if crop_opt.selected >= 0 and crop_opt.selected < _crop_keys.size():
+		Farm.plant(focus_plot, _crop_keys[crop_opt.selected])
+
+
+func _fill_crops() -> void:
+	var sel := crop_opt.selected
+	crop_opt.clear()
+	_crop_keys.clear()
+	var lvl := int(Rpg.sheet.get("level", 1))
+	for k in Farm.CROPS:
+		var c: Dictionary = Farm.CROPS[k]
+		var g := Farm.grow_time(k, Env.season)
+		var tag := "  ★mevsimi" if c.season == Env.season else ""
+		var txt := "%s — tohum %s, %d dk%s" % [c.name, U.money(int(c.seed)), int(ceil(g / 60.0)), tag]
+		if lvl < int(c.level):
+			txt = "%s (Sv.%d gerekli)" % [c.name, c.level]
+		crop_opt.add_item(txt)
+		crop_opt.set_item_disabled(crop_opt.item_count - 1, lvl < int(c.level))
+		_crop_keys.append(k)
+	crop_opt.selected = clampi(sel, 0, crop_opt.item_count - 1)
+
+
+func _refresh_farm() -> void:
+	var p: Dictionary = Land.view[focus_plot] if focus_plot >= 0 and focus_plot < Land.view.size() else {}
+	farm.visible = not p.is_empty() and Farm.is_farm(p) and p.owner == Net.my_name and p.get("farm") is Dictionary
+	if not farm.visible:
+		return
+	var now := Land.server_now()
+	var stock := 0
+	for k in Farm.my_crops:
+		stock += int(Farm.my_crops[k])
+	farm_info.text = "Mevsim: %s  •  Ambar: %d ürün" % [Env.SEASON_NAMES.get(Env.season, ""), stock]
+	for k in Farm.BEDS:
+		var b: Dictionary = p.farm.beds[k]
+		var w: Dictionary = _bed_widgets[k]
+		var st: Array = Farm.bed_state(b, now)
+		var crop: Dictionary = Farm.CROPS.get(str(b.c), {})
+		w.name.text = "Tarh %d: %s" % [k + 1, crop.get("name", "boş")]
+		w.bar.value = float(st[1]) * 100.0
+		var flags := ("  sulandı" if b.w else "  (kuru)") + ("  +gübre" if b.f else "") + ("  hasarlı!" if b.dmg else "")
+		match st[0]:
+			"empty":
+				w.state.text = "Ekime hazır"
+				w.box.bg_color = Color("#3b2a1a")
+			"growing":
+				var left := float(b.t) + float(b.g) - now
+				w.state.text = "%d:%02d kaldı%s" % [int(left) / 60, int(left) % 60, flags]
+				w.box.bg_color = Color("#2b3a1a") if b.w else Color("#3b2a1a")
+			"ready":
+				w.state.text = "HASADA HAZIR!%s" % flags
+				w.box.bg_color = Color("#14532d")
+			"rotten":
+				w.state.text = "Çürüdü — hasat et ile temizle"
+				w.box.bg_color = Color("#44241a")
+
+
+func _process(delta: float) -> void:
+	_tick += delta
+	if _tick >= 1.0 and farm != null and farm.visible:
+		_tick = 0.0
+		_refresh_farm()

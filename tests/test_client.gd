@@ -9,6 +9,7 @@ var _last_msg := ""
 var _acted_turn := ""
 var _phase := "main"        # main -> wrong_pass -> right_pass
 var _port := 7777
+var _chats: Array = []
 const PASS := "test1234"
 
 
@@ -30,7 +31,7 @@ func _ready() -> void:
 	Jobs.job_result.connect(func(d): print("[iş] ", d.text))
 	Casino.result.connect(func(d): print("[kumarhane] ", d))
 	Net.toast.connect(func(t, _g): print("[bildirim] ", t))
-	Net.chat_received.connect(func(n, t, _c): print("[sohbet] ", n, ": ", t))
+	Net.chat_received.connect(func(n, t, _c, ch): print("[sohbet:%s] " % ch, n, ": ", t); _chats.append([ch, t]))
 	Poker.table_changed.connect(_on_table)
 	var args := OS.get_cmdline_user_args()
 	var err := ""
@@ -204,7 +205,16 @@ func _on_ok() -> void:
 	var sh := Rpg.sheet
 	check(not sh.is_empty(), "karakter kartı geldi (Sv.%d, %d XP)" % [sh.get("level", 0), sh.get("xp", 0)])
 	check(int(sh.xp) > 0 and int(sh.skills.cashier.xp) > 0, "işlerden XP ve kasiyerlik XP'si kazanıldı")
-	check(float(sh.energy) < float(sh.max_energy), "işler enerji harcadı (%d/%d)" % [int(sh.energy), sh.max_energy])
+	# (seviye atlanırsa enerji dolar; o durumda harcamayı ayrıca dene)
+	check(float(sh.energy) < float(sh.max_energy) or int(sh.level) > 1, "işler enerji harcadı (%d/%d, Sv.%d)" % [int(sh.energy), sh.max_energy, int(sh.level)])
+	if float(Rpg.sheet.energy) >= float(Rpg.sheet.max_energy):
+		if Net.is_server():
+			Rpg.use_energy(Net.my_id(), 20)
+		else:
+			Jobs.ask_hospital()
+			await _wait(0.4)
+			Jobs.answer_hospital(-1)
+		await _wait(0.4)
 	check(sh.quests.size() == 3, "3 günlük görev var")
 	Rpg.buy("simit")
 	await _wait(0.4)
@@ -249,6 +259,7 @@ func _on_ok() -> void:
 	if Net.is_server():
 		await _test_04(get_parent().world)
 		await _test_05(get_parent().world)
+		await _test_06(get_parent().world)
 		_finish()
 		return
 	print("== Şifre")
@@ -273,7 +284,7 @@ func _test_04(w) -> void:
 	check(Env.hour >= 0.0 and Env.hour < 24.0, "oyun saati çalışıyor (%s)" % Env.clock_text())
 	Env.force_weather("rain")
 	await _wait(0.3)
-	check(Env.is_rainy() and Env.clock_text().contains("Yağmurlu"), "yağmur başladı ve saatte görünüyor")
+	check(Env.is_rainy() and Env.clock_text().contains(Env.weather_name()), "yağmur başladı ve saatte görünüyor (%s)" % Env.weather_name())
 	Env.force_weather("storm")
 	Net.add_money(me, 60000)
 	Rpg.add_xp(me, "", 2600)
@@ -533,6 +544,267 @@ func _test_05(w) -> void:
 	Land.sell(plot)
 	await _wait(0.3)
 	check(not Biz.is_biz(Land.view[plot]) and Land.view[plot].owner == "", "işletmeli arsa satıldı, arsa sıfırlandı")
+
+
+## 0.6: çiftlik ve mevsimler, klanlar ve sohbet kanalları, etkinlikler ve yarış, polis ve suç.
+func _test_06(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	Net.add_money(me, 100000)
+	await _wait(0.3)
+
+	print("== 0.6: Mevsimler")
+	Env.force_season("summer")
+	await _wait(0.3)
+	check(Env.season == "summer" and Env.clock_text().contains("Yaz"), "mevsim yaz oldu ve saatte görünüyor (%s)" % Env.clock_text())
+	check(Farm.grow_time("domates", "summer") < Farm.grow_time("domates", "spring") and Farm.grow_time("domates", "winter") > Farm.grow_time("domates", "spring"),
+		"domates yazın hızlı, kışın yavaş büyür")
+
+	print("== 0.6: Çiftlik")
+	Env.force_weather("clear")
+	var plot := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			plot = i
+			break
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Land.buy(plot)
+	await _wait(0.3)
+	Land.build_up(plot, "farm")
+	await _wait(0.4)
+	check(Farm.is_farm(Land.view[plot]) and Land.view[plot].farm.beds.size() == 6, "boş arsaya 6 tarhlı tarla kuruldu")
+	var m0 := Net.my_money()
+	Farm.plant(plot, "domates")
+	await _wait(0.4)
+	var beds: Array = Land.view[plot].farm.beds
+	check(beds.all(func(b): return b.c == "domates"), "6 tarha domates ekildi")
+	check(Net.my_money() < m0, "tohum parası düştü (6 × %d TL)" % Farm.CROPS.domates.seed)
+	check(Farm.bed_state(beds[0], Land.server_now())[0] == "growing", "ekin büyüyor")
+	Farm.water(plot)
+	await _wait(0.3)
+	check(Land.view[plot].farm.beds.all(func(b): return b.w), "tarla sulandı")
+	Farm.fertilize(plot)
+	await _wait(0.3)
+	check(Land.view[plot].farm.beds.all(func(b): return b.f), "tarla gübrelendi")
+	var now := Time.get_unix_time_from_system()
+	for b in Land.plots[plot].farm.beds:
+		b.t = now - float(b.g) - 1.0          # zamanı ileri sar: olgunlaştı
+	Land._broadcast()
+	await _wait(0.3)
+	check(Farm.bed_state(Land.view[plot].farm.beds[0], Land.server_now())[0] == "ready", "ekin olgunlaştı")
+	Farm.harvest(plot)
+	await _wait(0.4)
+	var got := int(Farm.my_crops.get("domates", 0))
+	check(got >= 6 * 4, "hasat: %d domates (sulama + gübre ile tarh başı 4+)" % got)
+	check(Land.view[plot].farm.beds.all(func(b): return b.c == ""), "hasattan sonra tarhlar boşaldı")
+	Farm.plant(plot, "bugday")
+	await _wait(0.3)
+	now = Time.get_unix_time_from_system()
+	Land.plots[plot].farm.beds[0].t = now - 100000.0     # unutuldu: çürüdü
+	Land._broadcast()
+	await _wait(0.2)
+	check(Farm.bed_state(Land.view[plot].farm.beds[0], Land.server_now())[0] == "rotten", "uzun süre toplanmayan ekin çürüdü")
+	Env.force_weather("rain")
+	Farm._acc = 99.0
+	Farm._process(0.1)
+	await _wait(0.3)
+	check(Land.view[plot].farm.beds.slice(1).all(func(b): return b.w), "yağmur tarlayı kendiliğinden suladı")
+	Env.force_weather("clear")
+	Farm.plant(plot, "karpuz")
+	await _wait(0.3)
+	check(Land.view[plot].farm.beds[0].c == "karpuz", "çürük tarh temizlenip yeniden ekildi")
+	w.my_pos = Map.building("pazar").rect.get_center()
+	await _wait(0.3)
+	Bazaar.list_item("crop", "domates", 90, 5)
+	await _wait(0.3)
+	var crop_l: Array = Bazaar.listings.filter(func(l): return l.kind == "crop" and l.seller == Net.my_name)
+	check(crop_l.size() == 1 and int(Farm.my_crops.get("domates", 0)) == got - 5, "5 domates pazarda ilana kondu")
+	Bazaar.cancel(int(crop_l[0].id))
+	await _wait(0.3)
+	check(int(Farm.my_crops.get("domates", 0)) == got, "ilan kaldırıldı, domatesler ambara döndü")
+	var m1 := Net.my_money()
+	Farm.sell("domates")
+	await _wait(0.3)
+	check(Net.my_money() == m1 + got * Farm.sell_price("domates", "summer") and not Farm.my_crops.has("domates"), "Hal'de domatesler satıldı (+%d TL)" % (Net.my_money() - m1))
+
+	print("== 0.6: Klan ve sohbet kanalları")
+	Clans.create("Test Klanı", "tst")
+	await _wait(0.4)
+	check(Clans.mine.get("tag") == "TST" and Clans.mine.leader == Net.my_name, "klan kuruldu: [TST] Test Klanı")
+	check(Net.roster[me].get("clan") == "TST", "klan etiketi oyuncu listesinde")
+	check(Clans.ranking.size() >= 1 and Clans.ranking[0].tag == "TST", "klan sıralamasında görünüyor")
+	var m2 := Net.my_money()
+	Clans.deposit(1000)
+	await _wait(0.3)
+	Clans.withdraw(400)
+	await _wait(0.3)
+	check(int(Clans.mine.bank) == 600 and Net.my_money() == m2 - 600, "kasaya 1000 yatırıldı, lider 400 çekti")
+	Rpg.add_xp(me, "", 2500)
+	await _wait(3.5)
+	check(int(Clans.mine.points) >= 250 and int(Clans.mine.level) >= 2, "üye XP'si klana puan kazandırdı (%d puan, Sv.%d)" % [int(Clans.mine.points), int(Clans.mine.level)])
+	check(Clans.pay_mult(me) > 1.0, "klan seviyesi maaş bonusu veriyor (×%.2f)" % Clans.pay_mult(me))
+	_chats.clear()
+	Net.send_chat("klan selam", "clan")
+	await _wait(0.5)
+	Net.send_chat("yakındaki selam", "local")
+	await _wait(0.5)
+	check(_chats.any(func(c): return c[0] == "clan" and c[1] == "klan selam"), "klan kanalında mesaj geldi")
+	check(_chats.any(func(c): return c[0] == "local" and c[1] == "yakındaki selam"), "yakın kanalda mesaj geldi")
+	w.open_simple_panel("res://scripts/ui/clan_panel.gd")
+	await get_tree().process_frame
+	check(w.panel != null, "klan penceresi açıldı")
+	w._close_panel()
+
+	print("== 0.6: Etkinlikler")
+	Events.start_event("fish")
+	await _wait(0.3)
+	check(Events.current.get("kind") == "fish", "balık turnuvası başladı (herkese yayınlandı)")
+	Events.on_fish(me, "Sazan", 25)
+	Events.on_fish(me, "Turna", 90)
+	Events.on_fish(me, "Hamsi", 12)
+	await _wait(0.3)
+	var st: Array = Events.current.get("standings", [])
+	check(st.size() == 1 and int(st[0].score) == 90, "turnuvada en değerli balık sayıldı (Turna 90 TL)")
+	var m3 := Net.my_money()
+	Events._finish()
+	await _wait(0.3)
+	check(Events.current.is_empty() and Net.my_money() >= m3 + Events.PRIZES[0], "turnuva bitti, birinciye %d TL ödül" % Events.PRIZES[0])
+	check(Events.next_kind != "" and Events.next_at > Events.local_now(), "sıradaki etkinlik zamanlandı (%s)" % Events.next_kind)
+	Events.start_event("festival")
+	await _wait(0.2)
+	check(is_equal_approx(Events.pay_mult(), Events.FESTIVAL_PAY) and Events.customer_mult() > 1.0, "festivalde maaş ve müşteri artıyor")
+	Events.start_event("treasure")
+	await _wait(0.3)
+	check(Events.current.get("kind") == "treasure" and Events.current.has("area"), "hazine avı başladı, arama alanı geldi")
+	var m4 := Net.my_money()
+	w.my_pos = Events._active.pos + (Map.SPAWN - Events._active.pos).normalized() * 200.0
+	await _wait(0.3)
+	check(Events.treasure_pos != null, "sandığa yaklaşınca yeri göründü")
+	w.my_pos = Events._active.pos
+	await _wait(0.4)
+	check(Net.my_money() >= m4 + Events.TREASURE_PRIZE and Events.current.is_empty(), "hazine bulundu (+%d TL), etkinlik bitti" % Events.TREASURE_PRIZE)
+
+	print("== 0.6: Yarış pisti")
+	w.my_pos = Map.RACE_START
+	await _wait(0.3)
+	check(w.zone.get("type") == "race", "başlangıçta yarış bölgesi")
+	Events.race_start()
+	await _wait(0.3)
+	check(Events.race.get("state") == "countdown", "geri sayım başladı")
+	await _wait(3.2)
+	check(Events.race.get("state") == "running", "yarış başladı")
+	for cp in Map.RACE_CPS:
+		w.my_pos = cp
+		await _wait(0.4)
+	check(Events.race.get("state") == "finished" and float(Events.race.last) > 0.0, "tur tamamlandı (%.2f sn)" % float(Events.race.get("last", 0.0)))
+	check(Events.records.size() >= 1 and Events.records[0].name == Net.my_name, "pist rekorlarına girildi")
+	w.my_pos = Map.RACE_START
+	await _wait(0.2)
+	Events.race_start()
+	await _wait(0.3)
+	w.my_pos = Map.SPAWN
+	await _wait(0.4)
+	check(Events.race.is_empty() or Events.race.get("state") == null, "geri sayımda pistten ayrılınca erken çıkış")
+
+	print("== 0.6: Polis ve suç")
+	Police._npc_acc = -100000.0       # testte NPC devriye rastgele yakalamasın
+	var rp := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			rp = i
+			break
+	Net.save_data.players["Kurban"] = {"money": 20000, "fish": [], "rpg": {"xp": 3000}}
+	Land.plots[rp].owner = "Kurban"
+	Land.plots[rp].level = 1
+	Land._broadcast()
+	w.my_pos = Map.plot_rect(rp).get_center()
+	await _wait(0.3)
+	check(w._g_action.get("kind") == "rob", "başkasının evinde G: soygun seçeneği")
+	for _k in 12:
+		Police._cool.clear()
+		Police.rob(rp)
+		await _wait(0.15)
+		if int(Police.status.get("wanted", 0)) >= 2 and int(Net.save_data.players.Kurban.money) < 20000:
+			break
+	check(int(Police.status.get("wanted", 0)) >= 1 and int(Net.roster[me].get("wanted", 0)) >= 1, "soygun aranma yıldızı verdi (%d★)" % int(Police.status.get("wanted", 0)))
+	check(int(Net.save_data.players.Kurban.money) < 20000, "ev soyuldu (kurbanın parası %d)" % int(Net.save_data.players.Kurban.money))
+	var vm := int(Net.save_data.players.Kurban.money)
+	var wa := int(Police.status.wanted)
+	Land.plots[rp]["sec"] = {"lock": false, "alarm": true}
+	Police._cool.clear()
+	Police.rob(rp)
+	await _wait(0.3)
+	check(int(Net.save_data.players.Kurban.money) == vm and int(Police.status.wanted) == mini(5, wa + 2), "alarmlı ev soyulamadı, +2 yıldız")
+	w.my_pos = Map.building("karakol").rect.get_center()
+	await _wait(0.3)
+	Police.set_duty(true)
+	await _wait(0.3)
+	check(not Police.on_duty(), "aranan oyuncu polis olamaz")
+	var m5 := Net.my_money()
+	var stars := Police.wanted(me)
+	Police.jail(me, stars, 0)
+	await _wait(0.5)
+	check(Police.is_jailed(me) and w._jail and Map.JAIL.has_point(w.my_pos), "NPC polis yakaladı: hapishanedesin")
+	check(Police.jail_left() > 0.0 and Police.wanted(me) == 0, "hapis süresi işliyor, yıldızlar sıfırlandı")
+	check(Net.my_money() == m5 - stars * Police.FINE_PER_STAR, "para cezası kesildi (%d TL)" % (stars * Police.FINE_PER_STAR))
+	check(Map.JAIL.has_point(w._clamp_to_area(Map.SPAWN)), "hapisten yürüyerek çıkılamıyor")
+	Jobs.ask_market()
+	await _wait(0.3)
+	Police.bail()
+	await _wait(0.5)
+	check(not Police.is_jailed(me) and not w._jail and Map.building("karakol").rect.grow(200).has_point(w.my_pos), "kefalet ödendi, karakolun önünde serbest")
+	w.my_pos = Map.building("karakol").rect.get_center()
+	await _wait(0.3)
+	Police.set_duty(true)
+	await _wait(0.3)
+	check(Police.on_duty() and Net.roster[me].get("police", false), "polis görevine başlandı")
+	var cases: Array = []
+	var cbc := func(d): cases.append(d)
+	Police.patrol_case.connect(cbc)
+	var m6 := Net.my_money()
+	Police.ask_patrol()
+	await _wait(0.3)
+	check(cases.size() == 1 and Police._patrol.has(me), "devriye ihbarı geldi: %s" % (cases[0].case if not cases.is_empty() else "-"))
+	Police.answer_patrol(int(Police._patrol[me].correct) if Police._patrol.has(me) else 0)
+	await _wait(0.3)
+	check(Net.my_money() > m6, "olay doğru çözüldü, maaş alındı (+%d TL)" % (Net.my_money() - m6))
+	Police.patrol_case.disconnect(cbc)
+	Police.buy_security("wallet")
+	Police.buy_security("lock", plot)
+	await _wait(0.4)
+	check(Police.status.get("security", []).has("wallet") and Land.view[plot].get("sec", {}).get("lock", false), "cüzdan zinciri ve tarlaya kilit alındı")
+	var helper := Net.id_by_name("Yardimci")
+	if helper != 0:
+		var hc: Dictionary = Police.crime(Net.save_data.players.Yardimci)
+		hc["t"] = Time.get_unix_time_from_system()
+		hc["wanted"] = 2
+		Police._update_roster(helper)
+		w.my_pos = Net.positions[helper] + Vector2(30, 0)
+		await _wait(0.4)
+		check(w._g_action.get("kind") == "arrest", "görevdeyken aranan oyuncunun yanında G: tutukla")
+		if w._g_action.get("kind") != "arrest":
+			print("  [debug] g=", w._g_action, " shown=", w.shown.get(helper), " me=", w.my_pos, " roster=", Net.roster.get(helper), " duty=", Police.on_duty())
+		var m7 := Net.my_money()
+		Police.arrest("Yardimci")
+		await _wait(0.4)
+		check(Police.is_jailed(helper) and Net.my_money() > m7, "polis aranan oyuncuyu tutukladı, ödül aldı")
+	else:
+		print("  (yardımcı istemci yok: tutuklama testi atlandı)")
+	Police.set_duty(false)
+	await _wait(0.2)
+	w.zone = {"type": "karakol", "label": "Karakol"}
+	w._open_panel()
+	await get_tree().process_frame
+	check(w.panel != null, "karakol penceresi açıldı")
+	w._close_panel()
+	Land.plots[rp].owner = ""
+	Land.plots[rp].level = 0
+	Land.plots[rp].erase("sec")
+	Land._broadcast()
+	Land.sell(plot)
+	await _wait(0.3)
+	check(not Farm.is_farm(Land.view[plot]) and Land.view[plot].owner == "", "tarla satıldı, arsa sıfırlandı")
 
 
 func _finish() -> void:

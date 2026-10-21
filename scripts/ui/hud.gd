@@ -7,6 +7,8 @@ signal character_requested
 signal profile_requested
 signal transfer_requested(to_name: String)
 signal pet_requested
+signal clan_requested
+signal events_requested
 
 var money_label: Label
 var name_label: Label
@@ -25,6 +27,14 @@ var energy_bar: ProgressBar
 var energy_label: Label
 var clock_label: Label
 var quest_label: Label
+var status_label: Label
+var bail_btn: Button
+var event_banner: PanelContainer
+var event_label: Label
+var race_label: Label
+var channel_opt: OptionButton
+const CHANNELS := ["all", "clan", "local"]
+const CHANNEL_TAGS := {"clan": ["Klan", "#4ade80"], "local": ["Yakın", "#cbd5e1"], "pm": ["Özel", "#f9a8d4"]}
 
 
 func _ready() -> void:
@@ -42,6 +52,10 @@ func _ready() -> void:
 	quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	quest_label.custom_minimum_size = Vector2(300, 0)
 	money_label = _label(tv, "", 26, Color("#86efac"))
+	status_label = _label(tv, "", 15, Color("#fca5a5"))
+	status_label.visible = false
+	bail_btn = _small_button(tv, "", Police.bail)
+	bail_btn.visible = false
 	var lv := HBoxContainer.new()
 	tv.add_child(lv)
 	level_label = _label(lv, "Sv.1", 15, Color("#facc15"))
@@ -57,8 +71,12 @@ func _ready() -> void:
 	_small_button(btns, "Profil (C)", func(): profile_requested.emit())
 	_small_button(btns, "Karakter", func(): character_requested.emit())
 	_small_button(btns, "Evcil", func(): pet_requested.emit())
-	sound_btn = _small_button(btns, "", Sfx.toggle_mute)
-	music_btn = _small_button(btns, "", Sfx.toggle_music)
+	var btns2 := HBoxContainer.new()
+	tv.add_child(btns2)
+	_small_button(btns2, "Klan", func(): clan_requested.emit())
+	_small_button(btns2, "Etkinlik", func(): events_requested.emit())
+	sound_btn = _small_button(btns2, "", Sfx.toggle_mute)
+	music_btn = _small_button(btns2, "", Sfx.toggle_music)
 	_small_button(tv, "Şehirden Çık", Net.leave)
 	Sfx.settings_changed.connect(_refresh_sound)
 	_refresh_sound()
@@ -91,11 +109,20 @@ func _ready() -> void:
 	chat_log.size_flags_vertical = SIZE_EXPAND_FILL
 	chat_log.add_theme_font_size_override("normal_font_size", 14)
 	cv.add_child(chat_log)
+	var ci := HBoxContainer.new()
+	cv.add_child(ci)
+	channel_opt = OptionButton.new()
+	for t in ["Genel", "Klan", "Yakın"]:
+		channel_opt.add_item(t)
+	channel_opt.focus_mode = FOCUS_NONE
+	channel_opt.tooltip_text = "Sohbet kanalı. Kısayollar: /k klan, /y yakın, /m isim özel mesaj"
+	ci.add_child(channel_opt)
 	chat_input = LineEdit.new()
-	chat_input.placeholder_text = "Sohbet için Enter..."
+	chat_input.placeholder_text = "Enter: yaz  (/k klan, /y yakın, /m isim özel)"
 	chat_input.max_length = 200
+	chat_input.size_flags_horizontal = SIZE_EXPAND_FILL
 	chat_input.text_submitted.connect(_on_chat_submit)
-	cv.add_child(chat_input)
+	ci.add_child(chat_input)
 
 	# Alt orta: bina ipucu
 	hint_panel = _box(self)
@@ -107,18 +134,37 @@ func _ready() -> void:
 	# Sağ alt: kontroller
 	var help_box := _box(self)
 	_place(help_box, Vector2(1, 1), Vector2(-12, -12), Vector2(-12, -12))
-	_label(help_box, "WASD: yürü   E: gir   F: araç   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
+	_label(help_box, "WASD: yürü   E: gir   F: araç   G: eylem   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
 
-	# Üst orta: bildirimler
+	# Üst orta: etkinlik bandı, yarış sayacı, bildirimler
+	var top_mid := VBoxContainer.new()
+	top_mid.mouse_filter = MOUSE_FILTER_IGNORE
+	top_mid.add_theme_constant_override("separation", 6)
+	add_child(top_mid)
+	_place(top_mid, Vector2(0.5, 0), Vector2(-260, 10), Vector2(260, 400))
+	event_banner = _box(top_mid)
+	(event_banner.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Color(0.35, 0.2, 0.05, 0.88)
+	event_banner.mouse_filter = MOUSE_FILTER_STOP
+	event_banner.gui_input.connect(_on_banner_input)
+	event_banner.tooltip_text = "Tıkla: etkinlik ayrıntıları"
+	event_label = _label(event_banner, "", 15, Color("#fde68a"))
+	event_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	event_banner.visible = false
+	race_label = _label(top_mid, "", 30, Color("#ffffff"))
+	race_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	race_label.add_theme_constant_override("outline_size", 8)
+	race_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	race_label.visible = false
 	toast_box = VBoxContainer.new()
 	toast_box.mouse_filter = MOUSE_FILTER_IGNORE
 	toast_box.alignment = BoxContainer.ALIGNMENT_BEGIN
-	add_child(toast_box)
-	_place(toast_box, Vector2(0.5, 0), Vector2(-260, 14), Vector2(260, 300))
+	top_mid.add_child(toast_box)
 
 	Net.roster_changed.connect(_refresh)
 	Rpg.sheet_changed.connect(_refresh_rpg)
 	Story.changed.connect(_refresh_quest)
+	Police.changed.connect(_refresh_status)
+	Events.changed.connect(_refresh_event)
 	_refresh_rpg()
 	Net.chat_received.connect(_on_chat)
 	Net.toast.connect(_on_toast)
@@ -176,6 +222,64 @@ func _process(_delta: float) -> void:
 	if Engine.get_process_frames() % 30 == 0:
 		_refresh_energy()
 		clock_label.text = Env.clock_text()
+		_refresh_event()
+		_refresh_status()
+	_refresh_race()
+
+
+func _refresh_status() -> void:
+	var stars := int(Police.status.get("wanted", 0))
+	var jail := Police.jail_left()
+	bail_btn.visible = jail > 0.0
+	if jail > 0.0:
+		status_label.text = "HAPİSTESİN — %d:%02d kaldı" % [int(jail) / 60, int(jail) % 60]
+		status_label.add_theme_color_override("font_color", Color("#fca5a5"))
+		bail_btn.text = "Kefalet öde (%s)" % U.money(int(ceil(jail)) * Police.BAIL_PER_SEC)
+	elif stars > 0:
+		status_label.text = "ARANIYORSUN %s" % "★".repeat(stars)
+		status_label.add_theme_color_override("font_color", Color("#fca5a5"))
+	elif Police.on_duty():
+		status_label.text = "POLİS — görevde"
+		status_label.add_theme_color_override("font_color", Color("#93c5fd"))
+	else:
+		status_label.text = ""
+	status_label.visible = status_label.text != ""
+
+
+func _refresh_event() -> void:
+	var cur := Events.current
+	if cur.is_empty():
+		event_banner.visible = false
+		return
+	var left := maxf(0.0, Events.current_ends - Events.local_now())
+	var t := "%s — %d:%02d kaldı" % [cur.name, int(left) / 60, int(left) % 60]
+	var st: Array = cur.get("standings", [])
+	for i in st.size():
+		if st[i].name == Net.my_name:
+			t += "  ·  Sen %d. (%s)" % [i + 1, st[i].text]
+	if not st.is_empty() and st[0].name != Net.my_name and cur.kind != "treasure":
+		t += "  ·  Lider: %s" % st[0].name
+	event_label.text = t
+	event_banner.visible = true
+
+
+func _refresh_race() -> void:
+	var r := Events.race
+	match str(r.get("state", "")):
+		"countdown":
+			var c := int(ceil(float(r.go) - Events.local_now()))
+			race_label.text = str(maxi(c, 1)) if c > 0 else "BAŞLA!"
+			race_label.visible = true
+		"running":
+			race_label.text = "%.1f sn   •   Kontrol %d/%d" % [Events.race_time(), int(r.next) + 1, int(r.total)]
+			race_label.visible = true
+		_:
+			race_label.visible = false
+
+
+func _on_banner_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		events_requested.emit()
 
 
 func _refresh_quest() -> void:
@@ -252,6 +356,10 @@ func _refresh() -> void:
 		var p = list[i]
 		var me: bool = p.name == Net.my_name
 		var nm := U.esc(p.name) if me else "[url=%s]%s[/url]" % [p.name, U.esc(p.name)]
+		if str(p.get("clan", "")) != "":
+			nm = "[color=%s][lb]%s[rb][/color] %s" % [p.get("clan_color", "#4ade80"), U.esc(p.clan), nm]
+		if int(p.get("wanted", 0)) > 0:
+			nm += " [color=#f87171]%s[/color]" % "★".repeat(int(p.wanted))
 		t += "[color=#%s]●[/color] %s%s [color=#facc15]Sv.%d[/color]  [color=#86efac]%s[/color]\n" % [
 			Color(p.color).to_html(false), "[b]" if me else "", nm + ("[/b]" if me else ""),
 			int(p.get("level", 1)), U.money(int(p.money))]
@@ -260,14 +368,49 @@ func _refresh() -> void:
 
 
 func _on_chat_submit(text: String) -> void:
-	if text.strip_edges() != "":
-		Net.send_chat(text)
+	text = text.strip_edges()
+	if text != "":
+		var ch: String = CHANNELS[channel_opt.selected]
+		var to := ""
+		var low := text.to_lower()
+		if low.begins_with("/k "):
+			ch = "clan"
+			text = text.substr(3)
+		elif low.begins_with("/y "):
+			ch = "local"
+			text = text.substr(3)
+		elif low.begins_with("/m ") or low.begins_with("/f "):
+			var parts := text.substr(3).strip_edges().split(" ", false, 1)
+			if parts.size() < 2:
+				add_chat_line("[color=#94a3b8]Özel mesaj: /m isim mesaj[/color]")
+				chat_input.clear()
+				return
+			ch = "pm"
+			to = parts[0]
+			text = parts[1]
+		elif low.begins_with("/g "):
+			ch = "all"
+			text = text.substr(3)
+		Net.send_chat(text, ch, to)
 	chat_input.clear()
 	chat_input.release_focus()
 
 
-func _on_chat(from_name: String, text: String, color: Color) -> void:
-	add_chat_line("[color=#%s][b]%s:[/b][/color] %s" % [color.to_html(false), U.esc(from_name), U.esc(text)])
+## Özel mesaj için sohbeti hazırla (oyuncu adına tıklayınca).
+func start_pm(to_name: String) -> void:
+	chat_input.text = "/m %s " % to_name
+	chat_input.grab_focus()
+	chat_input.caret_column = chat_input.text.length()
+
+
+func _on_chat(from_name: String, text: String, color: Color, channel: String = "all") -> void:
+	var prefix := ""
+	var body_col := ""
+	if CHANNEL_TAGS.has(channel):
+		prefix = "[color=%s][lb]%s[rb][/color] " % [CHANNEL_TAGS[channel][1], CHANNEL_TAGS[channel][0]]
+		body_col = CHANNEL_TAGS[channel][1]
+	var msg := U.esc(text) if body_col == "" else "[color=%s]%s[/color]" % [body_col, U.esc(text)]
+	add_chat_line("%s[color=#%s][b]%s:[/b][/color] %s" % [prefix, color.to_html(false), U.esc(from_name), msg])
 
 
 func add_chat_line(bb: String) -> void:
