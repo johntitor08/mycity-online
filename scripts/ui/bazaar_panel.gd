@@ -119,7 +119,7 @@ func _fill_items() -> void:
 		"plot":
 			for i in Land.view.size():
 				if Land.view[i].owner == Net.my_name:
-					item_opt.add_item("Arsa #%d (%s)" % [i + 1, Land.LEVEL_NAMES[int(Land.view[i].level)]])
+					item_opt.add_item("Arsa #%d (%s)" % [i + 1, Land.building_name(Land.view[i])])
 					_items.append(i)
 	if _items.is_empty():
 		item_opt.add_item("(satılacak bir şeyin yok)")

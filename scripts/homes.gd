@@ -27,6 +27,7 @@ const FURNITURE := {
 	"desk": {"name": "Bilgisayar Masası", "price": 3500, "size": Vector2i(2, 1)},
 }
 const MAX_PER_ROOM := 40
+const SELL_BACK := 0.5          # Mobilyacı kullanılmayan mobilyayı yarı fiyatına geri alır
 
 var depot: Dictionary = {}      # istemci: depomdaki mobilyalar {tür: adet}
 
@@ -72,7 +73,7 @@ func may_be_in(id: int, i: int) -> bool:
 	if i < 0 or i >= Land.plots.size():
 		return false
 	var p: Dictionary = Land.plots[i]
-	if int(p.level) < 1 or p.owner == "":
+	if int(p.level) < 1 or p.owner == "" or Biz.is_biz(p):
 		return false
 	return p.owner == Net.players[id].name or bool(p.get("door_open", false))
 
@@ -81,6 +82,10 @@ func may_be_in(id: int, i: int) -> bool:
 
 func buy(k: String) -> void:
 	Net.ask(self, "req_buy_furniture", {"k": k})
+
+
+func sell_back(k: String) -> void:
+	Net.ask(self, "req_sell_furniture", {"k": k})
 
 
 func enter(plot: int) -> void:
@@ -148,14 +153,36 @@ func req_buy_furniture(d: Dictionary) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
+func req_sell_furniture(d: Dictionary) -> void:
+	var id := Net.sender()
+	if not Net.players.has(id):
+		return
+	var k := str(d.get("k", ""))
+	var dep := _depot_of(id)
+	if not FURNITURE.has(k) or int(dep.get(k, 0)) <= 0:
+		return
+	if not Map.building("mobilya").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+		Net.notify(id, "Geri satmak için Mobilyacı'ya git.", false)
+		return
+	dep[k] = int(dep[k]) - 1
+	if int(dep[k]) <= 0:
+		dep.erase(k)
+	var refund := int(int(FURNITURE[k].price) * SELL_BACK)
+	Net.add_money(id, refund)
+	Net.mark_dirty()
+	send_state(id)
+	Net.notify(id, "%s geri satıldı: +%s" % [FURNITURE[k].name, U.money(refund)])
+
+
+@rpc("any_peer", "call_remote", "reliable")
 func req_enter(d: Dictionary) -> void:
 	var id := Net.sender()
 	var i := int(d.get("plot", -1))
 	if not Net.players.has(id) or i < 0 or i >= Land.plots.size():
 		return
 	var plot: Dictionary = Land.plots[i]
-	if int(plot.level) < 1:
-		Net.notify(id, "Bu arsada henüz ev yok.", false)
+	if int(plot.level) < 1 or Biz.is_biz(plot):
+		Net.notify(id, "Bu arsada girilecek bir ev yok.", false)
 		return
 	if not Map.plot_rect(i).grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
 		return

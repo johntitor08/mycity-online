@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="240" viewBox="0 0 130 120">
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <rect x="14" y="50" width="102" height="64" rx="0" fill="#fde68a" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="22" y="60" width="86" height="30" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="8" y="34" width="19" height="18" rx="0" fill="#ef4444" stroke="none" />
+  <rect x="27" y="34" width="19" height="18" rx="0" fill="#ffffff" stroke="none" />
+  <rect x="46" y="34" width="19" height="18" rx="0" fill="#ef4444" stroke="none" />
+  <rect x="65" y="34" width="19" height="18" rx="0" fill="#ffffff" stroke="none" />
+  <rect x="84" y="34" width="19" height="18" rx="0" fill="#ef4444" stroke="none" />
+  <rect x="103" y="34" width="19" height="18" rx="0" fill="#ffffff" stroke="none" />
+  <rect x="8" y="34" width="114" height="18" rx="0" fill="none" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="18" y="92" width="94" height="8" rx="2" fill="#92400e" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="40" cy="72" r="7" fill="#a16207" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="60" cy="72" r="7" fill="#f97316" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="78" y="64" width="10" height="16" rx="2" fill="#38bdf8" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="30" y="14" width="70" height="20" rx="4" fill="#111827" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

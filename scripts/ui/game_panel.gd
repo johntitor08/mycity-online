@@ -7,6 +7,7 @@ const U = preload("res://scripts/util.gd")
 
 var body: VBoxContainer
 var title_label: Label
+var _hint_label: Label
 
 
 func build(title: String, min_size: Vector2) -> void:
@@ -86,6 +87,46 @@ func add_spin(parent: Node, lo: float, hi: float, step: float, value: float) -> 
 	s.custom_minimum_size = Vector2(120, 0)
 	parent.add_child(s)
 	return s
+
+
+## Satın alma butonu: para ya da seviye yetmiyorsa kapanır ve nedenini yazar.
+## Paran değişince panelin _refresh'i bunu tekrar çağırmalı (bkz. watch_money).
+func buy_button(parent: Node, price: int, cb: Callable, need_level: int = 0, label: String = "Al") -> Button:
+	var b := add_button(parent, "", cb)
+	update_buy_button(b, price, need_level, label)
+	return b
+
+
+func update_buy_button(b: Button, price: int, need_level: int = 0, label: String = "Al") -> void:
+	var lvl := int(Rpg.sheet.get("level", 1))
+	var money := Net.my_money()
+	b.tooltip_text = ""
+	if need_level > 0 and lvl < need_level:
+		b.text = "Sv.%d gerekli" % need_level
+		b.disabled = true
+		b.tooltip_text = "Seviyen %d. İşlerde çalışarak XP kazan." % lvl
+	elif money < price:
+		b.text = "%s gerekli" % U.money(price)
+		b.disabled = true
+		b.tooltip_text = "Sende %s var. Hastane, market ya da balıkla para kazan." % U.money(money)
+	else:
+		b.text = "%s (%s)" % [label, U.money(price)]
+		b.disabled = false
+
+
+## Para azken bilgilendirici satır (yeni oyuncular para kazanmayı bilsin).
+## (Küresel sinyale metot bağlanır; panel kapanınca bağlantı kendiliğinden kopar.)
+func money_hint(parent: Node) -> Label:
+	_hint_label = add_label(parent, "", 13, Color("#fde68a"))
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Net.roster_changed.connect(_update_money_hint)
+	_update_money_hint()
+	return _hint_label
+
+
+func _update_money_hint() -> void:
+	_hint_label.text = "Paran: %s. Para kazanmak için: Hastane (doktorluk), Market (kasiyerlik) ya da iskelede balık tut." % U.money(Net.my_money())
+	_hint_label.visible = Net.my_money() < 1500
 
 
 ## Bir sonraki adımı panel kapanmışsa çalıştırmadan geciktirir.

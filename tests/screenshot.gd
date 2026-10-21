@@ -107,7 +107,66 @@ func _ready() -> void:
 	_shot("poker")
 	w._close_panel()
 	await _shots_04(w)
+	await _shots_05(w)
 	get_tree().quit()
+
+
+func _shots_05(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env.hour = 12.0
+	Env.force_weather("clear")
+	for id in [9101, 9102, 9103]:
+		Net.players.erase(id)
+		Net.positions.erase(id)
+	Net._broadcast_roster()
+	Garage.ride("")
+	# evcil hayvan
+	w.my_pos = Map.building("petshop").rect.get_center()
+	await _wait(0.4)
+	Pets.buy("dog", "Karabaş")
+	await _wait(0.4)
+	w.zone = {"type": "petshop", "label": "x"}
+	w._open_panel()
+	await _wait(0.8)
+	_shot("evcil_panel")
+	w._close_panel()
+	# işletme: arsaya büfe → kafe, malzeme, müşteriler
+	var plot := 6
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Land.buy(plot)
+	await _wait(0.3)
+	Land.build_up(plot, "biz")
+	await _wait(0.3)
+	Land.build_up(plot, "biz")
+	await _wait(0.3)
+	Biz.restock(plot, "wholesale", 10)
+	await _wait(0.3)
+	for _k in 3:
+		Biz._tick()
+	await _wait(0.3)
+	w.my_pos = Map.plot_rect(plot).get_center() + Vector2(0, 70)
+	await _wait(3.5)
+	_shot("isletme")
+	w.zone = {"type": "realestate", "label": "x", "plot": plot}
+	w._open_panel()
+	await _wait(0.8)
+	_shot("isletme_panel")
+	w._close_panel()
+	# doğu mahallesi, muhtar ve NPC'ler
+	Net.save_data.players[Net.my_name]["story"] = {"step": 0, "count": 0, "accepted": false}
+	Story.send_state(1)
+	w.my_pos = Map.NPCS.muhtar.pos + Vector2(-90, 30)
+	w.my_facing = "right"
+	await _wait(2.0)
+	_shot("muhtar")
+	Story.talk("muhtar")
+	await _wait(0.8)
+	_shot("diyalog")
+	w._close_panel()
+	w.my_pos = Vector2(1300, 450)
+	await _wait(1.5)
+	_shot("sehir_npc")
 
 
 func _shots_04(w) -> void:

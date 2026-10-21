@@ -152,7 +152,7 @@ func req_list(d: Dictionary) -> void:
 				Net.notify(id, "Bu arsa zaten ilanda.", false)
 				return
 			item = i
-			label = "Arsa #%d (%s)" % [i + 1, Land.LEVEL_NAMES[int(Land.plots[i].level)]]
+			label = "Arsa #%d (%s)" % [i + 1, Land.building_name(Land.plots[i])]
 		_:
 			return
 	_store().append({"id": _next_id(), "seller": me, "kind": kind, "item": item, "label": label, "price": price})

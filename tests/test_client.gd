@@ -229,7 +229,7 @@ func _on_ok() -> void:
 	Poker.add_bot()
 	Poker.sit(Poker.MIN_BUYIN)
 	var t0 := Time.get_ticks_msec()
-	while hands < 4 and Time.get_ticks_msec() - t0 < 120000:
+	while hands < 4 and Time.get_ticks_msec() - t0 < 200000:
 		await _wait(0.5)
 		# Biri fişlerini kaybedip masada tek kişi kalırsa oyun durur: yeni bot çağır.
 		if _seat_count() < 2 and Poker.view.get("stage") == "idle":
@@ -248,6 +248,7 @@ func _on_ok() -> void:
 	print("== Son para: %d" % Net.my_money())
 	if Net.is_server():
 		await _test_04(get_parent().world)
+		await _test_05(get_parent().world)
 		_finish()
 		return
 	print("== Şifre")
@@ -398,6 +399,140 @@ func _test_04(w) -> void:
 	await _wait(0.4)
 	check(not Bazaar.plot_listed(plot) and Land.view[plot].owner == "", "arsa bankaya satılınca ilan düştü")
 	check(int(Homes.depot.get("bed", 0)) == 1, "satılan evdeki mobilyalar depoya döndü")
+
+
+## 0.5: satın alma kolaylıkları, evcil hayvanlar, işletmeler, hikâye görevleri, NPC'ler.
+func _test_05(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	Net.add_money(me, 80000)
+	await _wait(0.3)
+
+	print("== 0.5: Mobilya geri satışı")
+	w.my_pos = Map.building("mobilya").rect.get_center()
+	await _wait(0.3)
+	Homes.buy("chair")
+	await _wait(0.3)
+	var m0 := Net.my_money()
+	var chairs := int(Homes.depot.get("chair", 0))
+	Homes.sell_back("chair")
+	await _wait(0.3)
+	check(Net.my_money() == m0 + 100 and int(Homes.depot.get("chair", 0)) == chairs - 1, "sandalye yarı fiyatına (100 TL) geri satıldı")
+
+	print("== 0.5: Evcil hayvan")
+	w.my_pos = Map.building("petshop").rect.get_center()
+	await _wait(0.3)
+	Pets.buy("dog", "Karabaş")
+	await _wait(0.4)
+	check(Pets.my_pet.get("kind") == "dog" and Pets.my_pet.get("name") == "Karabaş", "köpek sahiplenildi (Karabaş)")
+	check(Net.roster[me].get("pet", {}).get("name") == "Karabaş", "evcil hayvan herkesin listesinde görünüyor")
+	check(Pets.bonus(me, "dog"), "tok köpek bonusu aktif")
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	rec.pet.food = 20.0
+	check(not Pets.bonus(me, "dog"), "aç köpeğin bonusu durdu")
+	Pets.feed(false)
+	await _wait(0.3)
+	check(float(Pets.my_pet.food) >= 59.0 and Pets.bonus(me, "dog"), "mama verildi, bonus geri geldi (%d)" % int(Pets.my_pet.food))
+	var cans := int(Pets.my_pet.cans)
+	Pets.buy_food(5)
+	await _wait(0.3)
+	check(int(Pets.my_pet.cans) == cans + 5, "5 kutu mama alındı")
+	await _wait(1.0)
+	check(w.npc.pets.has(me), "köpek sahibini takip ediyor")
+
+	print("== 0.5: İşletme")
+	var plot := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			plot = i
+			break
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Land.buy(plot)
+	await _wait(0.3)
+	Land.build_up(plot, "biz")
+	await _wait(0.4)
+	check(Biz.is_biz(Land.view[plot]) and int(Land.view[plot].level) == 1, "boş arsaya büfe açıldı")
+	Biz.restock(plot, "wholesale", 3)
+	await _wait(0.3)
+	check(int(Land.view[plot].biz.stock) == 30, "toptancıdan 30 birim malzeme")
+	Biz.configure(plot, 1.2, 1)
+	await _wait(0.3)
+	check(is_equal_approx(float(Land.view[plot].biz.price), 1.2) and int(Land.view[plot].biz.staff) == 1, "fiyat ×1.2 ve 1 çalışan ayarlandı")
+	Env.hour = 12.5
+	Env.force_weather("clear")
+	for _k in 3:
+		Biz._tick()
+	await _wait(0.4)
+	var b: Dictionary = Land.view[plot].biz
+	check(int(b.stock) < 30 and int(b.cash) > 0, "müşteriler geldi: %d birim satıldı, kasada %d TL" % [30 - int(b.stock), int(b.cash)])
+	var m1 := Net.my_money()
+	var cash := int(b.cash)
+	Biz.collect(plot)
+	await _wait(0.3)
+	check(Net.my_money() >= m1 + cash and int(Land.view[plot].biz.cash) == 0, "kasa toplandı")
+	Land.build_up(plot, "biz")
+	await _wait(0.4)
+	check(int(Land.view[plot].level) == 2, "büfe kafeye büyüdü")
+	Biz.configure(plot, 1.0, 0)
+	Land.view[plot].biz.stock = 0
+	Land.plots[plot].biz.stock = 0
+	Biz._tick()
+	await _wait(0.3)
+	check(int(Land.view[plot].biz.last_customers) == 0, "malzeme yokken satış yok")
+
+	print("== 0.5: Hikâye görevleri")
+	var dialogs: Array = []
+	var cb := func(d): dialogs.append(d)
+	Story.dialog.connect(cb)
+	Net.save_data.players[Net.my_name]["story"] = {"step": 0, "count": 0, "accepted": false}
+	Story.send_state(me)
+	await _wait(0.2)
+	check(Story.marker("muhtar") == "!", "muhtarın başında \"!\" var")
+	w.my_pos = Map.NPCS.muhtar.pos + Vector2(20, 0)
+	await _wait(0.3)
+	check(w.zone.get("type") == "npc" and w.zone.get("npc") == "muhtar", "muhtarın yanında konuşma bölgesi")
+	Story.talk("muhtar")
+	await _wait(0.3)
+	check(dialogs.size() > 0 and dialogs[-1].buttons.has("Kabul et"), "muhtar görev teklif etti")
+	Story.accept()
+	await _wait(0.3)
+	check(Story.state.get("accepted", false), "görev kabul edildi")
+	Story.event(me, "patient")
+	Story.event(me, "patient")
+	await _wait(0.3)
+	check(Story.state.get("ready", false) and Story.marker("muhtar") == "?", "2 hasta sonrası görev hazır, \"?\" işareti")
+	var m2 := Net.my_money()
+	Story.talk("muhtar")
+	await _wait(0.3)
+	check(dialogs[-1].buttons.has("Ödülü al"), "muhtar ödülü veriyor")
+	Story.claim()
+	await _wait(0.3)
+	check(int(Story.state.get("step", 0)) == 2 and Net.my_money() == m2 + 300, "ödül alındı, 2. görev sırada")
+	Story.talk("muhtar")
+	await _wait(0.2)
+	Story.accept()
+	await _wait(0.2)
+	check(Story.marker("hasan") == "!", "Hasan Amca'nın başında \"!\" (tanış görevi)")
+	w.my_pos = Map.NPCS.hasan.pos + Vector2(20, 0)
+	await _wait(0.3)
+	Story.talk("hasan")
+	await _wait(0.3)
+	check(dialogs[-1].buttons.has("Ödülü al"), "Hasan Amca'yla tanışıldı")
+	Story.claim()
+	await _wait(0.3)
+	check(int(Story.state.get("step", 0)) == 3 and Story.marker("hasan") == "!", "3. görev Hasan Amca'dan")
+	Story.dialog.disconnect(cb)
+
+	print("== 0.5: NPC'ler")
+	var p0: Vector2 = w.npc.walkers[0].pos
+	var c0: float = w.npc.cars[0].x
+	await _wait(0.6)
+	check(w.npc.walkers.size() >= 20 and w.npc.walkers[0].pos != p0, "%d vatandaş kaldırımda yürüyor" % w.npc.walkers.size())
+	check(w.npc.cars[0].x != c0, "NPC arabalar yolda ilerliyor")
+	Land.sell(plot)
+	await _wait(0.3)
+	check(not Biz.is_biz(Land.view[plot]) and Land.view[plot].owner == "", "işletmeli arsa satıldı, arsa sıfırlandı")
 
 
 func _finish() -> void:

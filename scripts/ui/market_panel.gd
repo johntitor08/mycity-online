@@ -17,6 +17,7 @@ var _served := 0
 var job_box: VBoxContainer
 var shop_box: VBoxContainer
 var shop_money: Label
+var _food_buttons := {}
 
 
 func _ready() -> void:
@@ -72,6 +73,7 @@ func _build_shop() -> void:
 	shop_box.visible = false
 	body.add_child(shop_box)
 	shop_money = add_label(shop_box, "", 15, Color("#94a3b8"))
+	money_hint(shop_box)
 	add_label(shop_box, "Yiyecekler (çantaya gider, Karakter Kartı'ndan ye)", 18, Color("#93c5fd"))
 	var foods := GridContainer.new()
 	foods.columns = 2
@@ -79,7 +81,7 @@ func _build_shop() -> void:
 	for k in Rpg.FOODS:
 		var f: Dictionary = Rpg.FOODS[k]
 		add_label(foods, "%s — +%d enerji" % [f.name, f.energy], 16).custom_minimum_size = Vector2(300, 0)
-		add_button(foods, "Al (%s)" % U.money(f.price), Rpg.buy.bind(k))
+		_food_buttons[k] = buy_button(foods, int(f.price), Rpg.buy.bind(k))
 	shop_box.add_child(HSeparator.new())
 	add_label(shop_box, "Aletler (kalıcı avantaj)", 18, Color("#93c5fd"))
 	var tools := GridContainer.new()
@@ -87,6 +89,7 @@ func _build_shop() -> void:
 	tools.name = "tools"
 	shop_box.add_child(tools)
 	Rpg.sheet_changed.connect(_refresh_shop)
+	Net.roster_changed.connect(_refresh_shop)
 	_refresh_shop()
 
 
@@ -98,8 +101,12 @@ func _refresh_shop() -> void:
 	for k in Rpg.TOOLS:
 		var t: Dictionary = Rpg.TOOLS[k]
 		add_label(tools, "%s — %s" % [t.name, t.desc], 15).custom_minimum_size = Vector2(380, 0)
-		var b := add_button(tools, "Sende" if owned.has(k) else "Al (%s)" % U.money(t.price), Rpg.buy.bind(k))
-		b.disabled = owned.has(k)
+		if owned.has(k):
+			add_button(tools, "Sende ✓", func(): pass).disabled = true
+		else:
+			buy_button(tools, int(t.price), Rpg.buy.bind(k))
+	for k in _food_buttons:
+		update_buy_button(_food_buttons[k], int(Rpg.FOODS[k].price))
 	var items: Dictionary = Rpg.sheet.get("items", {})
 	var bag := []
 	for k in items:

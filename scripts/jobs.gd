@@ -209,7 +209,7 @@ func req_reel(_d: Dictionary) -> void:
 	if not t.bitten:
 		Net.tell(self, id, "on_fish", {"state": "early"})
 		return
-	var rare := Rpg.perk(id, "fish_rare") * (1.3 if t.spot == "boat" else 1.0)
+	var rare := Rpg.perk(id, "fish_rare") * (1.3 if t.spot == "boat" else 1.0) * (1.15 if Pets.bonus(id, "dog") else 1.0)
 	var f := _roll_fish(LAKE_FISH if t.spot == "lake" else SEA_FISH, rare)
 	_bag(id).append({"name": f[0], "price": f[1]})
 	Net.mark_dirty()
@@ -217,6 +217,7 @@ func req_reel(_d: Dictionary) -> void:
 	send_inventory(id)
 	Rpg.add_xp(id, "fishing", 5 + mini(int(f[1]) / 10, 200))
 	Rpg.quest_event(id, "fish")
+	Story.event(id, "fish", {"fish": f[0]})
 	if f[1] >= 500:
 		Net.announce("%s bir %s yakaladı! (%s)" % [Net.players[id].name, f[0], U.money(f[1])])
 
@@ -316,10 +317,11 @@ func req_hospital_answer(d: Dictionary) -> void:
 		res["text"] = "Süre doldu, hasta başka doktora gitti."
 	elif choice == t.correct:
 		res["ok"] = true
-		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay") * (1.2 if Env.is_night() else 1.0))
+		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0))
 		res["text"] = "Doğru tedavi! Hasta iyileşti. +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "medicine", 10)
 		Rpg.quest_event(id, "patient")
+		Story.event(id, "patient")
 	else:
 		res["pay"] = -15
 		res["text"] = "Yanlış tedavi! Doğrusu: %s. Ceza: %s" % [t.correct_text, U.money(15)]
@@ -373,10 +375,11 @@ func req_market_answer(d: Dictionary) -> void:
 		res["text"] = "Müşteri beklemekten sıkılıp gitti."
 	elif change == t.change:
 		res["ok"] = true
-		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay") * (1.2 if Env.is_night() else 1.0))
+		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0))
 		res["text"] = "Doğru para üstü! +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "cashier", 12)
 		Rpg.quest_event(id, "customer")
+		Story.event(id, "customer")
 	else:
 		res["pay"] = -20
 		res["text"] = "Yanlış! Doğru para üstü %s idi. Kasa açığı: %s" % [U.money(t.change), U.money(20)]

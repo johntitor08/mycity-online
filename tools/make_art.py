@@ -662,6 +662,113 @@ def furniture():
         save(f"furniture/{name}.svg", svg(w, h, parts))
 
 
+# ---------------------------------------------------------------- 0.5: pet shop, muhtarlık, işletmeler, hayvanlar
+
+def petshop():
+    W, H = 320, 260
+    p = [
+        rect(4, 4, W - 8, 80, "#0d9488", 8),
+        rect(4, 82, W - 8, 174, "#ccfbf1"),
+        rect(4, 236, W - 8, 20, "#5eead4"),
+    ]
+    # çatıda kemik ve pati
+    p += [path("M120 30h80", "none", 12, OL), path("M120 30h80", "none", 7, "#f8fafc"),
+          circle(118, 24, 7, "#f8fafc", 2), circle(118, 36, 7, "#f8fafc", 2), circle(202, 24, 7, "#f8fafc", 2), circle(202, 36, 7, "#f8fafc", 2)]
+    for (cx, cy) in ((50, 44), (270, 44)):
+        p += [ellipse(cx, cy + 6, 12, 10, "#fef3c7", 2)] + [circle(cx + dx, cy - 10 + dy, 4.5, "#fef3c7", 1.5) for dx, dy in ((-11, 2), (-4, -4), (4, -4), (11, 2))]
+    # vitrin: kedi ve balık kâsesi
+    p += [rect(18, 134, 110, 82, "url(#glass)", 4, 2.5), rect(192, 134, 110, 82, "url(#glass)", 4, 2.5),
+          ellipse(60, 196, 22, 14, "#f97316", 2), circle(82, 186, 11, "#f97316", 2), path("M76 177l3-8 5 6M86 177l3-8 3 8", "#f97316", 2),
+          ellipse(248, 196, 30, 16, "#7dd3fc", 2), path("M236 194q6-5 12 0q-6 5-12 0z", "#f97316", 1.5),
+          rect(136, 150, 48, 86, "#0f766e", 3), circle(172, 192, 2.5, "#facc15", 0)]
+    p.append(sign_plate(W, "#0f766e"))
+    save("buildings/petshop.svg", svg(W, H, p, GLASS))
+
+
+def muhtarlik():
+    W, H = 320, 220
+    p = [
+        poly([(4, 74), (160, 8), (316, 74)], "#b91c1c"),
+        rect(4, 72, W - 8, 144, "#f5f5f4"),
+        rect(4, 196, W - 8, 20, "#a8a29e"),
+        rect(150, 2, 3, 30, "#374151", 0, 1.5), rect(153, 4, 30, 18, "#dc2626", 1, 1.5),
+        circle(165, 13, 4, "#ffffff", 0), path("M171 10l3 3-3 3", "none", 1.2, "#ffffff"),
+    ]
+    for x in (24, 70, 210, 256):
+        p += [rect(x, 126, 40, 52, "url(#glass)", 3, 2.5), path(f"M{x + 20} 126v52", "none", 1.5)]
+    p += [rect(132, 122, 56, 74, "#7c2d12", 4), path("M160 122v74", "none", 2), circle(152, 162, 2.5, "#facc15", 0), circle(168, 162, 2.5, "#facc15", 0),
+          rect(120, 196, 80, 8, "#d6d3d1", 2, 2)]
+    p.append(rect(W / 2 - 92, 78, 184, 32, "#7f1d1d", 7, 3))
+    save("buildings/muhtarlik.svg", svg(W, H, p, GLASS))
+
+
+def businesses():
+    # Büfe (130x120)
+    W, H = 130, 120
+    p = [rect(14, 50, 102, 64, "#fde68a"), rect(22, 60, 86, 30, "url(#glass)", 3, 2.5)]
+    for i, x in enumerate(range(8, 122, 19)):
+        p.append(rect(x, 34, 19, 18, "#ef4444" if i % 2 == 0 else "#ffffff", 0, 0))
+    p += [rect(8, 34, 114, 18, "none", 0, 2.5), rect(18, 92, 94, 8, "#92400e", 2, 2),
+          circle(40, 72, 7, "#a16207", 1.5), circle(60, 72, 7, "#f97316", 1.5), rect(78, 64, 10, 16, "#38bdf8", 2, 1.5),
+          rect(30, 14, 70, 20, "#111827", 4, 2.5)]
+    save("plots/bufe.svg", svg(W, H, p, GLASS))
+    # Kafe (200x130): şemsiyeli masalar
+    W, H = 200, 130
+    p = [rect(10, 20, 120, 96, "#fef3c7"), rect(10, 6, 120, 18, "#78350f", 3), rect(22, 40, 96, 40, "url(#glass)", 3, 2.5),
+         rect(56, 84, 28, 32, "#78350f", 2), rect(30, 26, 80, 12, "#111827", 3, 2)]
+    for cx, cy, col in ((160, 50, "#22c55e"), (160, 100, "#ef4444")):
+        p += [ellipse(cx, cy + 10, 16, 7, "#a16207", 2), circle(cx, cy, 18, col, 2), circle(cx, cy, 5, "#ffffff", 1.5),
+              circle(cx - 22, cy + 12, 5, "#92400e", 1.5), circle(cx + 22, cy + 12, 5, "#92400e", 1.5)]
+    save("plots/kafe.svg", svg(W, H, p, GLASS))
+    # Restoran (220x150)
+    W, H = 220, 150
+    p = [rect(8, 8, 204, 36, "#7f1d1d", 4), rect(8, 42, 204, 102, "#fef2f2"), rect(8, 128, 204, 16, "#a8a29e"),
+         rect(70, 14, 80, 22, "#111827", 3, 2)]
+    for x in (20, 62, 136, 178):
+        p.append(path(f"M{x} 110V72A12 12 0 0 1 {x + 24} 72V110Z", "url(#warm)", 2.5))
+    p += [rect(96, 74, 28, 54, "#7c2d12", 3), circle(118, 102, 2, "#facc15", 0),
+          path("M20 52h180", "none", 3, "#facc15")]
+    for x in (24, 60, 96, 132, 168, 196):
+        p.append(circle(x, 52, 3, "#fde047", 1))
+    save("plots/restoran.svg", svg(W, H, p, WARM))
+
+
+def pets():
+    # Sağa bakan yan görünüm; 2 kare (adım). Kare: 40x32.
+    def sheet(name, frames):
+        W, H = 80, 32
+        parts = []
+        for i, fr in enumerate(frames):
+            parts.append(f'<g transform="translate({i * 40} 0)">' + "".join(fr) + "</g>")
+        save(f"pets/{name}.svg", svg(W, H, parts))
+
+    def cat(step):
+        a, b = (2, -2) if step else (-2, 2)
+        col = "#f59e0b"
+        return [path("M8 16q-6-10 2-14", "none", 3, col), ellipse(18, 18, 11, 7, col, 1.6),
+                rect(10 + a, 22, 4, 8, col, 2, 1.4), rect(22 + b, 22, 4, 8, col, 2, 1.4),
+                circle(29, 13, 7, col, 1.6), path("M24 9l1-7 5 5M30 7l4-5 1 7", col, 1.4),
+                circle(31, 12, 1.2, OL, 0), path("M33 15l3 0", "none", 0.8, OL)]
+
+    def dog(step):
+        a, b = (2, -2) if step else (-2, 2)
+        col = "#92400e"
+        return [path("M6 14q-4-6 0-10", "none", 3, col), ellipse(18, 17, 12, 7, col, 1.6),
+                rect(9 + a, 21, 4, 9, col, 2, 1.4), rect(23 + b, 21, 4, 9, col, 2, 1.4),
+                circle(30, 12, 7, col, 1.6), ellipse(35, 15, 4, 3, "#78350f", 1.2), circle(36, 14, 1.2, OL, 0),
+                ellipse(27, 9, 3, 6, "#451a03", 1.2, extra='transform="rotate(-20 27 9)"'), circle(31, 10, 1.2, OL, 0)]
+
+    def parrot(step):
+        wing = -4 if step else 2
+        return [ellipse(18, 18, 7, 9, "#22c55e", 1.6), path(f"M14 16q-8 {wing} -4 10", "#16a34a", 1.4),
+                path("M18 26l-2 6M20 26l2 6", "none", 1.5, "#a16207"), circle(21, 9, 6, "#ef4444", 1.6),
+                path("M26 9l4 2-4 2z", "#facc15", 1.2), circle(22, 8, 1.3, OL, 0), path("M12 22l-6 6", "none", 3, "#3b82f6")]
+
+    sheet("cat", [cat(0), cat(1)])
+    sheet("dog", [dog(0), dog(1)])
+    sheet("parrot", [parrot(0), parrot(1)])
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -679,3 +786,7 @@ if __name__ == "__main__":
     pazar()
     vehicles()
     furniture()
+    petshop()
+    muhtarlik()
+    businesses()
+    pets()

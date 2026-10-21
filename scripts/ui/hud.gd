@@ -6,6 +6,7 @@ const U = preload("res://scripts/util.gd")
 signal character_requested
 signal profile_requested
 signal transfer_requested(to_name: String)
+signal pet_requested
 
 var money_label: Label
 var name_label: Label
@@ -23,6 +24,7 @@ var xp_bar: ProgressBar
 var energy_bar: ProgressBar
 var energy_label: Label
 var clock_label: Label
+var quest_label: Label
 
 
 func _ready() -> void:
@@ -36,6 +38,9 @@ func _ready() -> void:
 	top.add_child(tv)
 	name_label = _label(tv, "", 15, Color("#aab3c9"))
 	clock_label = _label(tv, "", 14, Color("#fde68a"))
+	quest_label = _label(tv, "", 13, Color("#93c5fd"))
+	quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	quest_label.custom_minimum_size = Vector2(300, 0)
 	money_label = _label(tv, "", 26, Color("#86efac"))
 	var lv := HBoxContainer.new()
 	tv.add_child(lv)
@@ -51,6 +56,7 @@ func _ready() -> void:
 	tv.add_child(btns)
 	_small_button(btns, "Profil (C)", func(): profile_requested.emit())
 	_small_button(btns, "Karakter", func(): character_requested.emit())
+	_small_button(btns, "Evcil", func(): pet_requested.emit())
 	sound_btn = _small_button(btns, "", Sfx.toggle_mute)
 	music_btn = _small_button(btns, "", Sfx.toggle_music)
 	_small_button(tv, "Şehirden Çık", Net.leave)
@@ -112,9 +118,10 @@ func _ready() -> void:
 
 	Net.roster_changed.connect(_refresh)
 	Rpg.sheet_changed.connect(_refresh_rpg)
+	Story.changed.connect(_refresh_quest)
 	_refresh_rpg()
 	Net.chat_received.connect(_on_chat)
-	Net.toast.connect(func(t, g): show_toast(t, g); Sfx.play("notify" if g else "error", -6.0))
+	Net.toast.connect(_on_toast)
 	_refresh()
 	add_chat_line("[color=#94a3b8]Şehre hoş geldin! Binalara yürü ve E'ye bas.[/color]")
 
@@ -169,6 +176,19 @@ func _process(_delta: float) -> void:
 	if Engine.get_process_frames() % 30 == 0:
 		_refresh_energy()
 		clock_label.text = Env.clock_text()
+
+
+func _refresh_quest() -> void:
+	var st := Story.state
+	if st.is_empty() or st.get("finished", false):
+		quest_label.text = ""
+		return
+	if st.get("ready", false):
+		quest_label.text = "Görev hazır: %s — ödülünü al" % st.title
+	elif st.get("accepted", false):
+		quest_label.text = "Görev (%d/%d): %s" % [int(st.count), int(st.goal), st.hint]
+	else:
+		quest_label.text = "Yeni görev: başında \"!\" olan kişiyle konuş"
 
 
 func _refresh_sound() -> void:
@@ -266,6 +286,12 @@ func is_typing() -> bool:
 func set_hint(text: String) -> void:
 	hint_panel.visible = text != ""
 	hint_label.text = text
+
+
+## Küresel sinyallere lambda değil metot bağlanır: HUD silinince bağlantı kendiliğinden kopar.
+func _on_toast(text: String, good: bool) -> void:
+	show_toast(text, good)
+	Sfx.play("notify" if good else "error", -6.0)
 
 
 func show_toast(text: String, good: bool = true) -> void:

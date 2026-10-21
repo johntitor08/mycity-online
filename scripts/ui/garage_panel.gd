@@ -7,6 +7,7 @@ var list: VBoxContainer
 func _ready() -> void:
 	build("Galeri — Araçlar", Vector2(680, 0))
 	add_label(body, "Aldığın araca F tuşuyla binip inersin. Bisiklet ve araba karada, tekne sadece denizde kullanılır.", 15, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	money_hint(body)
 	list = VBoxContainer.new()
 	list.add_theme_constant_override("separation", 8)
 	body.add_child(list)
@@ -34,5 +35,4 @@ func _refresh() -> void:
 		if Garage.owned.has(k):
 			add_label(row, "Sende ✓", 17, Color("#86efac"))
 		else:
-			var b := add_button(row, "Satın Al", Garage.buy.bind(k))
-			b.disabled = lvl < int(v.level) or Net.my_money() < int(v.price)
+			buy_button(row, int(v.price), Garage.buy.bind(k), int(v.level))

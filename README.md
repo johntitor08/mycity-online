@@ -30,6 +30,24 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## İşletmeler, evcil hayvanlar, NPC'ler ve hikâye (0.5)
+
+- **İşletme:** Boş arsaya ev yerine **büfe** aç (Sv.2), sonra **kafe** (Sv.5) ve **restoran** (Sv.9).
+  Malzeme koy (toptancı 10 birim/60 TL, ya da balık ve yiyecek), fiyatı (×0,5–×2) ve çalışan
+  sayısını (0–3) ayarla. Her dakika NPC müşteriler gelir: öğle ve akşam yoğun, gece ve yağmurda
+  az; ucuz fiyat, yüksek puan, çalışan ve dükkânda durman müşteriyi artırır. Malzeme bitince
+  müşteri kaçar, puan düşer. Sen çevrimdışıyken de satış sürer; kasayı işletmende topla.
+- **Evcil hayvan (Pet Shop):** Kedi (Sv.2, az enerji harcama), köpek (Sv.3, nadir balık),
+  papağan (Sv.5, maaş bonusu). Arkandan gelir, herkes görür. Mama ya da balıkla beslenir;
+  aç kalırsa bonus durur. HUD'daki "Evcil" butonuyla her yerden beslenir.
+- **NPC'ler:** Kaldırımlarda yürüyen vatandaşlar (gece ve yağmurda azalır), yollarda arabalar,
+  işletmelere giden müşteriler.
+- **Hikâye görevleri:** Muhtar Rıza, Balıkçı Hasan Amca, Dr. Selma, Ayten Abla ve Kaptan Rüstem
+  10 adımlık diyaloglu bir görev zinciri verir (başlarında "!" yeni görev, "?" ödül hazır).
+  Yanlarına gidip E'ye bas. Görev günlüğü Muhtarlık'ta, o anki görev sol üstte.
+- **Satın alma kolaylığı:** Para ya da seviye yetmiyorsa butonda nedeni yazar; Mobilyacı
+  kullanılmayan mobilyayı yarı fiyatına geri alır.
+
 ## Gün/gece, hava, araçlar, pazar ve evler (0.4)
 
 - **Gün/gece:** 1 oyun günü = 48 dakika (saat sunucu saatinden hesaplanır). Akşam şehir kararır,
@@ -80,8 +98,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.4
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.4
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.5
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.5
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -183,6 +201,10 @@ scripts/
   garage.gd   (autoload) araçlar
   homes.gd    (autoload) ev içleri ve mobilyalar
   bazaar.gd   (autoload) pazar yeri ve para gönderme
+  pets.gd     (autoload) evcil hayvanlar
+  biz.gd      (autoload) işletmeler (dakikalık satış)
+  story.gd    (autoload) hikâye görevleri ve NPC diyalogları
+  npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)
   avatar.gd   karakter seçenekleri ve katmanlı çizim

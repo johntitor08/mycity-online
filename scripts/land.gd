@@ -19,13 +19,21 @@ var _timer: Timer
 
 
 static func income_of(p: Dictionary) -> int:
+	if Biz.is_biz(p):
+		return 0          # işletmeler kira değil satış geliri getirir
 	return int(int(p.price) * 0.006) + LEVEL_INCOME[int(p.level)]
+
+
+## Arsadaki yapının adı (ev/villa/gökdelen ya da büfe/kafe/restoran).
+static func building_name(p: Dictionary) -> String:
+	return Biz.NAMES[int(p.level)] if Biz.is_biz(p) else LEVEL_NAMES[int(p.level)]
 
 
 static func sell_value(p: Dictionary) -> int:
 	var total := int(p.price)
+	var costs: Array = Biz.BUILD_COST if Biz.is_biz(p) else BUILD_COST
 	for l in range(1, int(p.level) + 1):
-		total += BUILD_COST[l]
+		total += costs[l]
 	return int(total * SELL_RATIO)
 
 
@@ -46,6 +54,13 @@ func server_init() -> void:
 			p.owner = str(saved[i].get("owner", ""))
 			p.level = clampi(int(saved[i].get("level", 0)), 0, 3)
 			p["door_open"] = bool(saved[i].get("door_open", false))
+			if str(saved[i].get("kind", "home")) == "biz" and saved[i].get("biz") is Dictionary:
+				p["kind"] = "biz"
+				var b: Dictionary = Biz.default_data(p.owner)
+				for k in b:
+					if saved[i].biz.has(k):
+						b[k] = saved[i].biz[k]
+				p["biz"] = b
 			var furn: Array = []
 			if saved[i].get("furniture") is Array:
 				for f in saved[i].furniture:
@@ -98,8 +113,8 @@ func buy(i: int) -> void:
 	Net.ask(self, "req_buy", {"i": i})
 
 
-func build_up(i: int) -> void:
-	Net.ask(self, "req_build", {"i": i})
+func build_up(i: int, kind: String = "home") -> void:
+	Net.ask(self, "req_build", {"i": i, "kind": kind})
 
 
 func sell(i: int) -> void:
@@ -131,6 +146,7 @@ func req_buy(d: Dictionary) -> void:
 	_broadcast()
 	Rpg.add_xp(id, "realestate", 50)
 	Rpg.quest_event(id, "build")
+	Story.send_state(id)
 	Net.announce("%s, %d numaralı arsayı %s karşılığında satın aldı!" % [pname, i + 1, U.money(int(p.price))])
 
 
@@ -142,6 +158,9 @@ func req_build(d: Dictionary) -> void:
 	var id := Net.sender()
 	var p: Dictionary = plots[i]
 	if p.owner != Net.players[id].name:
+		return
+	if Biz.is_biz(p) or (int(p.level) == 0 and str(d.get("kind", "home")) == "biz"):
+		Biz.build(id, i)
 		return
 	if int(p.level) >= 3:
 		Net.notify(id, "Bu arsa zaten en üst seviyede.", false)
@@ -159,7 +178,7 @@ func req_build(d: Dictionary) -> void:
 	_broadcast()
 	Rpg.add_xp(id, "realestate", 100 * int(p.level))
 	Rpg.quest_event(id, "build")
-	Net.notify(id, "%s inşa edildi! Yeni kira: %s/dk" % [LEVEL_NAMES[p.level], U.money(income_of(p))])
+	Net.notify(id, "%s inşa edildi! Yeni kira: %s/dk" % [building_name(p), U.money(income_of(p))])
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -172,6 +191,10 @@ func req_sell(d: Dictionary) -> void:
 	if p.owner != Net.players[id].name:
 		return
 	var value := sell_value(p)
+	if Biz.is_biz(p) and p.get("biz") is Dictionary:
+		value += int(p.biz.cash)      # kasadaki para da sahibine
+	p.erase("biz")
+	p["kind"] = "home"
 	Bazaar.drop_plot_listing(i)
 	Homes.clear_plot(i, str(p.owner))
 	p.owner = ""

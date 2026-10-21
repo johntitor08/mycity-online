@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 320 260">
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <rect x="4" y="4" width="312" height="80" rx="8" fill="#0d9488" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="4" y="82" width="312" height="174" rx="0" fill="#ccfbf1" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="4" y="236" width="312" height="20" rx="0" fill="#5eead4" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M120 30h80" fill="none" stroke="#232634" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M120 30h80" fill="none" stroke="#f8fafc" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="118" cy="24" r="7" fill="#f8fafc" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="118" cy="36" r="7" fill="#f8fafc" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="202" cy="24" r="7" fill="#f8fafc" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="202" cy="36" r="7" fill="#f8fafc" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <ellipse cx="50" cy="50" rx="12" ry="10" fill="#fef3c7" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="39" cy="36" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="46" cy="30" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="54" cy="30" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="61" cy="36" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <ellipse cx="270" cy="50" rx="12" ry="10" fill="#fef3c7" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="259" cy="36" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="266" cy="30" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="274" cy="30" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="281" cy="36" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="18" y="134" width="110" height="82" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="192" y="134" width="110" height="82" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <ellipse cx="60" cy="196" rx="22" ry="14" fill="#f97316" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="82" cy="186" r="11" fill="#f97316" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M76 177l3-8 5 6M86 177l3-8 3 8" fill="#f97316" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <ellipse cx="248" cy="196" rx="30" ry="16" fill="#7dd3fc" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M236 194q6-5 12 0q-6 5-12 0z" fill="#f97316" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="136" y="150" width="48" height="86" rx="3" fill="#0f766e" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="172" cy="192" r="2.5" fill="#facc15" stroke="none" />
+  <rect x="68.0" y="86" width="184" height="32" rx="7" fill="#0f766e" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

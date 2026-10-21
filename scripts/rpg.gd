@@ -176,12 +176,13 @@ func use_energy(id: int, amount: int) -> bool:
 	var r := _rec(id)
 	if r.is_empty():
 		return false
+	var cost := float(amount) * (0.85 if Pets.bonus(id, "cat") else 1.0)
 	_update_energy(r, level_of(int(r.xp)))
-	if float(r.energy) < amount:
+	if float(r.energy) < cost:
 		Net.notify(id, "Enerjin bitti! Marketten yiyecek al ya da plajda dinlen.", false)
 		send_sheet(id)
 		return false
-	r["energy"] = float(r.energy) - amount
+	r["energy"] = float(r.energy) - cost
 	Net.mark_dirty()
 	send_sheet(id)
 	return true
@@ -210,6 +211,7 @@ func add_xp(id: int, skill_key: String, amount: int) -> void:
 		Net.players[id]["level"] = new_level
 		Net.add_money(id, reward)     # roster'ı da yayınlar (yeni seviye görünür)
 		Net.notify(id, "SEVİYE ATLADIN! Seviye %d — ödül %s, enerji doldu." % [new_level, U.money(reward)])
+		Story.send_state(id)
 		if new_level % 5 == 0 or LEVEL_GATES.values().has(new_level):
 			Net.announce("%s %d. seviyeye ulaştı!" % [Net.players[id].name, new_level])
 	Net.mark_dirty()

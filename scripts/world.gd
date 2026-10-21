@@ -16,7 +16,21 @@ const PANELS := {
 	"pazar": preload("res://scripts/ui/bazaar_panel.gd"),
 	"mobilya": preload("res://scripts/ui/furniture_shop_panel.gd"),
 	"home": preload("res://scripts/ui/home_panel.gd"),
+	"petshop": preload("res://scripts/ui/pet_panel.gd"),
+	"muhtarlik": preload("res://scripts/ui/story_panel.gd"),
 }
+const BIZ_TEX := [
+	null,
+	preload("res://assets/plots/bufe.svg"),
+	preload("res://assets/plots/kafe.svg"),
+	preload("res://assets/plots/restoran.svg"),
+]
+const PET_TEX := {
+	"cat": preload("res://assets/pets/cat.svg"),
+	"dog": preload("res://assets/pets/dog.svg"),
+	"parrot": preload("res://assets/pets/parrot.svg"),
+}
+const NpcSim = preload("res://scripts/npc_sim.gd")
 const BUILDING_TEX := {
 	"hospital": preload("res://assets/buildings/hospital.svg"),
 	"market": preload("res://assets/buildings/market.svg"),
@@ -26,6 +40,8 @@ const BUILDING_TEX := {
 	"galeri": preload("res://assets/buildings/galeri.svg"),
 	"pazar": preload("res://assets/buildings/pazar.svg"),
 	"mobilya": preload("res://assets/buildings/mobilya.svg"),
+	"petshop": preload("res://assets/buildings/petshop.svg"),
+	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
 }
 const CAR_BODY := preload("res://assets/vehicles/car_body.svg")
 const CAR_DETAIL := preload("res://assets/vehicles/car_detail.svg")
@@ -76,6 +92,22 @@ var weather: Control
 var furn_tex := {}          # mobilya türü -> doku
 var placing := ""           # mobilya yerleştirme modu (tür) ya da ""
 var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
+var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
+var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
+var _label_queue: Array = []
+
+
+## İsimler/tabelalar/işaretler: dünya koordinatında ama CanvasModulate'in dışında çizilir.
+class LabelDrawer extends Node2D:
+	var items: Array = []
+	var font: Font
+
+	func _draw() -> void:
+		for it in items:
+			var align := HORIZONTAL_ALIGNMENT_CENTER if it[4] > 0 else HORIZONTAL_ALIGNMENT_LEFT
+			if it[5]:
+				draw_string_outline(font, it[0], it[1], align, it[4], it[2], 5, Color(0, 0, 0, 0.75))
+			draw_string(font, it[0], it[1], align, it[4], it[2], it[3])
 
 
 func _ready() -> void:
@@ -99,9 +131,17 @@ func _ready() -> void:
 	hud.character_requested.connect(open_character_editor)
 	hud.profile_requested.connect(open_profile)
 	hud.transfer_requested.connect(open_transfer)
-	ui_layer.layer = 2
+	ui_layer.layer = 3
+	var ll := CanvasLayer.new()
+	ll.layer = 1
+	ll.follow_viewport_enabled = true
+	add_child(ll)
+	labels = LabelDrawer.new()
+	labels.font = font
+	labels.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	ll.add_child(labels)
 	var wl := CanvasLayer.new()
-	wl.layer = 1
+	wl.layer = 2
 	add_child(wl)
 	weather = WeatherOverlay.new()
 	wl.add_child(weather)
@@ -110,6 +150,9 @@ func _ready() -> void:
 	for k in Homes.FURNITURE:
 		furn_tex[k] = load("res://assets/furniture/%s.svg" % k)
 	Homes.teleported.connect(_on_teleport)
+	npc = NpcSim.new()
+	Story.dialog.connect(_on_dialog)
+	hud.pet_requested.connect(open_pet_panel)
 	_make_nature()
 
 
@@ -173,6 +216,7 @@ func _process(delta: float) -> void:
 		if not Net.pos_view.has(id) or not Net.roster.has(id):
 			shown.erase(id)
 			anim.erase(id)
+	npc.update(delta, Net.roster, shown, Net.my_id(), my_pos)
 	_update_zone()
 	queue_redraw()
 
@@ -348,6 +392,13 @@ func _update_zone() -> void:
 	for b in Map.BUILDINGS:
 		if b.rect.has_point(my_pos):
 			z = {"type": b.type, "label": b.label}
+	for k in Map.NPCS:
+		if my_pos.distance_to(Map.NPCS[k].pos) < Map.NPC_TALK_RANGE:
+			z = {"type": "npc", "npc": k, "label": "Konuş: %s" % Map.NPCS[k].name}
+	if z.get("type", "") == "npc":
+		zone = z
+		hud.set_hint("" if panel != null else "[E]  %s" % z.label)
+		return
 	match Map.fishing_spot(my_pos):
 		"lake":
 			z = {"type": "fishing", "label": "Göl İskelesi — Balık Tut"}
@@ -366,6 +417,9 @@ func _open_panel() -> void:
 	if zone.type == "exit_home":
 		Homes.exit_home()
 		return
+	if zone.type == "npc":
+		Story.talk(zone.npc)
+		return
 	panel = PANELS[zone.type].new()
 	if zone.has("plot"):
 		panel.focus_plot = zone.plot
@@ -378,6 +432,26 @@ func _open_panel() -> void:
 	panel.closed.connect(_close_panel)
 	ui_layer.add_child(panel)
 	Sfx.play("open", -4.0)
+
+
+## Sunucudan diyalog gelince konuşma penceresini aç.
+func _on_dialog(d: Dictionary) -> void:
+	if panel != null:
+		_close_panel()
+	panel = preload("res://scripts/ui/dialog_panel.gd").new()
+	panel.data = d
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("open", -6.0)
+
+
+## HUD "Evcil" butonu: evcil hayvan penceresi (her yerden; satın alma Pet Shop'ta).
+func open_pet_panel() -> void:
+	if panel != null:
+		return
+	panel = PANELS["petshop"].new()
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
 
 
 ## HUD'da bir oyuncunun adına tıklanınca: para gönder.
@@ -429,11 +503,11 @@ func _make_nature() -> void:
 		blocked.append(r.grow(30))
 	blocked.append(Map.LAKE.grow(30))
 	blocked.append(Map.DOCK.grow(30))
-	blocked.append(Rect2(0, Map.BEACH.position.y - 30, 2400, 1000))   # plaj/deniz ayrı yerleşir
+	blocked.append(Rect2(0, Map.BEACH.position.y - 30, Map.WORLD.size.x, 1000))   # plaj/deniz ayrı yerleşir
 	var decor_blocked := blocked.duplicate()   # çim/çiçek arsalara da serpilebilir
 	blocked.append(Rect2(Map.PLOT_ORIGIN - Vector2(30, 30), Vector2(1190, 650)))
 	for _k in 320:
-		var p := Vector2(rng.randf_range(30, 2370), rng.randf_range(40, 1590))
+		var p := Vector2(rng.randf_range(30, Map.WORLD.size.x - 30), rng.randf_range(40, 1590))
 		var ok := true
 		for r in blocked:
 			if r.has_point(p):
@@ -444,7 +518,7 @@ func _make_nature() -> void:
 			nature.append([p, kind, rng.randf_range(0.85, 1.25)])
 	# Plaj: palmiyeler, şemsiye + şezlong takımları, cankurtaran, kumdan kale
 	var by := Map.BEACH.position.y
-	for x in range(60, 2400, 170):
+	for x in range(60, int(Map.WORLD.size.x), 170):
 		if absf(x - 1005) < 90 or absf(x - 1600) < 90:
 			continue
 		nature.append([Vector2(x + rng.randf_range(-30, 30), by + 55 + rng.randf_range(0, 25)), 3, rng.randf_range(0.9, 1.15)])
@@ -458,7 +532,7 @@ func _make_nature() -> void:
 	nature.append([Vector2(880, by + 200), 9, 1.0])
 	nature.sort_custom(func(a, b): return a[0].y < b[0].y)
 	for _k in 900:
-		var p := Vector2(rng.randf_range(10, 2390), rng.randf_range(10, 1590))
+		var p := Vector2(rng.randf_range(10, Map.WORLD.size.x - 10), rng.randf_range(10, 1590))
 		var ok := true
 		for r in decor_blocked:
 			if r.has_point(p):
@@ -469,6 +543,7 @@ func _make_nature() -> void:
 
 
 func _draw() -> void:
+	_label_queue = []
 	draw_rect(Map.WORLD, Color("#5d9c4a"))
 	for d in decor:
 		var p: Vector2 = d[0]
@@ -507,21 +582,47 @@ func _draw() -> void:
 	var my_level: int = int(mine.get("level", 1)) if mine else 1
 	var my_col: Color = mine.get("color", Color.WHITE) if mine else Color.WHITE
 	items.append([my_pos.y, "p", [my_pos, my_app, "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving, my_ride(), my_col]])
+	if _room < 0:
+		for w in npc.visible_walkers():
+			items.append([w.pos.y, "w", w])
+		for c in npc.customers:
+			items.append([c.pos.y, "w", c])
+		for c in npc.cars:
+			var lane: Array = Map.TRAFFIC_LANES[c.lane]
+			items.append([lane[0], "c", [Vector2(c.x, lane[0]), "right" if float(lane[1]) > 0 else "left", c.color]])
+		for k in Map.NPCS:
+			items.append([Map.NPCS[k].pos.y, "q", k])
+	for id in npc.pets:
+		var info = Net.roster.get(id)
+		if info and info.get("pet") is Dictionary and not info.pet.is_empty():
+			var st: Dictionary = npc.pets[id]
+			items.append([st.pos.y, "pet", [st, info.pet]])
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
 		if it[1] == "n":
 			_draw_nature(it[2])
+		elif it[1] == "w":
+			var w: Dictionary = it[2]
+			draw_set_transform(w.pos + Vector2(0, 10), 0, Vector2(1, 0.4))
+			draw_circle(Vector2.ZERO, 13, Color(0, 0, 0, 0.2))
+			draw_set_transform(Vector2.ZERO)
+			Avatar.draw(self, w.pos, w.app, w.get("facing", "down"), [1, 0, 2, 0][int(_t * 7.0 + w.pos.x * 0.01) % 4])
+		elif it[1] == "c":
+			_draw_vehicle(it[2][0], "car", it[2][1], it[2][2])
+		elif it[1] == "q":
+			_draw_quest_npc(it[2])
+		elif it[1] == "pet":
+			_draw_pet(it[2][0], it[2][1])
 		else:
 			var a: Array = it[2]
 			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7])
 	_draw_placement_ghost()
+	labels.items = _label_queue
+	labels.queue_redraw()
 
 
 func _text(pos: Vector2, text: String, size: int, color: Color, width: float = -1, outline: bool = true) -> void:
-	var align := HORIZONTAL_ALIGNMENT_CENTER if width > 0 else HORIZONTAL_ALIGNMENT_LEFT
-	if outline:
-		draw_string_outline(font, pos, text, align, width, size, 5, Color(0, 0, 0, 0.75))
-	draw_string(font, pos, text, align, width, size, color)
+	_label_queue.append([pos, text, size, color, width, outline])
 
 
 ## Dokuyu, alt-orta noktası `foot` olacak şekilde `height` yüksekliğinde çizer.
@@ -537,11 +638,11 @@ func _draw_roads() -> void:
 	for r in Map.ROADS:
 		draw_rect(r, Color("#3f4148"))
 	var line := Color(1, 1, 1, 0.6)
-	for x in range(0, 2400, 70):
+	for x in range(0, int(Map.WORLD.size.x), 70):
 		draw_rect(Rect2(x, 442, 34, 6), line)
 	for y in range(520, 1600, 70):
 		draw_rect(Rect2(1002, y, 6, 34), line)
-	for x in range(1070, 2400, 70):
+	for x in range(1070, int(Map.WORLD.size.x), 70):
 		draw_rect(Rect2(x, 822, 34, 6), line)
 
 
@@ -608,6 +709,16 @@ func _draw_plot(i: int) -> void:
 	draw_rect(r, Color("#f5f5f4"), false, 4)
 	_text(r.position + Vector2(10, 26), "#%d" % (i + 1), 18, Color.WHITE)
 	var level := int(p.level)
+	if Biz.is_biz(p) and level >= 1:
+		var b: Dictionary = p.get("biz", {})
+		var heights := [0, 116, 126, 146]
+		_draw_tex_at(BIZ_TEX[level], Vector2(c.x, c.y + 54), heights[level])
+		var open := int(b.get("stock", 0)) > 0
+		_text(Vector2(r.position.x, r.position.y + 26), "%s  %s" % [Biz.NAMES[level], "★%.1f" % float(b.get("rating", 3.0))], 15,
+			Color("#fde68a") if open else Color("#94a3b8"), r.size.x)
+		if not open:
+			_text(Vector2(r.position.x, c.y + 4), "KAPALI (malzeme yok)", 15, Color("#fca5a5"), r.size.x)
+		level = -1
 	match level:
 		0:
 			_text(Vector2(r.position.x, c.y), "Boş arsa", 16, Color(1, 1, 1, 0.8), r.size.x)
@@ -640,7 +751,7 @@ func _draw_beach() -> void:
 	draw_rect(Rect2(b.position.x, b.position.y - 10, b.size.x, 14), Color("#c9b57e"))   # çimden kuma geçiş
 	draw_rect(Rect2(b.position, Vector2(b.size.x, b.size.y + 40)), Color("#f0dba5"))
 	for i in 160:
-		var x := float((i * 397) % 2400)
+		var x := float((i * 397) % int(Map.WORLD.size.x))
 		var y := b.position.y + 10 + float((i * 211) % int(b.size.y - 20))
 		draw_circle(Vector2(x, y), 1.6, Color("#d8c08a"))
 	# deniz
@@ -648,17 +759,18 @@ func _draw_beach() -> void:
 	draw_rect(Rect2(sea.position.x, sea.position.y - 10, sea.size.x, sea.size.y + 10), Color("#1f78b8"))
 	var shallow := PackedVector2Array()
 	var foam := PackedVector2Array()
-	for i in 61:
+	var n := int(Map.WORLD.size.x / 40.0)
+	for i in n + 1:
 		var x := i * 40.0
 		var y := sea.position.y + sin(x / 60.0) * 6.0 + sin(x / 90.0 + _t * 1.3) * 5.0
 		foam.append(Vector2(x, y))
 		shallow.append(Vector2(x, y))
-	for i in range(60, -1, -1):
+	for i in range(n, -1, -1):
 		shallow.append(Vector2(i * 40.0, sea.position.y + 70 + sin(i * 0.7 + _t * 0.8) * 8.0))
 	draw_colored_polygon(shallow, Color("#4fb0dd"))
 	draw_polyline(foam, Color(1, 1, 1, 0.85), 5)
 	for i in 30:
-		var sp := Vector2(float((i * 571) % 2400), sea.position.y + 100 + float((i * 137) % 320))
+		var sp := Vector2(float((i * 571) % int(Map.WORLD.size.x)), sea.position.y + 100 + float((i * 137) % 320))
 		var a := 0.25 + 0.25 * sin(_t * 2.0 + i)
 		draw_line(sp, sp + Vector2(14, 0), Color(1, 1, 1, a), 2)
 	# sandal (dalgada sallanır)
@@ -711,6 +823,41 @@ func _draw_interiors() -> void:
 			for f in furn:
 				if bool(Homes.FURNITURE[f.k].get("floor", false)) == floor_pass:
 					draw_texture_rect(furn_tex[f.k], Homes.furniture_rect(i, lvl, f), false)
+
+
+func _draw_quest_npc(k: String) -> void:
+	var n: Dictionary = Map.NPCS[k]
+	var p: Vector2 = n.pos
+	draw_set_transform(p + Vector2(0, 10), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 15, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	var facing := "down"
+	if my_pos.distance_to(p) < 160:
+		facing = _facing_of(my_pos - p)
+	Avatar.draw(self, p, n.app, facing, 0)
+	_text(p + Vector2(-100, -56), n.name, 15, Color("#fde68a"), 200)
+	var m := Story.marker(k)
+	if m != "":
+		var bob := sin(_t * 4.0) * 4.0
+		_text(p + Vector2(-20, -74 + bob), m, 30, Color("#facc15") if m == "!" else Color("#4ade80"), 40)
+
+
+func _draw_pet(st: Dictionary, pet: Dictionary) -> void:
+	var tex: Texture2D = PET_TEX.get(pet.kind)
+	if tex == null:
+		return
+	var p: Vector2 = st.pos
+	var flying: bool = pet.kind == "parrot"
+	var frame := int(_t * (10.0 if flying else 8.0)) % 2 if (st.moving or flying) else 0
+	if not flying:
+		draw_set_transform(p + Vector2(0, 4), 0, Vector2(1, 0.4))
+		draw_circle(Vector2.ZERO, 11, Color(0, 0, 0, 0.2))
+	var lift := -26.0 + sin(_t * 3.0) * 3.0 if flying else 0.0
+	draw_set_transform(p + Vector2(0, lift), 0, Vector2(-1 if st.facing == "left" else 1, 1))
+	var mod := Color.WHITE if pet.get("happy", true) else Color(0.7, 0.7, 0.75)
+	draw_texture_rect_region(tex, Rect2(-20, -28, 40, 32), Rect2(frame * 80, 0, 80, 64), mod)
+	draw_set_transform(Vector2.ZERO)
+	_text(p + Vector2(-60, -30 + lift), pet.name, 12, Color("#e0f2fe") if pet.get("happy", true) else Color("#94a3b8"), 120)
 
 
 func _draw_placement_ghost() -> void:

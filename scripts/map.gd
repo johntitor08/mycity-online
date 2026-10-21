@@ -1,7 +1,7 @@
 extends RefCounted
 ## Şehir haritası sabitleri. Sunucu da istemci de aynı yerleşimi kullanır.
 
-const WORLD := Rect2(0, 0, 2400, 2300)
+const WORLD := Rect2(0, 0, 2800, 2300)
 const SPAWN := Vector2(1200, 445)
 
 const BUILDINGS := [
@@ -19,21 +19,44 @@ const BUILDINGS := [
 	{"type": "galeri", "label": "Galeri", "rect": Rect2(1110, 540, 320, 220), "sign_y": 102},
 	{"type": "pazar", "label": "Pazar Yeri", "rect": Rect2(1500, 540, 320, 220), "sign_y": 100},
 	{"type": "mobilya", "label": "Mobilyacı", "rect": Rect2(1890, 540, 320, 220), "sign_y": 102},
+	# 0.5: doğu mahallesi
+	{"type": "petshop", "label": "Pet Shop", "rect": Rect2(2280, 100, 320, 260)},
+	{"type": "muhtarlik", "label": "Muhtarlık", "rect": Rect2(2280, 540, 320, 220), "sign_y": 102},
 ]
+
+# Görev veren NPC'ler (sabit duranlar): kimlik -> ad, konum, görünüm
+const NPCS := {
+	"muhtar": {"name": "Muhtar Rıza", "pos": Vector2(2440, 770), "app": {"skin": 2, "hair": 4, "hair_color": 6, "shirt": 11, "pants": 0}},
+	"hasan": {"name": "Balıkçı Hasan Amca", "pos": Vector2(900, 1100), "app": {"skin": 3, "hair": 0, "hair_color": 6, "shirt": 7, "pants": 3}},
+	"selma": {"name": "Dr. Selma", "pos": Vector2(330, 385), "app": {"skin": 1, "hair": 2, "hair_color": 1, "shirt": 10, "pants": 2}},
+	"ayten": {"name": "Ayten Abla", "pos": Vector2(800, 385), "app": {"skin": 1, "hair": 1, "hair_color": 2, "shirt": 9, "pants": 1}},
+	"rustem": {"name": "Kaptan Rüstem", "pos": Vector2(1660, 1720), "app": {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 1, "pants": 1}},
+}
+const NPC_TALK_RANGE := 70.0
+
+# Yürüyen vatandaşlar için kaldırım rotaları (kapalı döngüler)
+const WALK_ROUTES := [
+	[Vector2(40, 383), Vector2(2760, 383), Vector2(2760, 507), Vector2(40, 507)],
+	[Vector2(945, 520), Vector2(945, 1620), Vector2(1058, 1620), Vector2(1058, 520)],
+	[Vector2(1070, 783), Vector2(2780, 783), Vector2(2780, 867), Vector2(1070, 867)],
+	[Vector2(60, 1700), Vector2(1500, 1700), Vector2(2700, 1720), Vector2(1500, 1790), Vector2(60, 1780)],
+]
+# NPC arabaların şeritleri (y, yön)
+const TRAFFIC_LANES := [[425.0, 1.0], [465.0, -1.0], [810.0, 1.0], [840.0, -1.0]]
 
 # Yollar (çizim ve ağaç yerleşimi için)
 const ROADS := [
-	Rect2(0, 390, 2400, 110),
+	Rect2(0, 390, 2800, 110),
 	Rect2(960, 500, 90, 1130),
-	Rect2(1050, 790, 1350, 70),
+	Rect2(1050, 790, 1750, 70),
 ]
 
 const LAKE := Rect2(80, 620, 760, 820)
 const DOCK := Rect2(760, 990, 200, 80)          # göl iskelesi (tamamı balık tutma alanı)
 
 # Plaj ve deniz
-const BEACH := Rect2(0, 1630, 2400, 230)
-const SEA := Rect2(0, 1860, 2400, 440)
+const BEACH := Rect2(0, 1630, 2800, 230)
+const SEA := Rect2(0, 1860, 2800, 440)
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
 const PIER_END := Rect2(1550, 1960, 100, 140)   # deniz balıkçılığı alanı
 
@@ -77,11 +100,11 @@ static func fishing_spot(p: Vector2) -> String:
 ## Sokak lambaları (yol kenarları).
 static func lamp_positions() -> Array:
 	var out: Array = []
-	for x in range(80, 2400, 240):
+	for x in range(80, 2800, 240):
 		out.append(Vector2(x, 384))
 	for y in range(560, 1600, 220):
 		out.append(Vector2(952, y))
-	for x in range(1160, 2400, 240):
+	for x in range(1160, 2800, 240):
 		out.append(Vector2(x, 868))
 	return out
 
