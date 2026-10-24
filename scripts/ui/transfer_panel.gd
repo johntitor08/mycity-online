@@ -19,6 +19,17 @@ func _ready() -> void:
 	add_button(body, "Gönder", _send).custom_minimum_size = Vector2(0, 40)
 	body.add_child(HSeparator.new())
 	add_button(body, "Özel Mesaj Yaz", func(): pm_requested.emit(to_name)).custom_minimum_size = Vector2(0, 36)
+	if Family.info.is_empty():
+		var b := add_button(body, "Evlenme Teklif Et (yüzük: %d)" % Shops.rings, _propose)
+		b.custom_minimum_size = Vector2(0, 36)
+		b.disabled = Shops.rings <= 0
+		if Shops.rings <= 0:
+			b.tooltip_text = "Önce Çarşı'daki Kuyumcu'dan yüzük al."
+
+
+func _propose() -> void:
+	Family.propose(to_name)
+	close()
 
 
 func _send() -> void:

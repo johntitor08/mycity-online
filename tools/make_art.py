@@ -791,6 +791,49 @@ def karakol():
     save("buildings/karakol.svg", svg(W, H, p, GLASS))
 
 
+# ---------------------------------------------------------------- 0.7: banka ve çarşı
+
+def banka():
+    W, H = 320, 220
+    p = [
+        poly([(4, 72), (160, 6), (316, 72)], "#e7e5e4"),
+        poly([(40, 66), (160, 18), (280, 66)], "#d6d3d1", 2),
+        circle(160, 46, 13, "#facc15", 2.5), path("M155 40h10M155 46h10M160 36v20", "none", 2, "#a16207"),
+        rect(4, 70, W - 8, 146, "#f5f5f4"),
+        rect(4, 196, W - 8, 20, "#a8a29e"),
+        rect(10, 112, W - 20, 6, "#d6d3d1", 0, 1.5),
+    ]
+    for x in (22, 62, 226, 266):         # sütunlar
+        p += [rect(x, 118, 22, 78, "#fafaf9", 2, 2), rect(x - 3, 116, 28, 6, "#e7e5e4", 1, 1.5), rect(x - 3, 190, 28, 6, "#e7e5e4", 1, 1.5)]
+    p += [rect(126, 122, 68, 74, "#1e3a8a", 4), path("M160 122v74", "none", 2, "#93c5fd"), circle(152, 160, 2.5, "#facc15", 0), circle(168, 160, 2.5, "#facc15", 0),
+          rect(100, 136, 18, 30, "url(#glass)", 2, 2), rect(202, 136, 18, 30, "url(#glass)", 2, 2),
+          rect(116, 196, 88, 8, "#d6d3d1", 2, 2)]
+    p.append(rect(W / 2 - 92, 78, 184, 32, "#1c1917", 7, 3, "#facc15"))
+    save("buildings/banka.svg", svg(W, H, p, GLASS))
+
+
+def carsi():
+    W, H = 320, 220
+    p = [rect(4, 68, W - 8, 148, "#fff7ed", 6), rect(4, 196, W - 8, 20, "#d6b98a")]
+    # üç dükkân: kuaför (makas), aksesuarcı (şapka), kuyumcu (yüzük)
+    shops = ((10, "#db2777"), (112, "#7c3aed"), (214, "#ca8a04"))
+    for i, (x, col) in enumerate(shops):
+        p.append(rect(x, 116, 96, 80, "#fef3c7", 3, 2.5))
+        for k in range(6):
+            p.append(rect(x + k * 16, 104, 16, 14, col if k % 2 == 0 else "#ffffff", 0, 0))
+        p += [rect(x, 104, 96, 14, "none", 0, 2.5), rect(x + 10, 128, 44, 44, "url(#glass)", 3, 2), rect(x + 62, 132, 26, 64, col, 2, 2)]
+        cx, cy = x + 32, 150
+        if i == 0:
+            p += [circle(cx - 6, cy + 8, 5, "none", 2.5), circle(cx + 6, cy + 8, 5, "none", 2.5), path(f"M{cx - 4} {cy + 4}L{cx + 8} {cy - 12}M{cx + 4} {cy + 4}L{cx - 8} {cy - 12}", "none", 2.5, "#475569")]
+        elif i == 1:
+            p += [ellipse(cx, cy + 6, 16, 4, "#7c3aed", 2), path(f"M{cx - 9} {cy + 5}Q{cx - 9} {cy - 10} {cx} {cy - 10}Q{cx + 9} {cy - 10} {cx + 9} {cy + 5}Z", "#8b5cf6", 2)]
+        else:
+            p += [circle(cx, cy + 4, 9, "none", 3, "#facc15"), path(f"M{cx - 6} {cy - 8}l6 -7l6 7l-6 6z", "#bae6fd", 2)]
+    p += [rect(4, 8, W - 8, 62, "#9a3412", 6), path(f"M14 36H{W - 14}", "none", 2, "#fdba74")]
+    p.append(rect(W / 2 - 92, 78, 184, 32, "#7c2d12", 7, 3))
+    save("buildings/carsi.svg", svg(W, H, p, GLASS))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -813,3 +856,5 @@ if __name__ == "__main__":
     businesses()
     pets()
     karakol()
+    banka()
+    carsi()

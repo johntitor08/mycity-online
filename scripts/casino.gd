@@ -46,6 +46,7 @@ func _take_bet(d: Dictionary) -> int:
 		return 0
 	Rpg.add_xp(id, "", clampi(bet / 50, 1, 20))
 	Rpg.quest_event(id, "bet")
+	Bank.activity("KMRH", 1)
 	return bet
 
 

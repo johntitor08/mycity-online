@@ -6,7 +6,8 @@ signal applied(appearance: Dictionary)
 
 const Avatar = preload("res://scripts/avatar.gd")
 const ROWS := [["skin", "Ten rengi"], ["hair", "Saç modeli"], ["hair_color", "Saç rengi"],
-	["shirt", "Tişört"], ["pants", "Pantolon"]]
+	["shirt", "Tişört"], ["pants", "Pantolon"], ["hat", "Şapka"], ["glasses", "Gözlük"], ["neck", "Boyun"]]
+const TEXT_ROWS := {"hair": Avatar.HAIR_STYLE_NAMES, "hat": Avatar.HATS, "glasses": Avatar.GLASSES, "neck": Avatar.NECKS}
 
 var appearance := {}
 var offline := false        # true: sadece görünümü döndürür, sunucuya göndermez
@@ -37,8 +38,8 @@ var preview: Preview
 func _ready() -> void:
 	if appearance.is_empty():
 		appearance = Avatar.default_for(Net.my_name)
-	appearance = Avatar.sanitize(appearance)
-	build("Karakterini Düzenle", Vector2(640, 420))
+	appearance = Shops.enforce(Avatar.sanitize(appearance), Shops.owned)
+	build("Karakterini Düzenle", Vector2(680, 560))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 24)
 	body.add_child(h)
@@ -56,7 +57,7 @@ func _ready() -> void:
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 14)
+	grid.add_theme_constant_override("v_separation", 10)
 	grid.size_flags_vertical = SIZE_SHRINK_CENTER
 	h.add_child(grid)
 	for r in ROWS:
@@ -64,13 +65,13 @@ func _ready() -> void:
 		add_label(grid, r[1], 18)
 		add_button(grid, "  <  ", _step.bind(key, -1))
 		var w: Control
-		if key == "hair":
-			w = add_label(grid, "", 18, Color("#facc15"))
+		if TEXT_ROWS.has(key):
+			w = add_label(grid, "", 16, Color("#facc15"))
 			w.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		else:
 			w = ColorRect.new()
 			grid.add_child(w)
-		w.custom_minimum_size = Vector2(110, 34)
+		w.custom_minimum_size = Vector2(150, 30)
 		_value_widgets[key] = w
 		add_button(grid, "  >  ", _step.bind(key, 1))
 
@@ -79,19 +80,26 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", 10)
 	body.add_child(row)
 	add_button(row, "Rastgele", _randomize)
+	add_label(body, "Şapka, gözlük, kolye ve özel saç renkleri Çarşı'dan alınır; aldıkların burada seçilebilir.", 13, Color("#94a3b8"))
 	var save := add_button(row, "Kaydet", _apply)
 	save.custom_minimum_size = Vector2(140, 40)
 	_refresh()
 
 
+## Sadece sahip olunan aksesuar/renkler arasında dolaşır.
 func _step(key: String, d: int) -> void:
 	var n: int = Avatar.OPTIONS[key].size()
-	appearance[key] = (int(appearance[key]) + d + n) % n
+	var v := int(appearance[key])
+	for _i in n:
+		v = (v + d + n) % n
+		if Shops.my_allowed(key, v):
+			break
+	appearance[key] = v
 	_refresh()
 
 
 func _randomize() -> void:
-	appearance = Avatar.random()
+	appearance = Shops.enforce(Avatar.random(), Shops.owned)
 	_refresh()
 
 
@@ -99,8 +107,8 @@ func _refresh() -> void:
 	preview.app = appearance
 	for key in _value_widgets:
 		var w = _value_widgets[key]
-		if key == "hair":
-			w.text = Avatar.HAIR_STYLE_NAMES[appearance.hair]
+		if TEXT_ROWS.has(key):
+			w.text = TEXT_ROWS[key][int(appearance[key])]
 		else:
 			w.color = Avatar.OPTIONS[key][appearance[key]]
 

@@ -317,6 +317,7 @@ func req_harvest(d: Dictionary) -> void:
 	if not got.is_empty():
 		Rpg.add_xp(id, "farming", 5 + mini(200, int(total / 8.0)))
 		Rpg.quest_event(id, "harvest")
+		Bank.activity("TARM", got.size() * 2)
 		Net.notify(id, "Hasat: %s" % ", ".join(parts))
 	if rotten > 0:
 		Net.notify(id, "%d tarhtaki ekin çürümüştü, temizlendi." % rotten, false)

@@ -88,6 +88,7 @@ func req_buy_vehicle(d: Dictionary) -> void:
 		Net.notify(id, "Yeterli paran yok.", false)
 		return
 	list.append(kind)
+	Bank.activity("OTO", 1)
 	Net.mark_dirty()
 	send_state(id)
 	Net.notify(id, "%s senin! Binmek için F tuşuna bas." % v.name)

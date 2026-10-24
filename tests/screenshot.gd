@@ -10,6 +10,12 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--sadece07" in OS.get_cmdline_user_args():
+		Net.add_money(1, 200000)
+		Rpg.add_xp(1, "", 12000)
+		await _shots_07(w)
+		get_tree().quit()
+		return
 	if "--sadece06" in OS.get_cmdline_user_args():
 		Net.add_money(1, 200000)
 		Rpg.add_xp(1, "", 9000)
@@ -115,7 +121,148 @@ func _ready() -> void:
 	await _shots_04(w)
 	await _shots_05(w)
 	await _shots_06(w)
+	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_07(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.hour = 13.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	w.camera.zoom = Vector2(1, 1)
+	# çarşı: aksesuar al, dene
+	w.my_pos = Map.building("carsi").rect.get_center()
+	await _wait(0.3)
+	for k in ["hat2", "gl1", "nk3", "hc9", "ring", "ring"]:
+		Shops.buy(k)
+	await _wait(0.4)
+	w.zone = {"type": "carsi", "label": "x"}
+	w._open_panel()
+	await _wait(0.3)
+	w.panel._try_on("hat", 5)
+	await _wait(0.8)
+	_shot("carsi")
+	w._close_panel()
+	var app: Dictionary = Net.roster[1].appearance.duplicate()
+	app.hat = 2
+	app.glasses = 1
+	app.neck = 3
+	app.hair_color = 9
+	Net.set_appearance(app)
+	# aksesuarlı sahte oyuncular (yakın plan)
+	var apps := [
+		{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1, "hat": 3, "glasses": 3, "neck": 1},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0, "hat": 5, "glasses": 0, "neck": 2},
+		{"skin": 0, "hair": 2, "hair_color": 11, "shirt": 2, "pants": 4, "hat": 6, "glasses": 2, "neck": 1},
+		{"skin": 4, "hair": 4, "hair_color": 0, "shirt": 8, "pants": 5, "hat": 4, "glasses": 1, "neck": 0}]
+	var names := ["Ayşe", "Mehmet", "Zeynep", "Can"]
+	for k in 4:
+		Net.players[9301 + k] = {"name": names[k], "money": 3000 * (k + 1), "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 6 + k}
+	Net.players[9303]["mayor"] = true
+	Net._broadcast_roster()
+	var c: Vector2 = Map.building("carsi").rect.get_center() + Vector2(-60, 150)
+	var dirs := [Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0), Vector2(0, 1)]
+	w.my_pos = c + Vector2(-60, 0)
+	w.my_facing = "down"
+	w.camera.zoom = Vector2(2, 2)
+	for f in 30:
+		for k in 4:
+			Net.positions[9301 + k] = c + Vector2(k * 50, (k % 2) * 20) + dirs[k] * f * 0.8
+		await get_tree().process_frame
+		await get_tree().process_frame
+	await _wait(0.4)
+	_shot("aksesuar")
+	w.camera.zoom = Vector2(1, 1)
+	# banka ve borsa
+	w.my_pos = Map.building("banka").rect.get_center()
+	await _wait(0.3)
+	Bank.deposit(25000)
+	Bank.borrow(8000)
+	for _k in 40:
+		Bank.activity(["BALK", "TARM", "KMRH", "EMLK", "OTO", "MRKT"].pick_random(), randi_range(0, 12))
+		Bank.tick_market()
+	Bank.trade("BALK", 200)
+	Bank.trade("EMLK", 25)
+	for _k in 6:
+		Bank.tick_market()
+	await _wait(0.5)
+	w.zone = {"type": "banka", "label": "x"}
+	w._open_panel()
+	await _wait(0.6)
+	_shot("banka")
+	w.panel._show("stock")
+	await _wait(0.6)
+	_shot("borsa")
+	w._close_panel()
+	# seçim: aday ol, oyla, kazan
+	var now := Time.get_unix_time_from_system()
+	var base: float = floor(now / Election.CYCLE) * Election.CYCLE + Election.CYCLE
+	Election.debug_offset = base + 600.0 - now
+	Election._acc = 99.0
+	Election._process(0.1)
+	w.my_pos = Map.building("muhtarlik").rect.get_center()
+	await _wait(0.3)
+	Election.apply("Her eve bir tekne!")
+	Election._data().candidates["Zeynep"] = {"slogan": "Daha çok park, daha az vergi", "votes": 0}
+	Election._data().candidates["Mehmet"] = {"slogan": "Balıkçılara destek!", "votes": 0}
+	Election.debug_offset = base + Election.APPLY_END + 400.0 - now
+	Election._acc = 99.0
+	Election._process(0.1)
+	await _wait(0.3)
+	w.zone = {"type": "muhtarlik", "label": "x"}
+	w._open_panel()
+	await _wait(0.3)
+	w.panel._show("town")
+	await _wait(0.6)
+	_shot("secim")
+	w._close_panel()
+	Election.vote(Net.my_name)
+	Election._data().candidates["Zeynep"].votes = 0
+	Election.debug_offset = base + Election.VOTE_END + 120.0 - now
+	Election._acc = 99.0
+	Election._process(0.1)
+	Net.players[9303]["mayor"] = false
+	await _wait(0.3)
+	Election.set_tax(8)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.3)
+	w.panel._show("town")
+	await _wait(0.6)
+	_shot("baskan")
+	w._close_panel()
+	Election.debug_offset = 0.0
+	# düğün
+	Net.save_data.players["Ayşe"] = {"money": 3000, "fish": [], "rpg": {"xp": 4000}}
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	rec["spouse"] = "Ayşe"
+	Net.save_data.players["Ayşe"]["spouse"] = Net.my_name
+	Family._store()[Family.key_of(Net.my_name, "Ayşe")] = {"a": Net.my_name, "b": "Ayşe", "bank": 4200, "since": Time.get_date_string_from_system()}
+	Family.send_state(1)
+	var wp: Vector2 = Map.SPAWN + Vector2(300, 30)
+	Net.positions[9301] = wp + Vector2(30, 0)
+	w.my_pos = wp + Vector2(-30, 0)
+	w.my_facing = "right"
+	Net.tell_all(Family, "on_wedding", {"pos": wp, "a": Net.my_name, "b": "Ayşe"})
+	w.camera.zoom = Vector2(1.4, 1.4)
+	await _wait(2.0)
+	_shot("dugun")
+	w.camera.zoom = Vector2(1, 1)
+	w.open_simple_panel("res://scripts/ui/family_panel.gd")
+	await _wait(0.6)
+	_shot("aile")
+	w._close_panel()
+	# yeni binalar
+	w.my_pos = Map.building("banka").rect.get_center() + Vector2(-200, 120)
+	await _wait(1.5)
+	_shot("dogu07")
+	for k in 4:
+		Net.players.erase(9301 + k)
+		Net.positions.erase(9301 + k)
+	Net._broadcast_roster()
 
 
 func _shots_06(w) -> void:

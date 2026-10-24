@@ -280,6 +280,9 @@ func _pickpocket(id: int, target: String) -> void:
 	if Net.positions[id].distance_to(Net.positions[tid]) > PICK_RANGE + NET_SLACK:
 		Net.notify(id, "%s çok uzakta." % target, false)
 		return
+	if Family.spouse_of(id) == target:
+		Net.notify(id, "Eşinin cebine el atılmaz!", false)
+		return
 	if Rpg.level(tid) < CRIME_LEVEL or bool(Net.players[tid].get("police", false)):
 		Net.notify(id, "%s korunuyor (yeni oyuncu ya da polis)." % target, false)
 		return

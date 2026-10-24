@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "0.6"
+const VERSION := "0.7"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -138,6 +138,7 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 	var err := peer.create_server(port, MAX_CLIENTS)
 	if err != OK:
 		return "Sunucu açılamadı. Port %d kullanımda olabilir (başka bir sunucu açık mı?) (hata %d)." % [port, err]
+	_tune(peer)
 	multiplayer.multiplayer_peer = peer
 	dedicated = as_dedicated
 	_load()
@@ -167,11 +168,18 @@ func join(player_name: String, address: String, port: int, pass_hash: String = "
 	var err := peer.create_client(address, port)
 	if err != OK:
 		return "Bağlantı başlatılamadı (hata %d)." % err
+	_tune(peer)
 	multiplayer.multiplayer_peer = peer
 	_pending = {"name": player_name, "pass": pass_hash, "version": VERSION}
 	if appearance is Dictionary:
 		_pending["appearance"] = appearance
 	return ""
+
+
+## Paketleri sıkıştır: VPN/tünel yollarında (MTU ~1280) büyük paketler kaybolup bağlantı kopuyordu.
+## Sunucu ve istemci aynı ayarı kullanmalı (sürüm kontrolü bunu garanti eder).
+func _tune(peer: ENetMultiplayerPeer) -> void:
+	peer.host.compress(ENetConnection.COMPRESS_RANGE_CODER)
 
 
 func leave() -> void:
@@ -205,6 +213,10 @@ func _reset_peer() -> void:
 	Clans.reset()
 	Events.reset()
 	Police.reset()
+	Shops.reset()
+	Bank.reset()
+	Election.reset()
+	Family.reset()
 
 
 func _on_connected() -> void:
@@ -235,6 +247,7 @@ func _on_peer_disconnected(id: int) -> void:
 	_save()
 	_broadcast_roster()
 	Clans.on_presence(pname)
+	Family.on_presence(pname)
 	announce("%s şehirden ayrıldı." % pname)
 	log_line("%s çıktı (%d oyuncu çevrimiçi)" % [pname, players.size()])
 
@@ -328,10 +341,11 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 		rec["appearance"] = Avatar.sanitize(appearance)
 	elif not rec.has("appearance"):
 		rec["appearance"] = Avatar.default_for(pname)
-	var app := Avatar.sanitize(rec["appearance"])
+	var app := Shops.enforce(Avatar.sanitize(rec["appearance"]), Shops.wardrobe(rec))
+	rec["appearance"] = app
 	players[id] = {"name": pname, "money": int(rec.get("money", START_MONEY)),
 		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec), "ride": "", "pet": {},
-		"clan": "", "clan_color": "", "wanted": 0, "police": false}
+		"clan": "", "clan_color": "", "wanted": 0, "police": false, "spouse": "", "mayor": false}
 	positions[id] = Map.SPAWN + Vector2(randf_range(-120, 120), randf_range(-30, 30))
 	if Police.jailed_rec(rec):
 		positions[id] = Map.jail_spawn()
@@ -353,6 +367,11 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Clans.on_presence(pname)
 	Events.send_state(id)
 	Police.send_state(id)
+	Shops.send_state(id)
+	Bank.send_state(id)
+	Election.on_join(id)
+	Family.send_state(id)
+	Family.on_presence(pname)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -368,7 +387,7 @@ func req_appearance(d: Dictionary) -> void:
 	var id := sender()
 	if not players.has(id):
 		return
-	var app := Avatar.sanitize(d.get("appearance"))
+	var app := Shops.enforce(Avatar.sanitize(d.get("appearance")), Shops.wardrobe(save_data.players[players[id].name]))
 	players[id]["appearance"] = app
 	players[id]["color"] = Avatar.shirt_color(app)
 	save_data.players[players[id].name]["appearance"] = app

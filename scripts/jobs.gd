@@ -224,6 +224,7 @@ func req_reel(_d: Dictionary) -> void:
 	Rpg.quest_event(id, "fish")
 	Story.event(id, "fish", {"fish": f[0]})
 	Events.on_fish(id, f[0], int(f[1]))
+	Bank.activity("BALK", 1)
 	if f[1] >= 500:
 		Net.announce("%s bir %s yakaladı! (%s)" % [Net.players[id].name, f[0], U.money(f[1])])
 
@@ -388,6 +389,7 @@ func req_market_answer(d: Dictionary) -> void:
 		Rpg.add_xp(id, "cashier", 12)
 		Rpg.quest_event(id, "customer")
 		Story.event(id, "customer")
+		Bank.activity("MRKT", 1)
 	else:
 		res["pay"] = -20
 		res["text"] = "Yanlış! Doğru para üstü %s idi. Kasa açığı: %s" % [U.money(t.change), U.money(20)]

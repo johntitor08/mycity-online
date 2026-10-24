@@ -95,7 +95,7 @@ func _refresh_mine() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	mine_box.add_child(row)
-	amount = add_spin(row, 1, 1000000, 50, 500)
+	amount = add_spin(row, 0, 1000000, 50, 500)
 	add_button(row, "Yatır", func(): Clans.deposit(int(amount.value)))
 	if leader:
 		add_button(row, "Çek", func(): Clans.withdraw(int(amount.value)))

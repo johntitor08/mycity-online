@@ -11,6 +11,7 @@ func _ready() -> void:
 	Net.connected_ok.connect(_on_ok)
 	Net.connection_failed.connect(_retry)
 	Net.disconnected.connect(func(_r): get_tree().quit(0))
+	Family.proposal.connect(func(from): print("[yardımcı] teklif geldi: ", from); Family.answer(true))
 	_join()
 	get_tree().create_timer(900.0).timeout.connect(func(): get_tree().quit(0))
 

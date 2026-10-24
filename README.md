@@ -4,7 +4,8 @@
 Texas Hold'em poker oyna, gölde ve denizde balık tut, plajda yüz, hastanede doktor ve
 markette kasiyer olarak çalış. Seviye/XP, meslek yetenekleri, enerji, eşyalar ve günlük görevlerle
 RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var. Çiftlik ve mevsimler,
-klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri, polis ve suç sistemi (0.6).
+klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri, polis ve suç sistemi (0.6);
+Çarşı ve aksesuarlar, banka ve borsa, belediye seçimi, düğün ve aile (0.7).
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 **Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
@@ -30,6 +31,37 @@ Menüde:
 - **Sunucuya Katıl**: Arkadaşının IP adresini ve portunu yazıp bağlan.
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
+
+## Çarşı, banka ve borsa, belediye seçimi, düğün ve aile (0.7)
+
+| | |
+|---|---|
+| ![Aksesuarlar](docs/ekran/carsi.png) | ![Borsa](docs/ekran/borsa.png) |
+| ![Seçim](docs/ekran/baskan.png) | ![Düğün](docs/ekran/dugun.png) |
+
+- **Çarşı:** Kuaför (5 özel saç boyası), Aksesuarcı (kasket, fötr, beyzbol şapkası, bere, kovboy
+  şapkası; güneş/numaralı/kalp gözlük; atkı, papyon) ve Kuyumcu (pırlanta yüzük, altın kolye,
+  Sv.10 altın taç). "Dene" ile önizle, al, "Giy". Alınanlar karakter penceresinden de seçilir;
+  sunucu sahip olunmayan aksesuarı kabul etmez. Sokaktaki NPC'lerin bir kısmı da aksesuarlı.
+- **Banka:** Para yatır/çek; mevduat oyun günü başına %3 faiz getirir (200.000 TL'ye kadar) ve
+  soyulamaz. Kredi: seviye × 1.000 TL (en çok 25.000), %10 masraf, 3 oyun gününde ödenir; vadesi
+  geçerse banka önce hesaptan sonra cepten tahsil eder.
+- **Borsa (oyun içi sanal):** 6 şehir şirketi (MRKT, BALK, KMRH, EMLK, OTO, TARM). Fiyatlar
+  dakikada bir dalgalanır ve şehirdeki olaylara tepki verir: balık tutuldukça BALK, hasat oldukça
+  TARM, bahis oynandıkça KMRH, arsa/inşaat EMLK, araç satışı OTO, market/işletme satışları MRKT'yi
+  yükseltir; fırtına balıkçılık ve tarımı vurur, festival market ve kumarhaneye yarar. Son bir
+  saatin grafikleri, kâr/zarar takibi, %1 komisyon.
+- **Belediye seçimi (Muhtarlık → Belediye Seçimi):** 90 dakikalık döngü: 30 dk aday başvurusu
+  (Sv.5, 2.000 TL, slogan), 30 dk oylama (Sv.2, kişi başı 1 oy), sonra sonuç. Başkan vergi oranını
+  belirler (%0–15, kira ve işletme satışlarından belediye kasasına), dönemde bir kez kasayı
+  çevrimiçi herkese hibe olarak dağıtır, 30 dakikada bir etkinlik başlatır ve kasadan maaş alır.
+  İsminin üstünde "BAŞKAN" rozeti çıkar.
+- **Düğün ve aile:** Kuyumcu'dan yüzük al, sevdiğinin yanında sağ üstteki listeden ismine tıkla →
+  "Evlenme Teklif Et" (ikiniz de Sv.4+). Kabul edilirse şehirde düğün kutlaması (kalpler, konfeti,
+  duyuru). Evliler: ortak aile kasası, birbirinin evine kapı kapalıyken de girebilir, birlikteyken
+  %10 fazla XP, eşin mutlu evcil hayvanının bonusu. HUD'da "Aile" butonu; boşanma 5.000 TL.
+- **Ağ:** ENet paketleri sıkıştırılıyor; VPN/tünel yollarında (MTU ~1280) büyük paketlerin
+  kaybolup bağlantının kopması azalır.
 
 ## Çiftlik, klanlar, etkinlikler, polis ve suç (0.6)
 
@@ -134,8 +166,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.6
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.6
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.7
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.7
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -244,6 +276,10 @@ scripts/
   clans.gd    (autoload) klanlar, ortak kasa, klan puanı ve sıralaması
   events.gd   (autoload) zamanlanmış etkinlikler ve yarış pisti
   police.gd   (autoload) suç, aranma, hapishane, polislik, güvenlik ürünleri
+  shops.gd    (autoload) Çarşı: kuaför, aksesuarcı, kuyumcu; gardırop
+  bank.gd     (autoload) banka hesabı, kredi, sanal borsa
+  election.gd (autoload) belediye seçimi, vergi, başkanlık
+  family.gd   (autoload) evlilik, düğün, aile kasası
   npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)

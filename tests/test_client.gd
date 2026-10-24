@@ -109,7 +109,7 @@ func _on_ok() -> void:
 
 	print("== Karakter")
 	var app0: Dictionary = Net.roster[Net.my_id()].get("appearance", {})
-	check(app0.size() == 5, "görünüm roster'da var")
+	check(app0.size() == 8, "görünüm roster'da var (aksesuarlar dahil)")
 	w.open_character_editor()
 	await get_tree().process_frame
 	check(w.panel != null, "karakter düzenleyici açıldı")
@@ -260,6 +260,7 @@ func _on_ok() -> void:
 		await _test_04(get_parent().world)
 		await _test_05(get_parent().world)
 		await _test_06(get_parent().world)
+		await _test_07(get_parent().world)
 		_finish()
 		return
 	print("== Şifre")
@@ -805,6 +806,178 @@ func _test_06(w) -> void:
 	Land.sell(plot)
 	await _wait(0.3)
 	check(not Farm.is_farm(Land.view[plot]) and Land.view[plot].owner == "", "tarla satıldı, arsa sıfırlandı")
+
+
+## 0.7: Çarşı ve aksesuarlar, banka ve borsa, belediye seçimi, düğün ve aile.
+func _test_07(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	Net.add_money(me, 100000)
+	await _wait(0.3)
+
+	print("== 0.7: Çarşı")
+	w.my_pos = Map.building("carsi").rect.get_center()
+	await _wait(0.3)
+	Shops.buy("hat3")
+	Shops.buy("gl1")
+	Shops.buy("hc9")
+	Shops.buy("ring")
+	await _wait(0.4)
+	check(Shops.owned.has("hat3") and Shops.owned.has("gl1") and Shops.owned.has("hc9") and Shops.rings == 1, "şapka, gözlük, saç boyası ve yüzük alındı")
+	Shops.wear("hat", 3)
+	await _wait(0.3)
+	Shops.wear("glasses", 1)
+	await _wait(0.3)
+	var app: Dictionary = Net.roster[me].appearance
+	check(int(app.hat) == 3 and int(app.glasses) == 1, "aksesuarlar giyildi (herkes görüyor)")
+	var fake: Dictionary = app.duplicate()
+	fake["hat"] = 6
+	fake["neck"] = 1
+	fake["hair_color"] = 11
+	Net.set_appearance(fake)
+	await _wait(0.3)
+	app = Net.roster[me].appearance
+	check(int(app.hat) == 0 and int(app.neck) == 0 and int(app.hair_color) == 0, "alınmamış taç/kolye/saç rengi sunucuda reddedildi")
+	fake["hair_color"] = 9
+	fake["hat"] = 3
+	Net.set_appearance(fake)
+	await _wait(0.3)
+	check(int(Net.roster[me].appearance.hair_color) == 9, "alınan özel saç rengi kullanılabiliyor")
+	w.my_pos = Map.SPAWN
+	await _wait(0.3)
+	Shops.buy("hat1")
+	await _wait(0.3)
+	check(not Shops.owned.has("hat1"), "Çarşı dışında alışveriş reddedildi")
+
+	print("== 0.7: Banka")
+	w.my_pos = Map.building("banka").rect.get_center()
+	await _wait(0.3)
+	var m0 := Net.my_money()
+	Bank.deposit(5000)
+	await _wait(0.3)
+	Bank.withdraw(2000)
+	await _wait(0.3)
+	check(int(Bank.account.bal) == 3000 and Net.my_money() == m0 - 3000, "5000 yatırıldı, 2000 çekildi")
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	rec.bank_acc.t = Time.get_unix_time_from_system() - Env.DAY_SECONDS
+	Bank.send_state(me)
+	await _wait(0.3)
+	check(int(Bank.account.bal) >= 3089, "bir oyun gününde %%3 faiz işledi (%d TL)" % int(Bank.account.bal))
+	Bank.borrow(3000)
+	await _wait(0.3)
+	check(int(Bank.account.debt) == 3300, "3000 TL kredi çekildi, borç 3300 (%%10 masraf)")
+	Bank.borrow(1000)
+	await _wait(0.3)
+	check(int(Bank.account.debt) == 3300, "borç varken ikinci kredi verilmedi")
+	rec.bank_acc.due = Time.get_unix_time_from_system() - 1.0
+	Bank._collect_overdue()
+	await _wait(0.3)
+	check(int(Bank.account.debt) == 0, "vadesi geçen borç tahsil edildi")
+	print("== 0.7: Borsa")
+	var p0 := Bank.price("MRKT")
+	Bank.trade("MRKT", 10)
+	await _wait(0.3)
+	check(int(Bank.holdings.get("MRKT", {}).get("n", 0)) == 10, "10 MRKT hissesi alındı (%.2f)" % p0)
+	var h0: int = Bank.market.MRKT.hist.size()
+	Bank.activity("BALK", 20)
+	Bank.tick_market()
+	await _wait(0.3)
+	check(Bank.market.MRKT.hist.size() == mini(h0 + 1, Bank.HISTORY) and Bank.price("MRKT") > 0.0, "borsa fiyatları güncellendi (MRKT %.2f → %.2f)" % [p0, Bank.price("MRKT")])
+	var m1 := Net.my_money()
+	Bank.trade("MRKT", -10)
+	await _wait(0.3)
+	check(not Bank.holdings.has("MRKT") and Net.my_money() > m1, "hisseler satıldı (+%d TL)" % (Net.my_money() - m1))
+	var bal0 := int(Bank.account.bal)
+	w.my_pos = Map.SPAWN
+	await _wait(0.3)
+	Bank.deposit(100)
+	await _wait(0.3)
+	check(int(Bank.account.bal) == bal0, "banka dışında işlem yapılamıyor")
+
+	print("== 0.7: Belediye seçimi")
+	var now := Time.get_unix_time_from_system()
+	var base: float = floor(now / Election.CYCLE) * Election.CYCLE + Election.CYCLE    # gelecek döngü
+	Election.debug_offset = base + 60.0 - now
+	Election._acc = 99.0
+	Election._process(0.1)
+	await _wait(0.3)
+	check(Election.state.get("phase") == "apply", "yeni seçim dönemi: aday başvuruları")
+	w.my_pos = Map.building("muhtarlik").rect.get_center()
+	Election.apply("Her eve bir tekne!")
+	await _wait(0.3)
+	check(Election.state.get("candidate", false) and Election.state.candidates.size() == 1, "aday olundu")
+	Election.vote(Net.my_name)
+	await _wait(0.3)
+	check(not Election.state.get("voted", false), "başvuru döneminde oy verilemez")
+	Election.debug_offset = base + Election.APPLY_END + 60.0 - now
+	Election._acc = 99.0
+	Election._process(0.1)
+	await _wait(0.3)
+	check(Election.state.get("phase") == "vote", "oylama başladı")
+	Election.vote(Net.my_name)
+	await _wait(0.3)
+	Election.vote(Net.my_name)
+	await _wait(0.3)
+	check(Election.state.get("voted", false) and int(Election._data().candidates[Net.my_name].votes) == 1, "oy kullanıldı (ikinci oy sayılmadı)")
+	Election.debug_offset = base + Election.VOTE_END + 60.0 - now
+	Election._acc = 99.0
+	Election._process(0.1)
+	await _wait(0.4)
+	check(Election.state.get("mayor") == Net.my_name and Election.is_mayor(), "seçimi kazanıp belediye başkanı olundu")
+	check(Net.roster[me].get("mayor", false), "başkan rozeti oyuncu listesinde")
+	Election.set_tax(10)
+	await _wait(0.3)
+	check(int(Election.state.tax) == 10 and Election.take_tax(1000) == 900, "vergi %%10 yapıldı, kiradan kesiliyor")
+	var m2 := Net.my_money()
+	var tre := int(Election._data().treasury)
+	Election.give_grant()
+	await _wait(0.3)
+	check(Net.my_money() > m2 and int(Election._data().treasury) < tre, "hibe dağıtıldı (+%d TL)" % (Net.my_money() - m2))
+	Election.start_event("festival")
+	await _wait(0.3)
+	check(Events.is_active("festival"), "başkan festival başlattı")
+	Events._finish()
+	Election.debug_offset = 0.0
+
+	print("== 0.7: Düğün ve aile")
+	var helper := Net.id_by_name("Yardimci")
+	if helper == 0:
+		print("  (yardımcı istemci yok: düğün testi atlandı)")
+	else:
+		if Police.is_jailed(helper):
+			Police._release(helper)
+			await _wait(0.4)
+		Rpg.add_xp(helper, "", 3000)
+		await _wait(0.3)
+		w.my_pos = Net.positions[helper] + Vector2(40, 0)
+		await _wait(0.4)
+		Family.propose("Yardimci")
+		await _wait(1.0)
+		check(Family.info.get("spouse") == "Yardimci", "evlenme teklifi kabul edildi: Yardimci ile evli")
+		check(Net.roster[me].get("spouse") == "Yardimci" and Shops.rings == 0, "yüzük harcandı, eş oyuncu listesinde")
+		check(Family.weddings.size() >= 1, "düğün kutlaması herkese yayınlandı")
+		check(is_equal_approx(Family.xp_mult(me), Family.XP_BONUS), "eşinin yanındayken XP bonusu")
+		Family.deposit(1000)
+		await _wait(0.3)
+		check(int(Family.info.bank) == 1000, "aile kasasına 1000 yatırıldı")
+		var hplot := -1
+		for i in Land.view.size():
+			if Land.view[i].owner == "":
+				hplot = i
+				break
+		Land.plots[hplot].owner = "Yardimci"
+		Land.plots[hplot].level = 1
+		check(Homes.may_be_in(me, hplot), "eşinin evine kapı kapalıyken girilebilir")
+		Land.plots[hplot].owner = ""
+		Land.plots[hplot].level = 0
+		var m3 := Net.my_money()
+		Family.divorce()
+		await _wait(0.4)
+		check(Family.info.is_empty() and Net.my_money() == m3 - Family.DIVORCE_COST + 500, "boşanıldı, aile kasası paylaşıldı")
+	w.open_simple_panel("res://scripts/ui/family_panel.gd")
+	await get_tree().process_frame
+	check(w.panel != null, "aile penceresi açıldı")
+	w._close_panel()
 
 
 func _finish() -> void:

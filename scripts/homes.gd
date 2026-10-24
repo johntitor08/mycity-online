@@ -75,7 +75,7 @@ func may_be_in(id: int, i: int) -> bool:
 	var p: Dictionary = Land.plots[i]
 	if int(p.level) < 1 or p.owner == "" or str(p.get("kind", "home")) != "home":
 		return false
-	return p.owner == Net.players[id].name or bool(p.get("door_open", false))
+	return p.owner == Net.players[id].name or bool(p.get("door_open", false)) or Family.spouse_of(id) == p.owner
 
 
 # ------------------------------------------------------------------ istemci API

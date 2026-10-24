@@ -47,7 +47,14 @@ func _tick(pet: Dictionary) -> void:
 
 ## Sunucu: bu oyuncunun hayvanı mutlu ve bu türde mi? (bonuslar için)
 func bonus(id: int, kind: String) -> bool:
-	var rec := _rec(id)
+	if _own_bonus(_rec(id), kind):
+		return true
+	# evliysen eşinin (çevrimiçi) mutlu hayvanı da sana bonus verir
+	var s := Family.spouse_of(id)
+	return s != "" and Net.id_by_name(s) != 0 and _own_bonus(Net.save_data.players.get(s, {}), kind)
+
+
+func _own_bonus(rec: Dictionary, kind: String) -> bool:
 	var pet = rec.get("pet")
 	if not pet is Dictionary or pet.get("kind") != kind:
 		return false

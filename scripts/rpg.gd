@@ -208,6 +208,7 @@ func add_xp(id: int, skill_key: String, amount: int) -> void:
 	var r := _rec(id)
 	if r.is_empty() or amount <= 0:
 		return
+	amount = int(round(amount * Family.xp_mult(id)))
 	var old_level := level_of(int(r.xp))
 	r["xp"] = int(r.xp) + amount
 	Clans.on_xp(id, amount)

@@ -9,6 +9,7 @@ signal transfer_requested(to_name: String)
 signal pet_requested
 signal clan_requested
 signal events_requested
+signal family_requested
 
 var money_label: Label
 var name_label: Label
@@ -28,6 +29,7 @@ var energy_label: Label
 var clock_label: Label
 var quest_label: Label
 var status_label: Label
+var town_label: Label
 var bail_btn: Button
 var event_banner: PanelContainer
 var event_label: Label
@@ -48,6 +50,8 @@ func _ready() -> void:
 	top.add_child(tv)
 	name_label = _label(tv, "", 15, Color("#aab3c9"))
 	clock_label = _label(tv, "", 14, Color("#fde68a"))
+	town_label = _label(tv, "", 13, Color("#fdba74"))
+	town_label.visible = false
 	quest_label = _label(tv, "", 13, Color("#93c5fd"))
 	quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	quest_label.custom_minimum_size = Vector2(300, 0)
@@ -71,6 +75,7 @@ func _ready() -> void:
 	_small_button(btns, "Profil (C)", func(): profile_requested.emit())
 	_small_button(btns, "Karakter", func(): character_requested.emit())
 	_small_button(btns, "Evcil", func(): pet_requested.emit())
+	_small_button(btns, "Aile", func(): family_requested.emit())
 	var btns2 := HBoxContainer.new()
 	tv.add_child(btns2)
 	_small_button(btns2, "Klan", func(): clan_requested.emit())
@@ -224,6 +229,7 @@ func _process(_delta: float) -> void:
 		clock_label.text = Env.clock_text()
 		_refresh_event()
 		_refresh_status()
+		_refresh_town()
 	_refresh_race()
 
 
@@ -244,6 +250,17 @@ func _refresh_status() -> void:
 	else:
 		status_label.text = ""
 	status_label.visible = status_label.text != ""
+
+
+func _refresh_town() -> void:
+	var st := Election.state
+	var ph := str(st.get("phase", ""))
+	if ph == "apply" or ph == "vote":
+		var left := Election.time_left()
+		town_label.text = "Seçim: %s — %d:%02d (Muhtarlık)" % ["aday başvurusu" if ph == "apply" else "OYLAMA", int(left) / 60, int(left) % 60]
+		town_label.visible = not (ph == "vote" and bool(st.get("voted", false)))
+	else:
+		town_label.visible = false
 
 
 func _refresh_event() -> void:
@@ -358,6 +375,10 @@ func _refresh() -> void:
 		var nm := U.esc(p.name) if me else "[url=%s]%s[/url]" % [p.name, U.esc(p.name)]
 		if str(p.get("clan", "")) != "":
 			nm = "[color=%s][lb]%s[rb][/color] %s" % [p.get("clan_color", "#4ade80"), U.esc(p.clan), nm]
+		if bool(p.get("mayor", false)):
+			nm += " [color=#facc15](Başkan)[/color]"
+		if str(p.get("spouse", "")) != "":
+			nm += " [color=#f9a8d4]♥[/color]"
 		if int(p.get("wanted", 0)) > 0:
 			nm += " [color=#f87171]%s[/color]" % "★".repeat(int(p.wanted))
 		t += "[color=#%s]●[/color] %s%s [color=#facc15]Sv.%d[/color]  [color=#86efac]%s[/color]\n" % [

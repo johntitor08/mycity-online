@@ -20,6 +20,8 @@ const PANELS := {
 	"muhtarlik": preload("res://scripts/ui/story_panel.gd"),
 	"karakol": preload("res://scripts/ui/police_panel.gd"),
 	"race": preload("res://scripts/ui/event_panel.gd"),
+	"banka": preload("res://scripts/ui/bank_panel.gd"),
+	"carsi": preload("res://scripts/ui/shop_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -46,6 +48,8 @@ const BUILDING_TEX := {
 	"petshop": preload("res://assets/buildings/petshop.svg"),
 	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
 	"karakol": preload("res://assets/buildings/karakol.svg"),
+	"banka": preload("res://assets/buildings/banka.svg"),
+	"carsi": preload("res://assets/buildings/carsi.svg"),
 }
 const CAR_BODY := preload("res://assets/vehicles/car_body.svg")
 const CAR_DETAIL := preload("res://assets/vehicles/car_detail.svg")
@@ -161,6 +165,9 @@ func _ready() -> void:
 	hud.pet_requested.connect(open_pet_panel)
 	hud.clan_requested.connect(open_simple_panel.bind("res://scripts/ui/clan_panel.gd"))
 	hud.events_requested.connect(open_simple_panel.bind("res://scripts/ui/event_panel.gd"))
+	hud.family_requested.connect(open_simple_panel.bind("res://scripts/ui/family_panel.gd"))
+	Family.proposal.connect(_on_proposal)
+	Family.wedding.connect(func(_d): Sfx.play("success"))
 	_make_nature()
 
 
@@ -457,7 +464,8 @@ func _find_g_action() -> Dictionary:
 			if int(info.get("wanted", 0)) > 0 and d < Police.ARREST_RANGE and d < best_d:
 				best_id = id
 				best_d = d
-		elif d < Police.PICK_RANGE and d < best_d and int(info.get("level", 1)) >= Police.CRIME_LEVEL and not info.get("police", false):
+		elif d < Police.PICK_RANGE and d < best_d and int(info.get("level", 1)) >= Police.CRIME_LEVEL and not info.get("police", false) \
+				and str(info.get("spouse", "")) != Net.my_name:
 			best_id = id
 			best_d = d
 	if best_id != 0:
@@ -532,7 +540,18 @@ func open_pet_panel() -> void:
 	ui_layer.add_child(panel)
 
 
-## HUD butonlarından açılan basit pencereler (Klan, Etkinlik).
+## Gelen evlenme teklifi.
+func _on_proposal(from_name: String) -> void:
+	if panel != null:
+		_close_panel()
+	panel = preload("res://scripts/ui/proposal_panel.gd").new()
+	panel.from_name = from_name
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("notify")
+
+
+## HUD butonlarından açılan basit pencereler (Klan, Etkinlik, Aile).
 func open_simple_panel(path: String) -> void:
 	if panel != null:
 		return
@@ -665,6 +684,7 @@ func _draw() -> void:
 	for b in Map.BUILDINGS:
 		_draw_building(b)
 	_draw_event_world()
+	_draw_weddings()
 	# Ağaçlar ve oyuncular y'ye göre sıralanarak çizilir (önde olan üstte görünür).
 	var items: Array = []
 	for n in nature:
@@ -1099,6 +1119,31 @@ func _draw_chest(tp: Vector2) -> void:
 	_text(tp + Vector2(-60, -36), "HAZİNE!", 16, Color("#facc15"), 120)
 
 
+## Düğün kutlaması: kalpler ve konfeti (25 sn).
+func _draw_weddings() -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	Family.weddings = Family.weddings.filter(func(w): return float(w.until) > now)
+	for w in Family.weddings:
+		var c: Vector2 = w.pos
+		var k := float(w.until) - now
+		for j in 14:
+			var a := TAU * j / 14.0 + _t * 0.6
+			var r := 60.0 + 20.0 * sin(_t * 2.0 + j)
+			var hp := c + Vector2(cos(a), sin(a) * 0.6) * r + Vector2(0, -40)
+			_draw_heart(hp, 7.0, Color(1.0, 0.45 + 0.1 * (j % 3), 0.7, minf(1.0, k / 3.0)))
+		for j in 40:
+			var px := c.x + fmod(j * 37.0, 240.0) - 120.0
+			var py := c.y - 140.0 + fmod(j * 23.0 + _t * (50.0 + j % 5 * 12.0), 200.0)
+			draw_rect(Rect2(px + sin(_t * 3.0 + j) * 6.0, py, 4, 3), [Color("#f9a8d4"), Color("#ffffff"), Color("#fde68a")][j % 3])
+		_text(c + Vector2(-140, -120), "%s ♥ %s" % [w.a, w.b], 20, Color("#f9a8d4"), 280)
+
+
+func _draw_heart(p: Vector2, s: float, col: Color) -> void:
+	draw_circle(p + Vector2(-s * 0.5, 0), s * 0.55, col)
+	draw_circle(p + Vector2(s * 0.5, 0), s * 0.55, col)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 1.02, s * 0.15), p + Vector2(s * 1.02, s * 0.15), p + Vector2(0, s * 1.3)]), col)
+
+
 func _draw_siren(p: Vector2) -> void:
 	var on := int(_t * 4.0) % 2 == 0
 	draw_circle(p + Vector2(-6, 0), 5, Color("#ef4444") if on else Color("#7f1d1d"))
@@ -1186,7 +1231,10 @@ func _name(p: Vector2, y: float, pname: String, col: Color, extra: Dictionary) -
 	_text(p + Vector2(-90, y), pname, 16, col, 180)
 	var badge := ""
 	var bcol := Color("#f87171")
-	if bool(extra.get("police", false)):
+	if bool(extra.get("mayor", false)):
+		badge = "BAŞKAN"
+		bcol = Color("#facc15")
+	elif bool(extra.get("police", false)):
 		badge = "POLİS"
 		bcol = Color("#60a5fa")
 	elif int(extra.get("wanted", 0)) > 0:

@@ -24,6 +24,9 @@ const BUILDINGS := [
 	{"type": "muhtarlik", "label": "Muhtarlık", "rect": Rect2(2280, 540, 320, 220), "sign_y": 102},
 	# 0.6: karakol (alt yolun altında)
 	{"type": "karakol", "label": "Karakol", "rect": Rect2(2290, 900, 320, 220), "sign_y": 102},
+	# 0.7: banka ve çarşı (karakolun altı)
+	{"type": "banka", "label": "Banka", "rect": Rect2(2290, 1160, 320, 220), "sign_y": 102},
+	{"type": "carsi", "label": "Çarşı", "rect": Rect2(2290, 1400, 320, 220), "sign_y": 102},
 ]
 
 # Görev veren NPC'ler (sabit duranlar): kimlik -> ad, konum, görünüm

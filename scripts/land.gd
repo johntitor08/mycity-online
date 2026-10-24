@@ -102,7 +102,7 @@ func _pay_rent() -> void:
 		if p.owner != "":
 			totals[p.owner] = totals.get(p.owner, 0) + income_of(p)
 	for owner in totals:
-		totals[owner] = int(totals[owner] * Rpg.rent_mult_by_name(owner))
+		totals[owner] = Election.take_tax(int(totals[owner] * Rpg.rent_mult_by_name(owner)))
 		Net.add_money_by_name(owner, totals[owner])
 		var id := Net.id_by_name(owner)
 		if id != 0:
@@ -164,6 +164,7 @@ func req_buy(d: Dictionary) -> void:
 	Net.mark_dirty()
 	_broadcast()
 	Rpg.add_xp(id, "realestate", 50)
+	Bank.activity("EMLK", 1)
 	Rpg.quest_event(id, "build")
 	Story.send_state(id)
 	Net.announce("%s, %d numaralı arsayı %s karşılığında satın aldı!" % [pname, i + 1, U.money(int(p.price))])
@@ -202,6 +203,7 @@ func req_build(d: Dictionary) -> void:
 	Net.mark_dirty()
 	_broadcast()
 	Rpg.add_xp(id, "realestate", 100 * int(p.level))
+	Bank.activity("EMLK", 1)
 	Rpg.quest_event(id, "build")
 	Net.notify(id, "%s inşa edildi! Yeni kira: %s/dk" % [building_name(p), U.money(income_of(p))])
 

@@ -221,7 +221,8 @@ func _tick() -> void:
 		var customers := int(floor(f + randf()))
 		var served := mini(customers, int(b.stock))
 		b["stock"] = int(b.stock) - served
-		var revenue := served * unit_price(p)
+		var revenue := Election.take_tax(served * unit_price(p))
+		Bank.activity("MRKT", served)
 		var wages := int(b.staff) * WAGE * lvl
 		b["cash"] = maxi(0, int(b.cash) + revenue - wages)
 		var r := float(b.rating)

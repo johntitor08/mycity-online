@@ -35,6 +35,10 @@ Farm="*res://scripts/farm.gd"
 Clans="*res://scripts/clans.gd"
 Events="*res://scripts/events.gd"
 Police="*res://scripts/police.gd"
+Shops="*res://scripts/shops.gd"
+Bank="*res://scripts/bank.gd"
+Election="*res://scripts/election.gd"
+Family="*res://scripts/family.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]
