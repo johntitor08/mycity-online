@@ -185,7 +185,10 @@ func req_talk(d: Dictionary) -> void:
 	var npc := str(d.get("npc", ""))
 	if not Net.players.has(id) or not Map.NPCS.has(npc):
 		return
-	if Net.positions.get(id, Vector2(-9999, -9999)).distance_to(Map.NPCS[npc].pos) > Map.NPC_TALK_RANGE + 40:
+	# Geniş pay: internet gecikmesinde sunucu oyuncuyu birkaç adım geriden görür.
+	var dist: float = Net.positions.get(id, Vector2(-9999, -9999)).distance_to(Map.NPCS[npc].pos)
+	if dist > Map.NPC_TALK_RANGE + 250:
+		Net.notify(id, "%s ile konuşmak için biraz daha yaklaş." % Map.NPCS[npc].name, false)
 		return
 	var s := _st(id)
 	var k := int(s.step)

@@ -19,6 +19,7 @@ const MAX_WANTED := 5
 const DECAY_SEC := 180.0           # her 3 dakikada 1 yıldız düşer
 const PICK_RANGE := 70.0
 const ARREST_RANGE := 90.0
+const NET_SLACK := 80.0            # sunucu oyuncuları internet gecikmesi kadar geriden görür
 const PICK_COOLDOWN := 60.0
 const ROB_COOLDOWN := 120.0
 const VICTIM_IMMUNE := 180.0
@@ -276,7 +277,7 @@ func _pickpocket(id: int, target: String) -> void:
 	var now := _now()
 	if not _outdoors(id) or not _outdoors(tid):
 		return
-	if Net.positions[id].distance_to(Net.positions[tid]) > PICK_RANGE:
+	if Net.positions[id].distance_to(Net.positions[tid]) > PICK_RANGE + NET_SLACK:
 		Net.notify(id, "%s çok uzakta." % target, false)
 		return
 	if Rpg.level(tid) < CRIME_LEVEL or bool(Net.players[tid].get("police", false)):
@@ -319,7 +320,7 @@ func _rob(id: int, i: int) -> void:
 	var owner: String = p.owner
 	if owner == "" or owner == me or int(p.level) < 1:
 		return
-	if not Map.plot_rect(i).grow(40).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+	if not Map.plot_rect(i).grow(40 + NET_SLACK).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
 		Net.notify(id, "Arsaya yaklaşman gerek.", false)
 		return
 	var orec: Dictionary = Net.save_data.players.get(owner, {})
@@ -387,7 +388,7 @@ func _arrest(id: int, target: String) -> void:
 	var tid := Net.id_by_name(target)
 	if tid == 0 or tid == id or is_jailed(tid):
 		return
-	if Net.positions.get(id, Vector2.ZERO).distance_to(Net.positions.get(tid, Vector2(-9999, -9999))) > ARREST_RANGE:
+	if Net.positions.get(id, Vector2.ZERO).distance_to(Net.positions.get(tid, Vector2(-9999, -9999))) > ARREST_RANGE + NET_SLACK:
 		Net.notify(id, "%s çok uzakta, yaklaş." % target, false)
 		return
 	var stars := wanted(tid)
