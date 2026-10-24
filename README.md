@@ -62,6 +62,11 @@ Menüde:
   %10 fazla XP, eşin mutlu evcil hayvanının bonusu. HUD'da "Aile" butonu; boşanma 5.000 TL.
 - **Ağ:** ENet paketleri sıkıştırılıyor; VPN/tünel yollarında (MTU ~1280) büyük paketlerin
   kaybolup bağlantının kopması azalır.
+- **0.7.1 — Olta animasyonu ve çarpışma:** Balık tutarken karakterin elinde olta, suda şamandıra;
+  balık vurunca şamandıra batar ve halkalar yayılır, yakalanınca balık sudan sıçrar (herkes görür).
+  Balık penceresi sağa yaslı açılır. Binaların, evlerin ve işletmelerin içinden yürünemez/araçla
+  geçilemez (girişler kapının önünde); NPC arabaların içine girilemez, arabalar önlerindeki
+  yaya ve araçlar için durur.
 
 ## Çiftlik, klanlar, etkinlikler, polis ve suç (0.6)
 
@@ -166,8 +171,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.7
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.7
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.7.1
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.7.1
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

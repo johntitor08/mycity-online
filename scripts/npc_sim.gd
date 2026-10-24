@@ -65,6 +65,15 @@ func update(delta: float, roster: Dictionary, positions: Dictionary, my_id: int,
 		w.facing = _facing(pt[1] * w.dir)
 	for c in cars:
 		var lane: Array = Map.TRAFFIC_LANES[c.lane]
+		# önünde yaya ya da oyuncu aracı varsa dur
+		var blocked := false
+		for pp in [my_pos] + positions.values():
+			var ahead: float = (pp.x - float(c.x)) * float(lane[1])
+			if absf(pp.y - float(lane[0])) < 36.0 and ahead > 0.0 and ahead < 105.0:
+				blocked = true
+				break
+		if blocked:
+			continue
 		c.x += c.speed * float(lane[1]) * delta
 		var x0 := 0.0 if c.lane < 2 else 1060.0       # alttaki yol 1050'den başlar
 		var x1 := Map.WORLD.size.x

@@ -10,6 +10,10 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--olta" in OS.get_cmdline_user_args():
+		await _shots_rod(w)
+		get_tree().quit()
+		return
 	if "--sadece07" in OS.get_cmdline_user_args():
 		Net.add_money(1, 200000)
 		Rpg.add_xp(1, "", 12000)
@@ -123,6 +127,51 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+## Olta animasyonu: göl iskelesinde ben (atıldı), komşular (vurdu / yakaladı), deniz iskelesi.
+func _shots_rod(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.hour = 17.0
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1, "hat": 0, "glasses": 0, "neck": 0},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0, "hat": 5, "glasses": 0, "neck": 2}]
+	Net.players[9401] = {"name": "Ayşe", "money": 100, "color": Avatar.shirt_color(apps[0]), "appearance": apps[0], "level": 4, "fishing": "bite"}
+	Net.players[9402] = {"name": "Hasan", "money": 100, "color": Avatar.shirt_color(apps[1]), "appearance": apps[1], "level": 6, "fishing": "cast"}
+	Net._broadcast_roster()
+	var d: Rect2 = Map.DOCK
+	Net.positions[9401] = Vector2(d.position.x + 30, d.position.y + 20)
+	Net.positions[9402] = Vector2(d.position.x + 30, d.end.y - 8)
+	w.my_pos = Vector2(d.position.x + 110, d.get_center().y)
+	w.my_facing = "left"
+	w.camera.zoom = Vector2(1.8, 1.8)
+	await _wait(0.5)
+	Jobs.cast()
+	await _wait(1.2)
+	_shot("olta_gol")
+	# yakalama anı
+	Net.players[9401]["fishing"] = "caught"
+	Net._broadcast_roster()
+	await _wait(0.35)
+	_shot("olta_yakaladi")
+	# deniz iskelesi
+	Jobs._fish.clear()
+	w.my_pos = Map.PIER_END.get_center() + Vector2(0, 40)
+	w.my_facing = "down"
+	Net.positions[9402] = Map.PIER_END.get_center() + Vector2(-30, 0)
+	Net.players[9402]["fishing"] = "bite"
+	Net._broadcast_roster()
+	await _wait(0.3)
+	Jobs.cast()
+	await _wait(1.0)
+	_shot("olta_deniz")
+	w.camera.zoom = Vector2(1, 1)
+	w.zone = {"type": "fishing", "label": "x"}
+	w._open_panel()
+	await _wait(0.6)
+	_shot("olta_panel")
+	w._close_panel()
 
 
 func _shots_07(w) -> void:

@@ -10,15 +10,22 @@ var title_label: Label
 var _hint_label: Label
 
 
-func build(title: String, min_size: Vector2) -> void:
+## docked: pencere ekranın sağ yarısına yaslanır ve ekran karartılmaz (ör. balık tutarken
+## karakter ve olta görünsün diye).
+func build(title: String, min_size: Vector2, docked: bool = false) -> void:
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	mouse_filter = MOUSE_FILTER_STOP
+	mouse_filter = MOUSE_FILTER_IGNORE if docked else MOUSE_FILTER_STOP
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.35)
+	dim.color = Color(0, 0, 0, 0.0 if docked else 0.35)
+	dim.mouse_filter = MOUSE_FILTER_IGNORE if docked else MOUSE_FILTER_STOP
 	dim.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	add_child(dim)
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if docked:
+		center.anchor_left = 0.5
+		center.offset_left = 0
+		center.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(center)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = min_size

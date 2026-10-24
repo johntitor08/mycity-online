@@ -11,6 +11,7 @@ func _init() -> void:
 		print("BAĞLANTI BAŞLATILAMADI")
 		quit(1)
 		return
+	peer.host.compress(ENetConnection.COMPRESS_RANGE_CODER)    # 0.7+ sunucularla aynı ayar
 	var start := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start < 6000:
 		peer.poll()

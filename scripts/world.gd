@@ -102,6 +102,8 @@ var placing := ""           # mobilya yerleştirme modu (tür) ya da ""
 var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
 var _jail := false          # hapishanede miyim
 var _g_action := {}         # G tuşunun şu anki eylemi (yankesicilik/soygun/tutuklama)
+var _blockers: Array = []   # çarpışma kutuları: binalar ve arsalardaki yapılar (Rect2)
+var _fish_t := {}           # oyuncu adı -> [olta durumu, başladığı an] (animasyon için)
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
 var _label_queue: Array = []
@@ -160,6 +162,8 @@ func _ready() -> void:
 	for k in Homes.FURNITURE:
 		furn_tex[k] = load("res://assets/furniture/%s.svg" % k)
 	Homes.teleported.connect(_on_teleport)
+	Land.plots_changed.connect(_rebuild_blockers)
+	_rebuild_blockers()
 	npc = NpcSim.new()
 	Story.dialog.connect(_on_dialog)
 	hud.pet_requested.connect(open_pet_panel)
@@ -255,6 +259,8 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 func _can_stand(p: Vector2, ride: String) -> bool:
 	if _room >= 0 or _jail:
 		return true
+	if _blocked(p) and not _blocked(my_pos):
+		return false              # bina, ev ya da araba (içindeysen çıkabilirsin)
 	if Map.in_water(p):
 		return false              # göl
 	if ride == "boat":
@@ -421,7 +427,7 @@ func _update_zone() -> void:
 		hud.set_hint("" if panel != null or placing != "" else "[E]  %s" % z.label)
 		return
 	for b in Map.BUILDINGS:
-		if b.rect.has_point(my_pos):
+		if b.rect.grow(26).has_point(my_pos):
 			z = {"type": b.type, "label": b.label}
 	for k in Map.NPCS:
 		if my_pos.distance_to(Map.NPCS[k].pos) < Map.NPC_TALK_RANGE:
@@ -538,6 +544,130 @@ func open_pet_panel() -> void:
 	panel = PANELS["petshop"].new()
 	panel.closed.connect(_close_panel)
 	ui_layer.add_child(panel)
+
+
+# ================================================================== çarpışma
+
+## Yapının görseli için yükseklik ve ayak noktası (çizimle aynı değerler).
+func _structure_of(i: int, p: Dictionary) -> Array:
+	var c := Map.plot_rect(i).get_center()
+	var level := int(p.get("level", 0))
+	if level < 1 or str(p.get("owner", "")) == "" or Farm.is_farm(p):
+		return []
+	if Biz.is_biz(p):
+		return [BIZ_TEX[level], Vector2(c.x, c.y + 54), [0, 116, 126, 146][level]]
+	return [PLOT_TEX[level], Vector2(c.x, c.y + [0, 42, 50, 60][level]), [0, 120, 130, 158][level]]
+
+
+func _rebuild_blockers() -> void:
+	_blockers = []
+	for b in Map.BUILDINGS:
+		var r: Rect2 = b.rect
+		# kapının önünde (alt kenar) durulabilsin diye alt 10 px serbest
+		_blockers.append(Rect2(r.position.x + 6, r.position.y + 16, r.size.x - 12, r.size.y - 26))
+	for i in mini(Land.view.size(), Map.PLOT_COUNT):
+		var s := _structure_of(i, Land.view[i])
+		if s.is_empty():
+			continue
+		var tex: Texture2D = s[0]
+		var foot: Vector2 = s[1]
+		var h: float = s[2]
+		var w := tex.get_size().x / tex.get_size().y * h
+		_blockers.append(Rect2(foot.x - w * 0.42, foot.y - h * 0.42, w * 0.84, h * 0.42 - 4))
+
+
+## Nokta bir binanın, evin ya da NPC arabanın içinde mi?
+func _blocked(p: Vector2) -> bool:
+	for r in _blockers:
+		if r.has_point(p):
+			return true
+	for c in npc.cars:
+		var lane: Array = Map.TRAFFIC_LANES[c.lane]
+		if Rect2(float(c.x) - 46, float(lane[0]) - 24, 92, 48).has_point(p):
+			return true
+	return false
+
+
+# ================================================================== olta
+
+func _is_water(p: Vector2) -> bool:
+	return Map.in_water(p) or Map.in_sea(p)
+
+
+## Şamandıranın düşeceği yer: önce baktığın yön, sonra diğer yönlerde ilk su.
+func _bobber_pos(p: Vector2, facing: String) -> Variant:
+	var dirs := {"left": Vector2.LEFT, "right": Vector2.RIGHT, "up": Vector2.UP, "down": Vector2.DOWN}
+	var order: Array = [dirs.get(facing, Vector2.DOWN), Vector2.LEFT, Vector2.DOWN, Vector2.RIGHT, Vector2.UP]
+	for d in order:
+		for dist in [110.0, 80.0, 150.0]:
+			var tp: Vector2 = p + d * dist
+			if _is_water(tp):
+				return tp
+	return null
+
+
+func _draw_rod(p: Vector2, facing: String, info: Dictionary) -> void:
+	var st := str(info.get("fishing", ""))
+	var key := str(info.get("name", ""))
+	if st == "":
+		_fish_t.erase(key)
+		return
+	var prev: Array = _fish_t.get(key, ["", 0.0])
+	if prev[0] != st:
+		_fish_t[key] = [st, _t]
+		prev = _fish_t[key]
+	var k := _t - float(prev[1])
+	var bp = _bobber_pos(p, facing)
+	if bp == null:
+		return
+	var tp: Vector2 = bp
+	var dir := (tp - p).normalized()
+	var side := 1.0 if dir.x >= 0.0 else -1.0
+	var hand := p + Vector2(10 * side, -26)
+	var bend := 9.0 if st == "bite" else 0.0
+	var tip := hand + Vector2(dir.x * 26 + 6 * side, -30 + dir.y * 8 + bend)
+	draw_line(hand, tip, Color("#78350f"), 3.0)
+	draw_line(hand.lerp(tip, 0.6), tip, Color("#a16207"), 2.0)
+	draw_circle(hand + (tip - hand) * 0.15, 2.5, Color("#1f2937"))       # makara
+	var target := tp
+	if st == "cast":
+		target += Vector2(0, sin(_t * 3.0) * 2.0)
+	elif st == "bite":
+		target += Vector2(sin(_t * 30.0) * 2.0, 4.0)
+	# misina: uçtan şamandıraya hafif sarkarak
+	var pts := PackedVector2Array()
+	var sag := 26.0 if st != "bite" else 6.0
+	for j in 13:
+		var u := j / 12.0
+		var q := tip.lerp(target, u) + Vector2(0, sin(u * PI) * sag)
+		pts.append(q)
+	if st != "caught":
+		draw_polyline(pts, Color(1, 1, 1, 0.75), 1.2)
+	match st:
+		"cast":
+			draw_arc(target + Vector2(0, 4), 9.0 + fmod(_t * 6.0, 6.0), 0, TAU, 20, Color(1, 1, 1, 0.35), 1.5)
+			draw_circle(target, 5.0, Color("#ef4444"))
+			draw_circle(target + Vector2(0, -2), 2.6, Color("#f8fafc"))
+		"bite":
+			for r in 3:
+				var rr := fmod(_t * 40.0 + r * 9.0, 27.0)
+				draw_arc(tp + Vector2(0, 4), 6.0 + rr, 0, TAU, 24, Color(1, 1, 1, 0.6 * (1.0 - rr / 27.0)), 2.0)
+			draw_circle(target, 3.0, Color("#ef4444"))
+			_text(tp + Vector2(-60, -30), "VURDU!", 16, Color("#facc15"), 120)
+		"caught":
+			var u := clampf(k / 0.9, 0.0, 1.0)
+			var fp := tp.lerp(p + Vector2(0, -34), u) + Vector2(0, -sin(u * PI) * 70.0)
+			draw_set_transform(fp, k * 9.0, Vector2.ONE)
+			draw_colored_polygon(PackedVector2Array([Vector2(-12, 0), Vector2(0, -6), Vector2(10, 0), Vector2(0, 6)]), Color("#f59e0b"))
+			draw_colored_polygon(PackedVector2Array([Vector2(-11, 0), Vector2(-19, -6), Vector2(-19, 6)]), Color("#d97706"))
+			draw_circle(Vector2(5, -1.5), 1.5, Color("#111827"))
+			draw_set_transform(Vector2.ZERO)
+			if k < 0.6:
+				draw_arc(tp, 8.0 + k * 40.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k), 2.0)
+			draw_polyline(PackedVector2Array([tip, fp]), Color(1, 1, 1, 0.75), 1.2)
+		"escaped":
+			if k < 0.8:
+				draw_arc(tp, 6.0 + k * 30.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k * 0.8), 2.0)
 
 
 ## Gelen evlenme teklifi.
@@ -1259,6 +1389,8 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 		"boat":
 			_draw_vehicle(p, ride, facing, col)
 			Avatar.draw(self, p + Vector2(0, -6), app, facing, 0, 1.0, true)
+			if str(extra.get("fishing", "")) != "":
+				_draw_rod(p + Vector2(0, -6), facing, extra)
 			_name(p, -44, pname, name_col, extra)
 			return
 	var swim := Map.in_sea(p)
@@ -1279,4 +1411,6 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	if moving:
 		frame = [1, 0, 2, 0][int(_t * (6.0 if swim else 9.0)) % 4]
 	Avatar.draw(self, p, app, facing, frame, 1.0, swim)
+	if str(extra.get("fishing", "")) != "":
+		_draw_rod(p, facing, extra)
 	_name(p, -56 + (22 if swim else 0), pname, name_col, extra)

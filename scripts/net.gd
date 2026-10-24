@@ -225,7 +225,7 @@ func _on_connected() -> void:
 
 func _on_failed() -> void:
 	_reset_peer()
-	connection_failed.emit("Sunucuya bağlanılamadı. Adres/port doğru mu, sunucu açık mı?")
+	connection_failed.emit("Sunucuya bağlanılamadı. Adres/port doğru mu, sunucu açık mı? Oyunun güncel mi? (itch.io)")
 
 
 func _on_server_gone() -> void:
@@ -345,7 +345,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	rec["appearance"] = app
 	players[id] = {"name": pname, "money": int(rec.get("money", START_MONEY)),
 		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec), "ride": "", "pet": {},
-		"clan": "", "clan_color": "", "wanted": 0, "police": false, "spouse": "", "mayor": false}
+		"clan": "", "clan_color": "", "wanted": 0, "police": false, "spouse": "", "mayor": false, "fishing": ""}
 	positions[id] = Map.SPAWN + Vector2(randf_range(-120, 120), randf_range(-30, 30))
 	if Police.jailed_rec(rec):
 		positions[id] = Map.jail_spawn()

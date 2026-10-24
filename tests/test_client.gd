@@ -979,6 +979,58 @@ func _test_07(w) -> void:
 	check(w.panel != null, "aile penceresi açıldı")
 	w._close_panel()
 
+	print("== 0.7.1: Çarpışma ve olta animasyonu")
+	var mr: Rect2 = Map.building("market").rect
+	var outside := Vector2(mr.get_center().x, mr.end.y + 30)
+	w.my_pos = outside
+	await _wait(0.2)
+	check(not w._can_stand(mr.get_center(), ""), "binanın içine yürünemiyor")
+	check(w._can_stand(outside + Vector2(0, 8), ""), "binanın önünde serbestçe yürünüyor")
+	w.my_pos = Vector2(mr.get_center().x, mr.end.y - 4)
+	await _wait(0.2)
+	check(w.zone.get("type") == "market", "kapının önünde E bölgesi çalışıyor")
+	var hp := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			hp = i
+			break
+	w.my_pos = Map.plot_rect(hp).get_center()
+	await _wait(0.2)
+	Land.buy(hp)
+	await _wait(0.3)
+	Land.build_up(hp)
+	await _wait(0.4)
+	var st: Array = w._structure_of(hp, Land.view[hp])
+	var hfoot: Vector2 = st[1]
+	w.my_pos = Map.plot_front(hp)
+	await _wait(0.2)
+	check(not w._can_stand(hfoot + Vector2(0, -20), "car"), "evin içinden arabayla geçilemiyor")
+	check(w._can_stand(Map.plot_front(hp) + Vector2(10, 0), ""), "evden çıkış noktası serbest")
+	Land.sell(hp)
+	await _wait(0.3)
+	var car: Dictionary = w.npc.cars[1]
+	var lane: Array = Map.TRAFFIC_LANES[car.lane]
+	car.x = 1500.0
+	w.my_pos = Vector2(1500.0 + 60.0 * float(lane[1]), float(lane[0]))
+	await _wait(0.4)
+	check(is_equal_approx(float(car.x), 1500.0), "NPC araba önündeki oyuncu için durdu")
+	check(not w._can_stand(Vector2(1500.0, float(lane[0])), ""), "NPC arabanın içine girilemiyor")
+	w.my_pos = Map.SPAWN + Vector2(0, -40)
+	await _wait(0.6)
+	check(float(car.x) != 1500.0, "yol açılınca araba devam etti")
+	w.my_pos = Map.DOCK.get_center()
+	await _wait(0.3)
+	Jobs.cast()
+	await _wait(0.4)
+	check(Net.roster[me].get("fishing") == "cast", "olta atıldı: durum herkese yayınlandı")
+	check(w._bobber_pos(w.my_pos, "left") != null, "şamandıra için su bulundu")
+	var t0 := Time.get_ticks_msec()
+	while Net.roster[me].get("fishing") == "cast" and Time.get_ticks_msec() - t0 < 10000:
+		await _wait(0.1)
+	check(Net.roster[me].get("fishing") in ["bite", "caught"], "balık vurdu (şamandıra battı)")
+	await _wait(2.5)
+	check(Net.roster[me].get("fishing") == "", "yakalama animasyonundan sonra durum temizlendi")
+
 
 func _finish() -> void:
 	print("== SONUÇ: %s (%d hata)" % ["BAŞARILI" if errors == 0 else "BAŞARISIZ", errors])

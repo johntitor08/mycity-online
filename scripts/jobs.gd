@@ -86,6 +86,19 @@ func reset() -> void:
 	my_fish = []
 
 
+## Olta animasyonu için balık tutma durumu oyuncu listesinde herkese yayınlanır:
+## "cast" (şamandıra suda), "bite" (vurdu), "caught" / "escaped" (1,6 sn sonra temizlenir) ya da "".
+func _set_fishing(id: int, s: String) -> void:
+	if not Net.players.has(id) or str(Net.players[id].get("fishing", "")) == s:
+		return
+	Net.players[id]["fishing"] = s
+	Net._broadcast_roster()
+	if s == "caught" or s == "escaped":
+		get_tree().create_timer(1.6).timeout.connect(func():
+			if Net.players.has(id) and str(Net.players[id].get("fishing", "")) == s:
+				_set_fishing(id, ""))
+
+
 func on_player_left(id: int) -> void:
 	_fish.erase(id)
 	_hosp.erase(id)
@@ -201,6 +214,7 @@ func req_cast(_d: Dictionary) -> void:
 	var wait := randf_range(2.0, 5.0) if Env.is_rainy() else randf_range(3.0, 8.0)
 	_fish[id] = {"bite_at": _now() + wait, "bitten": false, "bite_time": 0.0, "spot": spot,
 		"window": BITE_WINDOW + Rpg.perk(id, "fish_window")}
+	_set_fishing(id, "cast")
 	Net.tell(self, id, "on_fish", {"state": "cast", "spot": spot})
 
 
@@ -213,10 +227,12 @@ func req_reel(_d: Dictionary) -> void:
 	_fish.erase(id)
 	if not t.bitten:
 		Net.tell(self, id, "on_fish", {"state": "early"})
+		_set_fishing(id, "")
 		return
 	var rare := Rpg.perk(id, "fish_rare") * (1.3 if t.spot == "boat" else 1.0) * (1.15 if Pets.bonus(id, "dog") else 1.0)
 	var f := _roll_fish(LAKE_FISH if t.spot == "lake" else SEA_FISH, rare)
 	_bag(id).append({"name": f[0], "price": f[1]})
+	_set_fishing(id, "caught")
 	Net.mark_dirty()
 	Net.tell(self, id, "on_fish", {"state": "caught", "fish": f[0], "price": f[1], "spot": t.spot})
 	send_inventory(id)
@@ -281,9 +297,11 @@ func _process(_delta: float) -> void:
 			t.bitten = true
 			t.bite_time = now
 			Net.tell(self, id, "on_fish", {"state": "bite"})
+			_set_fishing(id, "bite")
 		elif t.bitten and now > t.bite_time + float(t.get("window", BITE_WINDOW)):
 			_fish.erase(id)
 			Net.tell(self, id, "on_fish", {"state": "escaped"})
+			_set_fishing(id, "escaped")
 
 
 # ================================================================== hastane
