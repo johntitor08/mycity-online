@@ -442,6 +442,7 @@ func _lap_done(id: int, t: float, ride: String) -> void:
 		is_record = not recs.is_empty() and recs[0].name == who and float(recs[0].time) == snappedf(t, 0.01)
 	if _active.get("kind", "") == "race":
 		_score(who, t, "%.2f sn" % t, false)
+	League.best(id, "race", snappedf(t, 0.01))
 	var last := float(rec.get("race_paid", 0.0))
 	if _now() - last > LAP_REWARD_COOLDOWN:
 		rec["race_paid"] = _now()

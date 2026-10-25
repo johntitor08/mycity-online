@@ -1,7 +1,7 @@
 extends RefCounted
 ## Şehir haritası sabitleri. Sunucu da istemci de aynı yerleşimi kullanır.
 
-const WORLD := Rect2(0, 0, 2800, 3300)       # 0.8: güneye açık deniz ve Martı Adası eklendi
+const WORLD := Rect2(0, 0, 2800, 4300)       # 0.8: açık deniz ve Martı Adası, 1.0: güneyde Sanayi ve Liman
 const SPAWN := Vector2(1200, 445)
 
 const BUILDINGS := [
@@ -27,6 +27,8 @@ const BUILDINGS := [
 	# 0.7: banka ve çarşı (karakolun altı)
 	{"type": "banka", "label": "Banka", "rect": Rect2(2290, 1160, 320, 220), "sign_y": 102},
 	{"type": "carsi", "label": "Çarşı", "rect": Rect2(2290, 1400, 320, 220), "sign_y": 102},
+	# 1.0: Sanayi bölgesi
+	{"type": "fabrika", "label": "Fabrika", "rect": Rect2(300, 3800, 440, 280), "sign_y": 102},
 ]
 
 # Görev veren NPC'ler (sabit duranlar): kimlik -> ad, konum, görünüm
@@ -61,6 +63,7 @@ const TREASURE_SPOTS := [
 	Vector2(2750, 1580), Vector2(2200, 1580), Vector2(1700, 1580), Vector2(40, 60), Vector2(940, 60),
 	Vector2(2760, 60), Vector2(2240, 470), Vector2(560, 1620), Vector2(2100, 1700), Vector2(400, 1820),
 	Vector2(1300, 2990), Vector2(1650, 3040),       # Martı Adası (tekneyle)
+	Vector2(900, 4200), Vector2(2700, 4150),        # Sanayi bölgesi
 ]
 
 # Hapishane: harita dışında (ev içlerinin altında), tek büyük koğuş
@@ -82,6 +85,7 @@ const PARK := Rect2(60, 1455, 860, 170)
 const FOUNTAIN := Vector2(480, 1540)
 const FOUNTAIN_R := 44.0
 const CLOCK_TOWER := Vector2(790, 1545)
+const CHAMPIONS_WALL := Vector2(620, 1600)      # parkta Şampiyonlar Duvarı
 # Otobüs: yollarda kapalı güzergâh ve duraklar
 const BUS_ROUTE := [Vector2(120, 425), Vector2(2650, 425), Vector2(2650, 465), Vector2(1030, 465),
 	Vector2(1030, 1570), Vector2(985, 1570), Vector2(985, 465), Vector2(120, 465)]
@@ -100,7 +104,21 @@ const DOCK := Rect2(760, 990, 200, 80)          # göl iskelesi (tamamı balık 
 
 # Plaj ve deniz
 const BEACH := Rect2(0, 1630, 2800, 230)
-const SEA := Rect2(0, 1860, 2800, 1440)
+const SEA := Rect2(0, 1860, 2800, 1700)
+const SOUTH_COAST_Y := 3560.0                   # 1.0: güney kıyısı (Sanayi/Liman bölgesi bunun altında)
+const PORT_ROAD := Rect2(0, 3690, 2800, 70)
+const PORT_PIER := Rect2(1300, 3400, 90, 170)   # liman iskelesi (feribot)
+const CONTAINER_YARD := Rect2(1520, 3790, 1180, 300)
+const CRANES := [Vector2(1650, 3610), Vector2(2050, 3610), Vector2(2450, 3610)]
+# Feribot: şehir (batı plajı) ↔ Martı Adası ↔ Liman
+const FERRY_PIER := Rect2(300, 1700, 80, 300)   # şehirdeki feribot iskelesi
+const FERRY_STOPS := {
+	"sehir": ["Şehir (batı plajı)", Vector2(340, 1985)],
+	"ada": ["Martı Adası", Vector2(1500, 2710)],
+	"liman": ["Sanayi Limanı", Vector2(1345, 3420)],
+}
+const FERRY_ROUTE := [Vector2(340, 2060), Vector2(1500, 2620), Vector2(1345, 3330), Vector2(1500, 2620)]
+const FERRY_SPEED := 150.0
 const DEEP_Y := 2380.0                          # bundan sonrası derin deniz: sadece tekneyle
 # Martı Adası (açık denizde): kum + çim elips, deniz feneri, adanın kuzeyinde balık iskelesi
 const ISLAND := Rect2(1140, 2780, 720, 340)
@@ -158,8 +176,9 @@ static func bus_at(t: float) -> Array:
 static func in_sea(p: Vector2) -> bool:
 	if p.x > WORLD.end.x:
 		return false      # harita dışı (ev içleri) deniz değildir
-	return p.y > SEA.position.y + sin(p.x / 60.0) * 6.0 and not PIER.has_point(p) \
-		and not ISLAND_PIER.has_point(p) and not on_island(p)
+	return p.y > SEA.position.y + sin(p.x / 60.0) * 6.0 and p.y < SOUTH_COAST_Y + sin(p.x / 70.0) * 6.0 \
+		and not PIER.has_point(p) and not ISLAND_PIER.has_point(p) and not on_island(p) \
+		and not PORT_PIER.has_point(p) and not FERRY_PIER.has_point(p)
 
 
 ## Martı Adası'nın karası (elips).
@@ -170,7 +189,28 @@ static func on_island(p: Vector2) -> bool:
 
 ## Derin deniz: yüzerek girilemez, sadece tekneyle.
 static func in_deep(p: Vector2) -> bool:
-	return p.y > DEEP_Y and in_sea(p)
+	return p.y > DEEP_Y and p.y < SOUTH_COAST_Y - 140.0 and in_sea(p)
+
+
+## Güney kıyısının karası (Sanayi/Liman).
+static func in_south(p: Vector2) -> bool:
+	return p.y >= SOUTH_COAST_Y and WORLD.has_point(p)
+
+
+## Feribotun güzergâhtaki konumu (sunucu saatinden).
+static func ferry_at(t: float) -> Array:
+	var total := 0.0
+	for i in FERRY_ROUTE.size():
+		total += FERRY_ROUTE[i].distance_to(FERRY_ROUTE[(i + 1) % FERRY_ROUTE.size()])
+	var d := fmod(t * FERRY_SPEED, total)
+	for i in FERRY_ROUTE.size():
+		var a: Vector2 = FERRY_ROUTE[i]
+		var b: Vector2 = FERRY_ROUTE[(i + 1) % FERRY_ROUTE.size()]
+		var seg := a.distance_to(b)
+		if d <= seg:
+			return [a.lerp(b, d / seg), (b - a).normalized()]
+		d -= seg
+	return [FERRY_ROUTE[0], Vector2.RIGHT]
 
 
 ## Balık tutma noktası: "lake", "sea" ya da "" (iskele ucunda değil).
@@ -186,6 +226,8 @@ static func fishing_spot(p: Vector2) -> String:
 
 ## Noktanın bulunduğu bölgenin adı (hazine ipuçları için).
 static func area_name(p: Vector2) -> String:
+	if p.y >= SOUTH_COAST_Y - 200:
+		return "Sanayi Limanı"
 	if on_island(p) or p.y > DEEP_Y:
 		return "Martı Adası"
 	if p.y > BEACH.position.y - 20:

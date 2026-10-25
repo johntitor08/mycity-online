@@ -13,7 +13,7 @@ var font: Font
 
 const BUILDING_COLORS := {"hospital": "#ef4444", "market": "#22c55e", "casino": "#a855f7", "poker": "#15803d",
 	"realestate": "#3b82f6", "galeri": "#64748b", "pazar": "#f97316", "mobilya": "#a16207", "petshop": "#14b8a6",
-	"muhtarlik": "#b91c1c", "karakol": "#1e3a8a", "banka": "#e7e5e4", "carsi": "#9a3412"}
+	"muhtarlik": "#b91c1c", "karakol": "#1e3a8a", "banka": "#e7e5e4", "carsi": "#9a3412", "fabrika": "#64748b"}
 
 
 func _ready() -> void:
@@ -67,6 +67,11 @@ func _draw() -> void:
 	_rect(Map.SEA, Color("#1f78b8"))
 	_rect(Rect2(0, Map.DEEP_Y, Map.WORLD.size.x, Map.WORLD.end.y - Map.DEEP_Y), Color("#165d94"))
 	_ellipse(Map.ISLAND, Color("#f0dba5"))
+	_rect(Rect2(0, Map.SOUTH_COAST_Y, Map.WORLD.size.x, Map.WORLD.end.y - Map.SOUTH_COAST_Y), Color("#a8a29e"))
+	_rect(Map.CONTAINER_YARD, Color("#b45309"))
+	_rect(Map.PORT_ROAD, Color("#3f4148"))
+	_rect(Map.PORT_PIER, Color("#78716c"))
+	_rect(Map.FERRY_PIER, Color("#78716c"))
 	_ellipse(Map.LAKE, Color("#2f7fc1"))
 	_rect(Map.RIVER, Color("#2f7fc1"))
 	_rect(Map.PARK, Color("#4d7c0f"))
@@ -93,7 +98,8 @@ func _draw() -> void:
 			draw_string_outline(font, c + Vector2(-60, 4), b.label, HORIZONTAL_ALIGNMENT_CENTER, 120, 12, 4, Color(0, 0, 0, 0.8))
 			draw_string(font, c + Vector2(-60, 4), b.label, HORIZONTAL_ALIGNMENT_CENTER, 120, 12, Color.WHITE)
 	if big:
-		for t in [[Map.DOCK.get_center(), "Göl İskelesi"], [Map.PIER_END.get_center(), "Deniz İskelesi"], [Map.ISLAND.get_center(), "Martı Adası"],
+		for t in [[Map.FERRY_PIER.get_center(), "Feribot"], [Map.CONTAINER_YARD.get_center(), "Liman"],
+				[Map.DOCK.get_center(), "Göl İskelesi"], [Map.PIER_END.get_center(), "Deniz İskelesi"], [Map.ISLAND.get_center(), "Martı Adası"],
 				[Football.FIELD.get_center(), "Plaj Sahası"], [Map.RACE_FLAG, "Yarış Pisti"], [Langirt.POS, "Langırt"]]:
 			var c := to_map(t[0])
 			draw_string_outline(font, c + Vector2(-60, 4), t[1], HORIZONTAL_ALIGNMENT_CENTER, 120, 11, 4, Color(0, 0, 0, 0.8))

@@ -47,6 +47,8 @@ Seasonal="*res://scripts/seasonal.gd"
 Work="*res://scripts/work.gd"
 Party="*res://scripts/party.gd"
 Tutorial="*res://scripts/tutorial.gd"
+League="*res://scripts/league.gd"
+Factory="*res://scripts/factory.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

@@ -13,6 +13,7 @@ signal family_requested
 signal achievements_requested
 signal map_requested
 signal settings_requested
+signal league_requested
 
 var money_label: Label
 var name_label: Label
@@ -99,6 +100,7 @@ func _ready() -> void:
 	_small_button(btns2, "Harita (M)", func(): map_requested.emit())
 	var btns3 := HBoxContainer.new()
 	tv.add_child(btns3)
+	_small_button(btns3, "Lig", func(): league_requested.emit())
 	_small_button(btns3, "Ayarlar", func(): settings_requested.emit())
 	sound_btn = _small_button(btns3, "", Sfx.toggle_mute)
 	music_btn = _small_button(btns3, "", Sfx.toggle_music)
@@ -287,10 +289,10 @@ func _refresh_help() -> void:
 func set_minimap(m: Control) -> void:
 	var box := _box(self)
 	(box.get_theme_stylebox("panel") as StyleBoxFlat).set_content_margin_all(4)
-	m.custom_minimum_size = Vector2(170, 170 * 3300.0 / 2800.0)
+	m.custom_minimum_size = Vector2(150, 150 * 4300.0 / 2800.0)
 	m.mouse_filter = MOUSE_FILTER_IGNORE
 	box.add_child(m)
-	_place(box, Vector2(1, 1), Vector2(-190, -262), Vector2(-12, -46))
+	_place(box, Vector2(1, 1), Vector2(-170, -290), Vector2(-12, -46))
 	box.mouse_filter = MOUSE_FILTER_IGNORE
 
 

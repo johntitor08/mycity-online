@@ -32,6 +32,7 @@ const TRASH_EVERY := 15.0
 const TRASH_CARRY := 10
 const TRASH_PAY := 9
 const BUS_FARE := 15
+const FERRY_FARE := 20
 const WISH_PRICE := 1
 const WISHES := ["Bugün şanslı günündesin!", "Yakında güzel bir sürpriz seni bekliyor.", "Sabreden derviş muradına ermiş.",
 	"Denizde nadir bir balık seni bekliyor olabilir...", "Bir dost seni düşünüyor.", "Para gelir, para gider; dostluk kalır.",
@@ -109,6 +110,10 @@ func recycle() -> void:
 
 func ride_bus(to: String) -> void:
 	Net.ask(self, "req_bus", {"to": to})
+
+
+func ride_ferry(to: String) -> void:
+	Net.ask(self, "req_ferry", {"to": to})
 
 
 func wish() -> void:
@@ -450,6 +455,34 @@ func req_bus(d: Dictionary) -> void:
 	Homes._teleport(id, Map.BUS_STOPS[to][1] + Vector2(randf_range(-20, 20), 10))
 	Ach.event(id, "bus")
 	Net.notify(id, "Otobüsle %s durağına geldin. İyi yolculuklar!" % Map.BUS_STOPS[to][0])
+
+
+static func ferry_stop_near(p: Vector2) -> String:
+	for k in Map.FERRY_STOPS:
+		if p.distance_to(Map.FERRY_STOPS[k][1]) < 90.0:
+			return k
+	return ""
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_ferry(d: Dictionary) -> void:
+	var id := Net.sender()
+	if not Net.players.has(id) or Police.is_jailed(id):
+		return
+	var from := ferry_stop_near(_pos(id))
+	var to := str(d.get("to", ""))
+	if from == "" or not Map.FERRY_STOPS.has(to) or to == from:
+		return
+	if Env.weather == "storm":
+		Net.notify(id, "Fırtınada feribot seferleri iptal!", false)
+		return
+	if not Net.try_spend(id, FERRY_FARE):
+		Net.notify(id, "Feribot bileti %s." % U.money(FERRY_FARE), false)
+		return
+	Garage.set_ride(id, "")
+	Homes._teleport(id, Map.FERRY_STOPS[to][1] + Vector2(randf_range(-15, 15), 0))
+	Ach.event(id, "ferry")
+	Net.notify(id, "Feribotla %s'na vardın. İyi yolculuklar!" % Map.FERRY_STOPS[to][0])
 
 
 @rpc("any_peer", "call_remote", "reliable")

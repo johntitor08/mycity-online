@@ -6,7 +6,9 @@ signal settings_changed
 
 const SOUNDS := ["click", "open", "coin", "cash", "lose", "error", "notify", "success", "splash",
 	"splash_small", "bite", "catch", "card", "chip", "tick", "dice", "gallop",
-	"thunder", "bell", "place", "door"]
+	"thunder", "bell", "place", "door", "step"]
+const MUSIC := {"city": "res://assets/sounds/music_city.wav", "night": "res://assets/sounds/music_night.wav",
+	"winter": "res://assets/sounds/music_winter.wav", "summer": "res://assets/sounds/music_summer.wav"}
 const SETTINGS_PATH := "user://ayarlar.cfg"
 const MUSIC_DB := -9.0
 
@@ -20,6 +22,13 @@ var ambience: AudioStreamPlayer
 var rain: AudioStreamPlayer
 var crickets: AudioStreamPlayer
 var engine: AudioStreamPlayer
+var music_b: AudioStreamPlayer      # geçiş için ikinci müzik çalar
+var birds: AudioStreamPlayer
+var gulls: AudioStreamPlayer
+var wind: AudioStreamPlayer
+var indoor: AudioStreamPlayer
+var track := "city"
+var _fade := 1.0                    # 0→1: music_b'den music'e geçiş
 var _enabled := true
 var _sfx_db := 0.0             # efekt sesi ayarı (dB)
 var _music_db := 0.0           # müzik sesi ayarı (dB)
@@ -45,6 +54,11 @@ func _ready() -> void:
 	crickets.play()
 	engine = _looping("res://assets/sounds/engine.wav", -80.0)
 	engine.play()
+	music_b = _looping(MUSIC.city, -80.0)
+	for n in ["birds", "gulls", "wind", "indoor"]:
+		var p := _looping("res://assets/sounds/%s.wav" % n, -80.0)
+		p.play()
+		set(n, p)
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
 	muted = cfg.get_value("ses", "sessiz", false)
@@ -88,7 +102,44 @@ func apply_volumes(master: float, music_level: float, sfx_level: float) -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(clampf(master, 0.0001, 1.0)))
 	_music_db = linear_to_db(clampf(music_level, 0.0001, 1.0))
 	_sfx_db = linear_to_db(clampf(sfx_level, 0.0001, 1.0))
-	music.volume_db = MUSIC_DB + _music_db
+	if _fade >= 1.0:
+		music.volume_db = MUSIC_DB + _music_db
+
+
+## Saate ve mevsime göre müzik (yumuşak geçişle).
+func set_music_track(t: String) -> void:
+	if not _enabled or t == track or not MUSIC.has(t):
+		return
+	track = t
+	# eski müzik music_b'ye geçer ve söner, yenisi music'te yükselir
+	music_b.stream = music.stream
+	music_b.volume_db = music.volume_db
+	if music_on:
+		music_b.play(music.get_playback_position())
+	music.stream = load(MUSIC[t])
+	if music_on:
+		music.play()
+	_fade = 0.0
+
+
+func _process(delta: float) -> void:
+	if not _enabled or _fade >= 1.0:
+		return
+	_fade = minf(1.0, _fade + delta / 3.0)
+	music.volume_db = MUSIC_DB + _music_db + linear_to_db(maxf(_fade, 0.0001))
+	music_b.volume_db = MUSIC_DB + _music_db + linear_to_db(maxf(1.0 - _fade, 0.0001))
+	if _fade >= 1.0:
+		music_b.stop()
+
+
+## Ortam sesleri (0..1): kuşlar, martılar, rüzgâr, bina içi.
+func set_ambient2(birds_level: float, gulls_level: float, wind_level: float, indoor_level: float) -> void:
+	if not _enabled:
+		return
+	birds.volume_db = linear_to_db(clampf(birds_level, 0.0001, 1.0)) - 12.0 + _sfx_db
+	gulls.volume_db = linear_to_db(clampf(gulls_level, 0.0001, 1.0)) - 12.0 + _sfx_db
+	wind.volume_db = linear_to_db(clampf(wind_level, 0.0001, 1.0)) - 8.0 + _sfx_db
+	indoor.volume_db = linear_to_db(clampf(indoor_level, 0.0001, 1.0)) - 14.0 + _sfx_db
 
 
 ## 0..1 arası: denize yakınlık.
@@ -120,6 +171,7 @@ func toggle_music() -> void:
 			music.play()
 		else:
 			music.stop()
+			music_b.stop()
 	_save()
 
 

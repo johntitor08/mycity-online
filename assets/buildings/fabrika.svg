@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="560" viewBox="0 0 440 280">
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <polygon points="8,80 92,80 92,30 8,80" fill="#64748b" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="92,30 92,80 78,80 78,44" fill="#bae6fd" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="92,80 176,80 176,30 92,80" fill="#64748b" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="176,30 176,80 162,80 162,44" fill="#bae6fd" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="176,80 260,80 260,30 176,80" fill="#64748b" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="260,30 260,80 246,80 246,44" fill="#bae6fd" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="260,80 344,80 344,30 260,80" fill="#64748b" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="344,30 344,80 330,80 330,44" fill="#bae6fd" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="344,80 428,80 428,30 344,80" fill="#64748b" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="428,30 428,80 414,80 414,44" fill="#bae6fd" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="8" y="78" width="424" height="198" rx="0" fill="#cbd5e1" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="8" y="256" width="424" height="20" rx="0" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="360" y="0" width="34" height="80" rx="3" fill="#78716c" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="356" y="0" width="42" height="12" rx="3" fill="#57534e" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="377" cy="-6" r="10" fill="#e5e7eb" stroke="none" opacity="0.6"/>
+  <rect x="24" y="150" width="52" height="40" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M50 150v40M24 170h52" fill="none" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="92" y="150" width="52" height="40" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M118 150v40M92 170h52" fill="none" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="300" y="150" width="52" height="40" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M326 150v40M300 170h52" fill="none" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="368" y="150" width="52" height="40" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M394 150v40M368 170h52" fill="none" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="160" y="140" width="120" height="136" rx="4" fill="#475569" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M160 160h120M160 180h120M160 200h120M160 220h120M160 240h120" fill="none" stroke="#334155" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="150,140 290,140 280,128 160,128" fill="#f59e0b" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="128.0" y="82" width="184" height="32" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

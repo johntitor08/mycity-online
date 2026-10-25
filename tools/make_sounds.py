@@ -240,8 +240,117 @@ def weather_and_more():
                      tone(180, 0.15, "sine", decay=0.05)), 0.5)
 
 
+# ---------------------------------------------------------------- 1.0: mevsim/gece müzikleri ve ortam sesleri
+
+def compose(name, bpm, chords, phrases, bars=16, lead="square", lead_vol=0.16, pad=False, drums=True,
+            bells=False, sleigh=False, bass_shape="tri", arp_vol=0.2, swing=0.0):
+    beat = 60.0 / bpm
+    total = bars * 4 * beat
+    buf = np.zeros(int(SR * total) + SR)
+    for bar in range(bars):
+        t0 = bar * 4 * beat
+        root, triad = chords[(bar // 2) % len(chords)]
+        for b, n in ((0, root), (2, root), (3.5, root + 12)):
+            mix_at(buf, tone(note(n), beat * 0.9, bass_shape, decay=0.4) * 0.5, t0 + b * beat)
+        if pad:
+            for n in triad:
+                mix_at(buf, tone(note(n - 12), beat * 4, "sine", release=beat) * env(int(SR * beat * 4), 0.6) * 0.09, t0)
+        for k in range(8):
+            n = triad[[0, 1, 2, 1][k % 4]] + (12 if k >= 4 and bar % 2 else 0)
+            off = swing * beat if k % 2 else 0.0
+            if bells:
+                b = tone(note(n + 12), beat * 0.9, "sine", decay=0.35)
+                b[: int(SR * beat * 0.6)] += 0.35 * tone(note(n + 31), beat * 0.6, "sine", decay=0.12)[: len(b)]
+                mix_at(buf, b * arp_vol, t0 + k * beat / 2 + off)
+            else:
+                mix_at(buf, tone(note(n), beat * 0.45, "sine", decay=0.25) * arp_vol, t0 + k * beat / 2 + off)
+        if drums:
+            for b in (0, 2):
+                kick = np.sin(2 * np.pi * np.cumsum(np.linspace(140, 45, int(SR * 0.18))) / SR) * env(int(SR * 0.18), 0.001, decay=0.06)
+                mix_at(buf, kick * 0.6, t0 + b * beat)
+            for b in (1, 3):
+                mix_at(buf, highpass(noise(0.12), 1500) * env(int(SR * 0.12), 0.001, decay=0.03) * 0.22, t0 + b * beat)
+        if sleigh:
+            for k in range(8):
+                jingle = highpass(noise(0.08), 5000) * env(int(SR * 0.08), 0.001, decay=0.02)
+                mix_at(buf, jingle * (0.14 if k % 2 == 0 else 0.08), t0 + k * beat / 2)
+        if not drums and not sleigh:
+            for k in range(4):     # yumuşak shaker
+                mix_at(buf, highpass(noise(0.06), 4000) * env(int(SR * 0.06), 0.01, decay=0.02) * 0.04, t0 + k * beat + beat / 2)
+        if bar >= 2 and bar % 2 == 0:
+            phrase = phrases[(bar // 2 - 1) % len(phrases)]
+            for b, n, d in phrase:
+                mix_at(buf, tone(note(n), d * beat * 0.95, lead, decay=0.5, vib=0.004) * lead_vol, t0 + b * beat)
+    out = buf[: int(SR * total)]
+    f = int(SR * 0.01)
+    out[:f] *= np.linspace(0, 1, f)
+    out[-f:] *= np.linspace(1, 0, f)
+    save(name, out, 0.55)
+
+
+def seasonal_music():
+    # gece: yavaş, minör, ped ve yumuşak melodi
+    compose("music_night", 70, [(45, (57, 60, 64)), (41, (57, 60, 65)), (48, (55, 60, 64)), (43, (55, 59, 62))],
+            [[(0, 72, 2), (2, 71, 1), (3, 69, 1), (4, 67, 3)], [(0, 69, 1.5), (1.5, 72, 0.5), (2, 74, 2), (4, 72, 3)],
+             [(0, 76, 2), (2, 74, 1), (3, 72, 1), (4, 69, 3)]], lead="sine", lead_vol=0.2, pad=True, drums=False, arp_vol=0.12)
+    # kış: çan sesli arpej, kızak zilleri
+    compose("music_winter", 96, [(48, (60, 64, 67)), (52, (59, 64, 67)), (41, (57, 60, 65)), (43, (55, 59, 62))],
+            [[(0, 79, 1), (1, 76, 1), (2, 74, 1), (3, 72, 1), (4, 74, 2), (6, 76, 2)],
+             [(0, 77, 1), (1, 76, 1), (2, 74, 2), (4, 72, 2), (6, 71, 2)]], lead="tri", lead_vol=0.2, drums=False,
+            bells=True, sleigh=True, arp_vol=0.12)
+    # yaz: hareketli pop, kare bas, salınımlı arpej
+    compose("music_summer", 122, [(41, (57, 60, 65)), (43, (59, 62, 67)), (40, (55, 59, 64)), (45, (57, 60, 64))],
+            [[(0, 77, 0.5), (0.5, 79, 0.5), (1, 81, 1), (2, 79, 0.5), (2.5, 77, 0.5), (3, 76, 1), (4, 74, 1), (5, 76, 1), (6, 77, 2)],
+             [(0, 72, 0.5), (0.5, 74, 0.5), (1, 76, 1), (2, 79, 1), (3, 81, 1), (4, 79, 2), (6, 76, 2)]],
+            lead="saw", lead_vol=0.11, bass_shape="square", arp_vol=0.16, swing=0.08)
+
+
+def ambience_more():
+    # kuş cıvıltıları
+    dur = 8.0
+    b = np.zeros(int(SR * dur))
+    t = 0.0
+    while t < dur - 0.6:
+        k = rng.integers(2, 5)
+        base = rng.uniform(2500, 4200)
+        for j in range(k):
+            tt = t_of(0.07)
+            f = base + 900 * np.sin(np.pi * tt / 0.07) * rng.uniform(0.5, 1.2)
+            ch = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.005, decay=0.03)
+            mix_at(b, ch * rng.uniform(0.3, 0.8), t + j * 0.09)
+        t += rng.uniform(0.6, 1.6)
+    save("birds", loop_fade(b), 0.25)
+    # martılar: aşağı kayan, harmonikli çığlık
+    dur = 8.0
+    g = np.zeros(int(SR * dur))
+    t = 0.3
+    while t < dur - 1.0:
+        for j in range(rng.integers(1, 4)):
+            tt = t_of(0.28)
+            f = np.linspace(1900, 1200, len(tt)) * (1 + 0.03 * np.sin(2 * np.pi * 18 * tt))
+            ph = 2 * np.pi * np.cumsum(f) / SR
+            call = (np.sin(ph) + 0.5 * np.sin(2 * ph) + 0.25 * np.sin(3 * ph)) * env(len(tt), 0.02, decay=0.12)
+            mix_at(g, call * rng.uniform(0.25, 0.6), t + j * 0.33)
+        t += rng.uniform(1.6, 3.0)
+    save("gulls", loop_fade(g), 0.25)
+    # rüzgâr: yavaş dalgalanan alçak gürültü
+    dur = 6.0
+    tt = t_of(dur)
+    w = lowpass(noise(dur), 500) * (0.6 + 0.4 * np.sin(2 * np.pi * tt / 3.0) ** 2) + 0.2 * highpass(lowpass(noise(dur), 2200), 900) * np.sin(2 * np.pi * tt / 6.0) ** 2
+    save("wind", loop_fade(w), 0.4)
+    # bina içi uğultu: alçak vınlama + mırıltı
+    dur = 6.0
+    tt = t_of(dur)
+    m = 0.15 * np.sin(2 * np.pi * 60 * tt) + lowpass(highpass(noise(dur), 300), 1100) * (0.5 + 0.3 * np.sin(2 * np.pi * tt * 0.7))
+    save("indoor", loop_fade(m), 0.3)
+    # adım sesi
+    save("step", lowpass(noise(0.07), 900) * env(int(SR * 0.07), 0.002, decay=0.018), 0.5)
+
+
 if __name__ == "__main__":
     effects()
     waves()
     music()
     weather_and_more()
+    seasonal_music()
+    ambience_more()

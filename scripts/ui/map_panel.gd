@@ -16,7 +16,7 @@ func _ready() -> void:
 	mapc = MiniMap.new()
 	mapc.big = true
 	mapc.world = world
-	mapc.custom_minimum_size = Vector2(Map.WORLD.size.x, Map.WORLD.size.y) * (560.0 / Map.WORLD.size.y)
+	mapc.custom_minimum_size = Vector2(Map.WORLD.size.x, Map.WORLD.size.y) * (580.0 / Map.WORLD.size.y)
 	mapc.picked.connect(_go)
 	h.add_child(mapc)
 	var v := VBoxContainer.new()
@@ -40,7 +40,8 @@ func _ready() -> void:
 		add_button(list, b.label, _go.bind(Vector2(b.rect.get_center().x, b.rect.end.y + 12)))
 	for t in [["Göl İskelesi", Map.DOCK.get_center()], ["Deniz İskelesi / tekne kirala", Map.BOAT_RENT_SPOT],
 			["Plaj Sahası (futbol)", Football.FIELD.get_center() + Vector2(0, 110)], ["Langırt Masası", Langirt.POS + Vector2(0, 60)],
-			["Yarış Pisti", Map.RACE_FLAG + Vector2(0, 40)], ["Martı Adası (tekneyle)", Map.ISLAND_PIER.get_center()]]:
+			["Yarış Pisti", Map.RACE_FLAG + Vector2(0, 40)], ["Martı Adası (tekneyle)", Map.ISLAND_PIER.get_center()],
+			["Feribot İskelesi (şehir)", Map.FERRY_STOPS.sehir[1]], ["Fabrika (Sanayi, feribotla)", Map.building("fabrika").rect.get_center() + Vector2(0, 160)]]:
 		add_button(list, t[0], _go.bind(t[1]))
 	add_button(v, "Hedefi temizle", func(): world.nav_target = null; close())
 

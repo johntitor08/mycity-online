@@ -269,8 +269,13 @@ func _on_ok() -> void:
 		await _test_07(get_parent().world)
 		await _test_08(get_parent().world)
 		await _test_09(get_parent().world)
+		await _test_10(get_parent().world)
 		_finish()
 		return
+	print("== Durum sayfası (adanmış sunucu)")
+	var page := await _http_get("127.0.0.1", _port + 3, "/json")
+	var js = JSON.parse_string(page.get_slice("\r\n\r\n", 1)) if page.contains("\r\n\r\n") else null
+	check(js is Dictionary and str(js.get("version", "")) == Net.VERSION and int(js.get("accounts", 0)) >= 1, "durum sayfası çalışıyor (http://127.0.0.1:%d)" % (_port + 3))
 	print("== Şifre")
 	_phase = "wrong_pass"
 	Net.leave()
@@ -1324,6 +1329,8 @@ func _test_09(w) -> void:
 	Work.pick_trash(int(tr.id))
 	await _wait(0.3)
 	check(Work.carrying == 1, "çöp torbası toplandı")
+	if Work.carrying != 1:
+		print("  [debug] trash=", tr, " me=", w.my_pos, " srv=", Net.positions.get(me), " carry=", Work._carry, " n=", Work._trash.size())
 	var m4 := Net.my_money()
 	w.my_pos = Map.RECYCLE + Vector2(0, -20)
 	await _wait(0.3)
@@ -1362,6 +1369,135 @@ func _test_09(w) -> void:
 	await _wait(0.4)
 	Land.sell(hp)
 	await _wait(0.3)
+
+
+func _http_get(host: String, port: int, path: String) -> String:
+	var c := StreamPeerTCP.new()
+	if c.connect_to_host(host, port) != OK:
+		return ""
+	var t0 := Time.get_ticks_msec()
+	while c.get_status() == StreamPeerTCP.STATUS_CONNECTING and Time.get_ticks_msec() - t0 < 3000:
+		c.poll()
+		await get_tree().process_frame
+	if c.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		return ""
+	c.put_data(("GET %s HTTP/1.0\r\nHost: %s\r\n\r\n" % [path, host]).to_utf8_buffer())
+	var out := ""
+	t0 = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 3000:
+		c.poll()
+		var n := c.get_available_bytes()
+		if n > 0:
+			out += c.get_utf8_string(n)
+		elif c.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			break
+		await get_tree().process_frame
+	return out
+
+
+## 1.0: yönetim, yedek, hız denetimi, lig, feribot ve Sanayi/fabrika, sesler.
+func _test_10(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	Net.add_money(me, 50000)
+	Env.force_weather("clear")
+	await _wait(0.3)
+
+	print("== 1.0: Yedekleme ve yönetim")
+	var f := Net._backup("test")
+	check(f != "" and FileAccess.file_exists(Net.save_path.get_base_dir().path_join("yedekler").path_join(f)), "kayıt yedeği alındı (%s)" % f)
+	check(Net.is_admin(me), "sunucuyu kuran yönetici")
+	Net.send_chat("/hava sis")
+	await _wait(0.6)
+	check(Env.weather == "fog", "/hava sis komutu çalıştı")
+	_chats.clear()
+	Net.send_chat("/duyuru Bakım yok, iyi oyunlar!")
+	await _wait(0.6)
+	check(_chats.any(func(c): return c[1] == "Bakım yok, iyi oyunlar!"), "/duyuru herkese gitti")
+	Env.force_weather("clear")
+	var helper := Net.id_by_name("Yardimci")
+	if helper != 0:
+		Net.send_chat("/sustur Yardimci 1")
+		await _wait(0.6)
+		check(float(Net._muted.get("Yardimci", 0.0)) > Time.get_unix_time_from_system(), "/sustur çalıştı")
+		Net._muted.erase("Yardimci")
+	var sd := Net.status_data()
+	check(sd.version == Net.VERSION and sd.has("online") and sd.has("backups"), "durum bilgisi hazır")
+	print("== 1.0: Hız denetimi")
+	Net._pos_t.erase(me)
+	w.my_pos = Map.SPAWN
+	await _wait(0.2)
+	Net._pos_t.erase(me)
+	check(not Net._speed_ok(me, Map.SPAWN + Vector2(0, 1200)), "ışınlanma hilesi reddedildi")
+	check(Net._speed_ok(me, Net.positions[me] + Vector2(20, 0)), "normal yürüyüş kabul edildi")
+
+	print("== 1.0: Lig ve sezonlar")
+	League.add(me, "fish", 500.0)
+	League.add(me, "goals", 2.0)
+	League.refresh()
+	await _wait(0.4)
+	var boards: Dictionary = League.view.get("boards", {})
+	check(not boards.get("fish", []).is_empty() and boards.fish[0][0] == Net.my_name, "balık liginde birinci")
+	check(not boards.get("wealth", []).is_empty(), "zenginlik sıralaması hesaplandı")
+	var m0 := Net.my_money()
+	League.force_end()
+	await _wait(0.5)
+	check(not League.view.get("history", []).is_empty() and not League.view.get("badges", []).is_empty(), "sezon bitti: Şampiyonlar Duvarı ve rozet")
+	check(Net.my_money() >= m0 + League.PRIZES[0], "sezon ödülü alındı")
+	w.open_simple_panel("res://scripts/ui/league_panel.gd")
+	await get_tree().process_frame
+	check(w.panel != null, "lig penceresi açıldı")
+	w._close_panel()
+
+	print("== 1.0: Feribot ve Sanayi Limanı")
+	check(Map.in_south(Vector2(1000, 3700)) and not Map.in_sea(Vector2(1000, 3700)) and Map.in_sea(Vector2(1000, 3400)), "güneyde Sanayi kıyısı")
+	w.my_pos = Map.FERRY_STOPS.sehir[1]
+	await _wait(0.3)
+	check(w.zone.get("type") == "ferry", "şehirde feribot iskelesi")
+	Work.ride_ferry("liman")
+	await _wait(0.5)
+	check(w.my_pos.distance_to(Map.FERRY_STOPS.liman[1]) < 60.0, "feribotla Sanayi Limanı'na gidildi")
+	w.my_pos = Map.building("fabrika").rect.get_center() + Vector2(0, 150)
+	await _wait(0.3)
+	check(w.zone.get("type") == "fabrika", "fabrika bölgesi")
+	var items: Array = []
+	var res: Array = []
+	var cb1 := func(d): items.append(d)
+	var cb2 := func(d): res.append(d)
+	Factory.item.connect(cb1)
+	Factory.result.connect(cb2)
+	Factory.start()
+	await _wait(0.4)
+	check(items.size() == 1, "üretim bandında parça geldi")
+	var m1 := Net.my_money()
+	Factory.sort(int(items[-1].id), int(Factory._shift[me].cur.color))
+	await _wait(0.2)
+	check(not res.is_empty() and res[-1].ok and Net.my_money() > m1, "doğru kutu: para kazanıldı")
+	var t2 := Time.get_ticks_msec()
+	while items.size() < 2 and Time.get_ticks_msec() - t2 < 3000:
+		await get_tree().process_frame
+	Factory.sort(int(items[-1].id), int(Factory._shift[me].cur.color))
+	await _wait(0.2)
+	check(not res[-1].ok, "çok hızlı (insan dışı) cevap sayılmadı")
+	t2 = Time.get_ticks_msec()
+	while items.size() < 3 and Time.get_ticks_msec() - t2 < 3000:
+		await get_tree().process_frame
+	await _wait(0.4)
+	Factory.sort(int(items[-1].id), (int(Factory._shift[me].cur.color) + 1) % 3 if not Factory._shift[me].cur.is_empty() else 0)
+	await _wait(0.2)
+	check(not res[-1].ok, "yanlış kutu sayılmadı")
+	Factory.stop()
+	Factory.item.disconnect(cb1)
+	Factory.result.disconnect(cb2)
+	check(int(Ach.data.c.get("factory", 0)) >= 1, "fabrika başarım sayacı")
+	w.my_pos = Map.FERRY_STOPS.liman[1]
+	await _wait(0.3)
+	Work.ride_ferry("sehir")
+	await _wait(0.5)
+	check(w.my_pos.distance_to(Map.FERRY_STOPS.sehir[1]) < 60.0, "feribotla şehre dönüldü")
+
+	print("== 1.0: Müzik")
+	check(Sfx.MUSIC.has("night") and Sfx.MUSIC.has("winter") and Sfx.MUSIC.has("summer"), "gece/kış/yaz müzikleri tanımlı")
 
 
 func _finish() -> void:

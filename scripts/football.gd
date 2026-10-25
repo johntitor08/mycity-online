@@ -177,6 +177,7 @@ func _goal(side: String) -> void:
 		text = "%s%s" % [who, " (kendi kalesine!)" if own else ""]
 		if not own:
 			Ach.event(_last_touch, "goal")
+			League.add(_last_touch, "goals", 1.0)
 			Events.add_score(_last_touch, "beach", 1, "%d gol")
 			Rpg.add_xp(_last_touch, "", 25)
 	Net.announce("GOOOL! %s — Kırmızı %d : %d Mavi" % [text, score.red, score.blue])

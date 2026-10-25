@@ -243,6 +243,7 @@ func req_reel(_d: Dictionary) -> void:
 	Story.event(id, "fish", {"fish": f[0]})
 	Events.on_fish(id, f[0], int(f[1]))
 	Bank.activity("BALK", 1)
+	League.add(id, "fish", float(f[1]))
 	match f[0]:
 		"Altın Balık":
 			Ach.event(id, "goldfish")

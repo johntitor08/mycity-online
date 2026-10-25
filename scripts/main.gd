@@ -31,6 +31,10 @@ func _ready() -> void:
 			port = int(a.trim_prefix("--port="))
 		elif a.begins_with("--kayit="):
 			Net.save_path = a.trim_prefix("--kayit=")
+		elif a == "--hizsiz":
+			Net.speed_check = false
+		elif a.begins_with("--yonetici="):
+			Net.admins_arg = Array(a.trim_prefix("--yonetici=").split(",", false))
 	if "--sunucu" in args or "--server" in args:
 		var err := Net.host("", port, true)
 		if err != "":

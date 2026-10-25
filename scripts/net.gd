@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "0.9"
+const VERSION := "1.0"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -43,6 +43,19 @@ var _save_accum := 0.0
 var _send_accum := 0.0
 var _dirty := false
 var _stop_accum := 0.0
+var _backup_accum := 0.0
+var _status_accum := 0.0
+var _started_at := 0.0
+var _last_save_at := 0.0
+var admins_arg: Array = []          # --yonetici=ad,ad
+var speed_check := true             # --hizsiz: testlerde kapatılır (testler oyuncuyu ışınlar)
+var _muted := {}                    # ad -> bitiş (unix)
+var _pos_t := {}                    # id -> son konum zamanı (hız denetimi)
+var _strikes := {}                  # id -> art arda reddedilen konum sayısı
+var _status_server: TCPServer
+const BACKUP_EVERY := 6 * 3600.0
+const BACKUP_KEEP := 14
+var status_port := 7780             # oyun portu + 3
 
 
 func _ready() -> void:
@@ -142,6 +155,13 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 	multiplayer.multiplayer_peer = peer
 	dedicated = as_dedicated
 	_load()
+	_started_at = Time.get_unix_time_from_system()
+	for a in admins_arg:
+		if not admins().has(a):
+			admins().append(a)
+	if not as_dedicated and player_name.strip_edges() != "" and not admins().has(_account_key(player_name.strip_edges())):
+		admins().append(_account_key(player_name.strip_edges()))      # sunucuyu kuran yöneticidir
+	_backup("acilis")
 	Land.server_init()
 	Env.server_start()
 	Events.server_start()
@@ -149,6 +169,8 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 		# Ekransız sunucu sınırsız kare hızında dönüp bir çekirdeği %100 kullanmasın.
 		Engine.max_fps = 30
 		log_line("MyCity Online %s, %d portunda çalışıyor. Kayıt: %s" % [VERSION, port, ProjectSettings.globalize_path(save_path)])
+		status_port = port + 3
+		_start_status_page()
 	else:
 		var reason := _register(1, player_name, pass_hash, appearance)
 		if reason != "":
@@ -222,6 +244,8 @@ func _reset_peer() -> void:
 	Langirt.reset()
 	Seasonal.reset()
 	Work.reset()
+	League.reset()
+	Factory.reset()
 
 
 func _on_connected() -> void:
@@ -238,6 +262,152 @@ func _on_server_gone() -> void:
 	disconnected.emit("Sunucu bağlantısı koptu.")
 
 
+# ------------------------------------------------------------------ yönetim
+
+func admins() -> Array:
+	if not save_data.get("admins") is Array:
+		save_data["admins"] = []
+	return save_data["admins"]
+
+
+func is_admin(id: int) -> bool:
+	return players.has(id) and admins().has(players[id].name)
+
+
+const HELP := "Komutlar: /duyuru metin · /kick isim · /sustur isim dakika · /hava açık|bulutlu|yağmur|fırtına|sis|gökkuşağı · /etkinlik tür · /kaydet · /yedekle · /oyuncular · /yonetici isim"
+
+
+## Yönetici komutları (sohbetten "/" ile).
+func _command(id: int, text: String) -> void:
+	var parts := text.substr(1).strip_edges().split(" ", false)
+	if parts.is_empty():
+		return
+	var cmd := parts[0].to_lower()
+	var arg := " ".join(parts.slice(1))
+	if cmd in ["oyuncular", "yardim", "yardım"]:
+		var names: Array = []
+		for pid in players:
+			names.append("%s (Sv.%d)" % [players[pid].name, int(players[pid].get("level", 1))])
+		notify(id, ("Çevrimiçi: " + ", ".join(names)) if cmd == "oyuncular" else (HELP if is_admin(id) else "Sohbet: /k klan, /y yakın, /m isim mesaj"))
+		return
+	if not is_admin(id):
+		notify(id, "Bu komut sadece yöneticiler için.", false)
+		return
+	var who := _account_key(parts[1]) if parts.size() > 1 else ""
+	var wid := id_by_name(who)
+	match cmd:
+		"duyuru":
+			tell_all(self, "on_chat", {"name": "Duyuru", "text": arg.left(200), "color": Color(1, 0.5, 0.3), "ch": "all"})
+		"kick", "at":
+			if wid == 0 or wid == id:
+				notify(id, "Çevrimiçi oyuncu bulunamadı.", false)
+				return
+			_kick(wid, "Bir yönetici seni sunucudan çıkardı.")
+			announce("%s sunucudan çıkarıldı." % who)
+		"sustur":
+			var mins := clampi(int(parts[2]) if parts.size() > 2 else 10, 1, 1440)
+			_muted[who] = Time.get_unix_time_from_system() + mins * 60.0
+			notify(id, "%s %d dakika susturuldu." % [who, mins])
+			if wid != 0:
+				notify(wid, "Bir yönetici seni %d dakika susturdu." % mins, false)
+		"hava":
+			var w: String = {"açık": "clear", "acik": "clear", "bulutlu": "cloudy", "yağmur": "rain", "yagmur": "rain",
+				"fırtına": "storm", "firtina": "storm", "sis": "fog", "gökkuşağı": "rainbow", "gokkusagi": "rainbow"}.get(arg.to_lower(), "")
+			if w == "":
+				notify(id, HELP, false)
+				return
+			Env.force_weather(w)
+		"etkinlik":
+			if not Events.KINDS.has(arg):
+				notify(id, "Türler: %s" % ", ".join(Events.KINDS.keys()), false)
+				return
+			Events.start_event(arg)
+		"kaydet":
+			_save()
+			notify(id, "Kaydedildi.")
+		"yedekle":
+			notify(id, "Yedek alındı: %s" % _backup("elle"))
+		"yonetici", "yönetici":
+			if who == "" or not save_data.players.has(who):
+				notify(id, "Böyle bir hesap yok.", false)
+				return
+			if not admins().has(who):
+				admins().append(who)
+				mark_dirty()
+			notify(id, "%s artık yönetici." % who)
+		_:
+			notify(id, HELP, false)
+	log_line("Yönetici komutu (%s): %s" % [players[id].name, text.left(120)])
+
+
+## Kayıt dosyasının zaman damgalı yedeği (yedekler/ klasörü, en yeni BACKUP_KEEP tanesi tutulur).
+func _backup(reason: String) -> String:
+	if not FileAccess.file_exists(save_path):
+		return ""
+	var dir := save_path.get_base_dir().path_join("yedekler")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	var stamp := Time.get_datetime_string_from_system(false, false).replace(":", "").replace("-", "").replace("T", "-")
+	var dest := dir.path_join("kayit-%s-%s.json" % [stamp, reason])
+	DirAccess.copy_absolute(ProjectSettings.globalize_path(save_path), ProjectSettings.globalize_path(dest))
+	var files: Array = []
+	for f in DirAccess.get_files_at(ProjectSettings.globalize_path(dir)):
+		if f.begins_with("kayit-") and f.ends_with(".json"):
+			files.append(f)
+	files.sort()
+	while files.size() > BACKUP_KEEP:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(dir.path_join(files.pop_front())))
+	log_line("Yedek alındı: %s" % dest.get_file())
+	return dest.get_file()
+
+
+# ------------------------------------------------------------------ durum sayfası (http://127.0.0.1:7780)
+
+func _start_status_page() -> void:
+	_status_server = TCPServer.new()
+	if _status_server.listen(status_port, "127.0.0.1") != OK:
+		log_line("Durum sayfası açılamadı (port %d)" % status_port)
+		_status_server = null
+	else:
+		log_line("Durum sayfası: http://127.0.0.1:%d" % status_port)
+
+
+func status_data() -> Dictionary:
+	var online: Array = []
+	for pid in players:
+		online.append({"name": players[pid].name, "level": int(players[pid].get("level", 1)), "money": int(players[pid].money)})
+	var backups := 0
+	var dir := ProjectSettings.globalize_path(save_path.get_base_dir().path_join("yedekler"))
+	if DirAccess.dir_exists_absolute(dir):
+		backups = DirAccess.get_files_at(dir).size()
+	return {"version": VERSION, "uptime_min": int((Time.get_unix_time_from_system() - _started_at) / 60.0),
+		"online": online, "accounts": save_data.players.size(), "weather": Env.weather_name(), "season": Env.SEASON_NAMES.get(Env.season, ""),
+		"clock": Env.clock_text(), "event": Events.current.get("name", "-") if not Events._active.is_empty() else "-",
+		"last_save_sec": int(Time.get_unix_time_from_system() - _last_save_at) if _last_save_at > 0.0 else -1, "backups": backups}
+
+
+func _serve_status() -> void:
+	if _status_server == null or not _status_server.is_connection_available():
+		return
+	var c := _status_server.take_connection()
+	var d := status_data()
+	var rows := ""
+	for p in d.online:
+		rows += "<tr><td>%s</td><td>Sv.%d</td><td>%s</td></tr>" % [str(p.name).xml_escape(), p.level, U.money(p.money)]
+	var html := "<!doctype html><meta charset=utf-8><meta http-equiv=refresh content=10><title>MyCity Online durum</title>" + \
+		"<body style='font-family:sans-serif;background:#151a26;color:#e2e8f0;padding:20px'>" + \
+		"<h1 style='color:#facc15'>MyCity Online %s</h1><p>Açık: %d dk · Hesap: %d · %s · Etkinlik: %s</p>" % [d.version, d.uptime_min, d.accounts, d.clock, d.event] + \
+		"<p>Son kayıt: %s sn önce · Yedek sayısı: %d</p>" % [d.last_save_sec, d.backups] + \
+		"<h2>Çevrimiçi (%d)</h2><table cellpadding=6>%s</table></body>" % [d.online.size(), rows]
+	var want_json := false
+	if c.get_available_bytes() > 0:
+		want_json = c.get_utf8_string(c.get_available_bytes()).begins_with("GET /json")
+	var body := (JSON.stringify(d) if want_json else html).to_utf8_buffer()
+	var head := "HTTP/1.0 200 OK\r\nContent-Type: %s; charset=utf-8\r\nContent-Length: %d\r\nConnection: close\r\n\r\n" % ["application/json" if want_json else "text/html", body.size()]
+	c.put_data(head.to_utf8_buffer())
+	c.put_data(body)
+	c.disconnect_from_host()
+
+
 func _on_peer_disconnected(id: int) -> void:
 	if not multiplayer.is_server() or not players.has(id):
 		return
@@ -249,6 +419,7 @@ func _on_peer_disconnected(id: int) -> void:
 	Police.on_player_left(id)
 	Work.on_player_left(id)
 	Langirt.on_player_left(id)
+	Factory.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -383,6 +554,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Seasonal.send_state(id)
 	Football.send_state(id)
 	Work.send_state(id)
+	League.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -497,6 +669,8 @@ func send_pos(p: Vector2) -> void:
 	if Police.is_jailed(id):
 		positions[id] = p.clamp(Map.JAIL.position, Map.JAIL.end)     # hapisten çıkılamaz
 		return
+	if speed_check and not _speed_ok(id, p):
+		return
 	if Map.JAIL.has_point(p):
 		return
 	var room := Map.interior_at(p)
@@ -506,6 +680,30 @@ func send_pos(p: Vector2) -> void:
 			positions[id] = p
 		return
 	positions[id] = p.clamp(Map.WORLD.position, Map.WORLD.end)
+
+
+## Hız/ışınlanma denetimi: bir önceki konumdan bu kadar uzağa bu sürede gidilemez.
+## Sunucunun yaptığı ışınlanmalar positions'ı değiştirdiği için sorun olmaz.
+func _speed_ok(id: int, p: Vector2) -> bool:
+	var now := Time.get_ticks_msec() / 1000.0
+	var last: Vector2 = positions.get(id, p)
+	var dt := clampf(now - float(_pos_t.get(id, now - 1.0)), 0.03, 2.0)
+	var ride := str(players[id].get("ride", ""))
+	var speed := 300.0 * Garage.speed_of(ride)
+	var allowed := speed * dt * 1.6 + 90.0
+	if Map.interior_at(p) != Map.interior_at(last) or Map.JAIL.has_point(last):
+		allowed = 1e9          # ev kapısı / hapisten çıkış: sunucu ışınladı
+	if last.distance_to(p) <= allowed:
+		_pos_t[id] = now
+		_strikes.erase(id)
+		return true
+	_strikes[id] = int(_strikes.get(id, 0)) + 1
+	if int(_strikes[id]) >= 4:
+		_strikes.erase(id)
+		log_line("UYARI: %s çok hızlı hareket etti (%.0f px), geri alındı" % [players[id].name, last.distance_to(p)])
+		Homes._teleport(id, last)
+		_pos_t[id] = now
+	return false
 
 
 @rpc("authority", "call_local", "unreliable_ordered")
@@ -527,6 +725,15 @@ func _process(delta: float) -> void:
 		if _stop_accum >= 1.0:
 			_stop_accum = 0.0
 			_check_stop_request()
+	_backup_accum += delta
+	if _backup_accum >= BACKUP_EVERY:
+		_backup_accum = 0.0
+		_backup("otomatik")
+	if dedicated:
+		_status_accum += delta
+		if _status_accum >= 0.25:
+			_status_accum = 0.0
+			_serve_status()
 	if _save_accum >= (2.0 if dedicated else 5.0):
 		_save_accum = 0.0
 		if _dirty:
@@ -557,6 +764,12 @@ func req_chat(d: Dictionary) -> void:
 		return            # sel koruması
 	_chat_t[id] = now
 	var me: String = players[id].name
+	if float(_muted.get(me, 0.0)) > Time.get_unix_time_from_system():
+		notify(id, "Susturuldun; bir süre sohbete yazamazsın.", false)
+		return
+	if text.begins_with("/"):
+		_command(id, text)
+		return
 	var msg := {"name": me, "text": text, "color": players[id].color, "ch": "all"}
 	match str(d.get("ch", "all")):
 		"clan":
@@ -616,6 +829,7 @@ func _save() -> void:
 	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(tmp), ProjectSettings.globalize_path(save_path))
 	if err == OK:
 		_dirty = false
+		_last_save_at = Time.get_unix_time_from_system()
 	else:
 		log_line("UYARI: kayıt taşınamadı: %s" % error_string(err))
 

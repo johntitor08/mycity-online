@@ -23,6 +23,7 @@ const PANELS := {
 	"carsi": preload("res://scripts/ui/shop_panel.gd"),
 	"futbol": preload("res://scripts/ui/football_panel.gd"),
 	"langirt": preload("res://scripts/ui/langirt_panel.gd"),
+	"fabrika": preload("res://scripts/ui/factory_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -51,6 +52,7 @@ const BUILDING_TEX := {
 	"karakol": preload("res://assets/buildings/karakol.svg"),
 	"banka": preload("res://assets/buildings/banka.svg"),
 	"carsi": preload("res://assets/buildings/carsi.svg"),
+	"fabrika": preload("res://assets/buildings/fabrika.svg"),
 }
 const CAR_BODY := preload("res://assets/vehicles/car_body.svg")
 const CAR_DETAIL := preload("res://assets/vehicles/car_detail.svg")
@@ -113,6 +115,8 @@ var _walked := 0.0
 var _fish_state := "idle"   # olta: idle, waiting, bite
 var _fish_since := 0.0
 var _spray_acc := 0.0
+var _step_acc := 0.0
+const INDOOR_PANELS := ["casino", "poker", "market", "hospital", "banka", "carsi", "fabrika", "karakol", "mobilya", "galeri", "pazar", "petshop", "muhtarlik", "realestate"]
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
 var _label_queue: Array = []
@@ -185,6 +189,7 @@ func _ready() -> void:
 	hud.achievements_requested.connect(open_simple_panel.bind("res://scripts/ui/ach_panel.gd"))
 	hud.map_requested.connect(open_map)
 	hud.settings_requested.connect(open_settings)
+	hud.league_requested.connect(open_simple_panel.bind("res://scripts/ui/league_panel.gd"))
 	Tutorial.start(ui_layer)
 	Work.job_changed.connect(_on_job_changed)
 	Jobs.fish_event.connect(_on_fish_event)
@@ -253,6 +258,7 @@ func _process(delta: float) -> void:
 		Env.darkness() * 0.8 if outside and not Env.is_rainy() else 0.0,
 		my_moving and my_ride() in ["car", "boat"], 1.0 if my_ride() == "car" else 0.8)
 	lighting.update(my_pos)
+	_update_sound(delta, outside)
 	weather.inside = not outside
 
 	var me := Net.my_id()
@@ -525,6 +531,9 @@ func _update_zone() -> void:
 	for i in Map.PLOT_COUNT:
 		if Map.plot_rect(i).has_point(my_pos):
 			z = {"type": "realestate", "label": "Arsa #%d" % (i + 1), "plot": i}
+	var fstop := Work.ferry_stop_near(my_pos)
+	if fstop != "":
+		z = {"type": "ferry", "label": "Feribot iskelesi — %s" % Map.FERRY_STOPS[fstop][0], "stop": fstop}
 	var stop := Work.stop_near(my_pos)
 	if stop != "":
 		z = {"type": "bus", "label": "Otobüs durağı — %s" % Map.BUS_STOPS[stop][0], "stop": stop}
@@ -536,13 +545,10 @@ func _update_zone() -> void:
 		z = {"type": "firestation", "label": "İtfaiye — %s" % ("görevi bırak" if Work.on_duty_fire() else "göreve başla")}
 	if my_pos.distance_to(Map.RECYCLE) < 90.0:
 		z = {"type": "recycle", "label": "Geri dönüşüm (%d torba elinde)" % Work.carrying}
+	if my_pos.distance_to(Map.CHAMPIONS_WALL) < 70.0:
+		z = {"type": "league", "label": "Şampiyonlar Duvarı — lig sıralamaları"}
 	if my_pos.distance_to(Map.FOUNTAIN) < Map.FOUNTAIN_R + 50.0:
 		z = {"type": "wish", "label": "Çeşmeye bozuk para at, dilek tut (1 TL)"}
-	if z.is_empty():      # çöp torbası en düşük öncelik (bina kapılarını kapatmasın)
-		for t in Work.trash:
-			if my_pos.distance_to(Vector2(float(t.x), float(t.y))) < 60.0:
-				z = {"type": "trash", "label": "Çöp torbasını topla", "id": int(t.id)}
-				break
 	if Football.FIELD.grow(70).has_point(my_pos) and not Football.FIELD.grow(-30).has_point(my_pos):
 		z = {"type": "futbol", "label": "Plaj Sahası — takım seç"}
 	if my_pos.distance_to(Langirt.POS) < 75.0:
@@ -551,6 +557,11 @@ func _update_zone() -> void:
 		z = {"type": "dondurma", "label": "Dondurma al (%s, +%d enerji)" % [U.money(Seasonal.ICECREAM_PRICE), Seasonal.ICECREAM_ENERGY]}
 	if z.is_empty() and Env.season == "winter" and Seasonal.can_build_at(my_pos):
 		z = {"type": "snowman", "label": "Kardan adam yap (⚡%d)   ·   T: kartopu at" % Seasonal.SNOWMAN_ENERGY}
+	if z.is_empty():      # çöp torbası en düşük öncelik (bina kapılarını, kardan adamı kapatmasın)
+		for t in Work.trash:
+			if my_pos.distance_to(Vector2(float(t.x), float(t.y))) < 60.0:
+				z = {"type": "trash", "label": "Çöp torbasını topla", "id": int(t.id)}
+				break
 	if my_pos.distance_to(Map.BOAT_RENT_SPOT) < 70.0:
 		z = {"type": "boatrent", "label": "Tekne kirala (%s / %d dk) — F: bin" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
 	if my_pos.distance_to(Map.RACE_FLAG) < 80.0 or my_pos.distance_to(Map.RACE_START) < 60.0:
@@ -629,6 +640,16 @@ func _open_panel() -> void:
 		Garage.rent_boat()
 		return
 	match str(zone.type):
+		"league":
+			open_simple_panel("res://scripts/ui/league_panel.gd")
+			return
+		"ferry":
+			if panel == null:
+				panel = preload("res://scripts/ui/ferry_panel.gd").new()
+				panel.here = zone.stop
+				panel.closed.connect(_close_panel)
+				ui_layer.add_child(panel)
+			return
 		"bus":
 			if panel == null:
 				panel = preload("res://scripts/ui/bus_panel.gd").new()
@@ -726,6 +747,10 @@ func _rebuild_blockers() -> void:
 		_blockers.append(Rect2(r.position.x + 6, r.position.y + 16, r.size.x - 12, r.size.y - 26))
 	_blockers.append(Rect2(Map.FOUNTAIN - Vector2(Map.FOUNTAIN_R, Map.FOUNTAIN_R * 0.6), Vector2(Map.FOUNTAIN_R * 2, Map.FOUNTAIN_R * 1.2)))
 	_blockers.append(Rect2(Map.CLOCK_TOWER + Vector2(-22, -36), Vector2(44, 40)))
+	for row in 3:
+		_blockers.append(Rect2(Map.CONTAINER_YARD.position.x, Map.CONTAINER_YARD.position.y + row * 100 + 30, 8 * 145 - 15, 50))
+	for cr in Map.CRANES:
+		_blockers.append(Rect2(cr.x - 40, cr.y - 10, 80, 16))
 	var fs: Rect2 = Map.FIRE_STATION
 	_blockers.append(Rect2(fs.position.x + 4, fs.position.y + 20, fs.size.x - 8, fs.size.y - 34))
 	for i in mini(Land.view.size(), Map.PLOT_COUNT):
@@ -855,6 +880,44 @@ func _draw_rod(p: Vector2, facing: String, info: Dictionary) -> void:
 		"escaped":
 			if k < 0.8:
 				draw_arc(tp, 6.0 + k * 30.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k * 0.8), 2.0)
+
+
+## Müzik ve ortam sesleri; adımlar.
+func _update_sound(delta: float, outside: bool) -> void:
+	var t := "city"
+	if Env.darkness() > 0.6:
+		t = "night"
+	elif Env.season == "winter":
+		t = "winter"
+	elif Env.season == "summer":
+		t = "summer"
+	Sfx.set_music_track(t)
+	var sea := clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 600.0, 0.0, 1.0)
+	if Map.in_south(my_pos) or my_pos.y > Map.SOUTH_COAST_Y - 400:
+		sea = 1.0
+	var day := 1.0 - Env.darkness()
+	var birds := 0.0
+	var gulls := 0.0
+	var wind := 0.0
+	if outside:
+		if not Env.is_rainy() and Env.season != "winter":
+			birds = day * (1.0 - sea) * (1.0 if Env.season != "autumn" else 0.5)
+		gulls = sea * day * (0.0 if Env.weather == "storm" else 1.0)
+		if Env.season == "winter" or Env.weather in ["storm", "fog"]:
+			wind = 1.0 if Env.weather == "storm" else 0.6
+	var indoor := 0.0
+	if _room >= 0 or _jail or (panel != null and zone.get("type", "") in INDOOR_PANELS):
+		indoor = 0.8
+	Sfx.set_ambient2(birds, gulls, wind, indoor)
+	# adımlar (yürürken, araçsız, yüzmüyorken)
+	if my_moving and my_ride() == "" and not Map.in_sea(my_pos):
+		_step_acc += delta
+		if _step_acc >= 0.3:
+			_step_acc = 0.0
+			var pitch := randf_range(0.85, 1.15) * (0.75 if Env.season == "winter" and outside else 1.0)
+			Sfx.play("step", -16.0 if Map.BEACH.has_point(my_pos) else -12.0, pitch)
+	else:
+		_step_acc = 0.3
 
 
 ## Olta olayları: pencere yok, sonuç ekranda bildirim olarak.
@@ -1090,6 +1153,13 @@ func _draw_park() -> void:
 		draw_rect(Rect2(bx, cy + 14, 40, 8), Color("#92400e"))                            # banklar
 		draw_rect(Rect2(bx, cy + 10, 40, 4), Color("#78350f"))
 	_text(Vector2(p.position.x, p.position.y + 20), "ŞEHİR PARKI", 16, Color(1, 1, 1, 0.85), p.size.x)
+	# Şampiyonlar Duvarı
+	var cw := Map.CHAMPIONS_WALL
+	draw_rect(Rect2(cw.x - 50, cw.y - 46, 100, 46), Color("#57534e"))
+	draw_rect(Rect2(cw.x - 44, cw.y - 40, 88, 34), Color("#78716c"))
+	for k in 3:
+		draw_circle(Vector2(cw.x - 26 + k * 26, cw.y - 23), 8, [Color("#facc15"), Color("#cbd5e1"), Color("#d97706")][k])
+	_text(Vector2(cw.x - 80, cw.y - 52), "ŞAMPİYONLAR DUVARI", 12, Color("#fde68a"), 160)
 	# çeşme
 	var f := Map.FOUNTAIN
 	var rr := Map.FOUNTAIN_R
@@ -1422,6 +1492,8 @@ func _draw() -> void:
 		var bus := Map.bus_at(Land.server_now())
 		items.append([bus[0].y, "bus", bus])
 		items.append([Map.CLOCK_TOWER.y, "clock", Map.CLOCK_TOWER])
+		for cr in Map.CRANES:
+			items.append([cr.y, "crane", cr])
 		for f in Work.fires:
 			items.append([float(f.y) + 1.0, "fire", f])
 		if Work.job.get("passenger") is Vector2:
@@ -1454,6 +1526,8 @@ func _draw() -> void:
 			_draw_icecream_cart(it[2])
 		elif it[1] == "bus":
 			_draw_bus(it[2][0], it[2][1])
+		elif it[1] == "crane":
+			_draw_crane(it[2])
 		elif it[1] == "clock":
 			_draw_clock_tower(it[2])
 		elif it[1] == "fire":
@@ -1640,8 +1714,8 @@ func _draw_beach() -> void:
 	var deep_poly := PackedVector2Array()
 	for i in n + 1:
 		deep_poly.append(Vector2(i * 40.0, Map.DEEP_Y + sin(i * 0.5 + _t * 0.6) * 10.0))
-	deep_poly.append(Vector2(Map.WORLD.size.x, Map.WORLD.end.y))
-	deep_poly.append(Vector2(0, Map.WORLD.end.y))
+	deep_poly.append(Vector2(Map.WORLD.size.x, Map.SOUTH_COAST_Y))
+	deep_poly.append(Vector2(0, Map.SOUTH_COAST_Y))
 	draw_colored_polygon(deep_poly, Color("#165d94"))
 	for x in range(60, int(Map.WORLD.size.x), 180):
 		var by := Map.DEEP_Y + sin(_t * 1.5 + x) * 3.0
@@ -1653,6 +1727,7 @@ func _draw_beach() -> void:
 		var a := 0.25 + 0.25 * sin(_t * 2.0 + i)
 		draw_line(sp, sp + Vector2(14, 0), Color(1, 1, 1, a), 2)
 	_draw_island()
+	_draw_south()
 	# sandal (dalgada sallanır)
 	var bp := Vector2(2050, 2120 + sin(_t * 1.2) * 4.0)
 	draw_set_transform(bp, sin(_t * 0.9) * 0.04, Vector2.ONE)
@@ -1669,6 +1744,92 @@ func _draw_beach() -> void:
 		draw_line(Vector2(pr.position.x, y), Vector2(pr.end.x, y), Color("#6b4423"), 2)
 	draw_rect(pr, Color("#232634"), false, 3)
 	_text(Vector2(pr.position.x - 60, pr.end.y + 24), "DENİZ İSKELESİ", 16, Color.WHITE, pr.size.x + 120)
+
+
+## 1.0: Sanayi/Liman bölgesi: rıhtım, yol, konteynerler, vinçler, liman ve feribot iskeleleri, feribot.
+func _draw_south() -> void:
+	var vsize := get_viewport_rect().size / camera.zoom
+	var view := Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(300)
+	# feribot iskelesi (şehir) her zaman
+	var fp: Rect2 = Map.FERRY_PIER
+	if view.intersects(fp):
+		draw_rect(Rect2(fp.position + Vector2(5, 6), fp.size), Color(0, 0, 0, 0.2))
+		draw_rect(fp, Color("#78716c"))
+		for y in range(int(fp.position.y), int(fp.end.y), 18):
+			draw_line(Vector2(fp.position.x, y), Vector2(fp.end.x, y), Color("#57534e"), 2)
+		draw_rect(fp, Color("#232634"), false, 3)
+		_text(Vector2(fp.position.x - 60, fp.end.y + 24), "FERİBOT İSKELESİ", 15, Color.WHITE, fp.size.x + 120)
+	# feribot gemisi
+	var fr := Map.ferry_at(Land.server_now())
+	var fpos: Vector2 = fr[0]
+	if view.has_point(fpos):
+		var ang := Vector2(fr[1]).angle()
+		var bob := sin(_t * 1.4) * 2.0
+		draw_set_transform(fpos + Vector2(6, 10 + bob), ang, Vector2.ONE)
+		draw_rect(Rect2(-90, -30, 180, 60), Color(0, 0, 0, 0.25))
+		draw_set_transform(fpos + Vector2(0, bob), ang, Vector2.ONE)
+		draw_colored_polygon(PackedVector2Array([Vector2(-90, -30), Vector2(70, -30), Vector2(100, 0), Vector2(70, 30), Vector2(-90, 30)]), Color("#f8fafc"))
+		draw_rect(Rect2(-90, -30, 190, 8), Color("#1e3a8a"))
+		draw_rect(Rect2(-60, -18, 100, 36), Color("#e2e8f0"))
+		for k in 5:
+			draw_rect(Rect2(-54 + k * 19, -12, 12, 10), Color("#7dd3fc"))
+		draw_rect(Rect2(-10, -26, 16, 24), Color("#dc2626"))
+		draw_set_transform(Vector2.ZERO)
+		_text(fpos + Vector2(-60, -48), "FERİBOT", 13, Color("#bfdbfe"), 120)
+	var sy := Map.SOUTH_COAST_Y
+	if view.end.y < sy - 200:
+		return
+	# kara ve rıhtım
+	var coast := PackedVector2Array()
+	var n := int(Map.WORLD.size.x / 40.0)
+	for i in n + 1:
+		coast.append(Vector2(i * 40.0, sy + sin(i * 40.0 / 70.0) * 6.0))
+	coast.append(Vector2(Map.WORLD.size.x, Map.WORLD.end.y))
+	coast.append(Vector2(0, Map.WORLD.end.y))
+	draw_colored_polygon(coast, Color("#a8a29e"))
+	draw_rect(Rect2(0, sy + 90, Map.WORLD.size.x, Map.WORLD.end.y - sy - 90), GRASS.get(Env.season, GRASS.spring).darkened(0.1))
+	draw_rect(Rect2(0, sy + 4, Map.WORLD.size.x, 86), Color("#9ca3af"))                   # beton rıhtım
+	for x in range(0, int(Map.WORLD.size.x), 60):
+		draw_line(Vector2(x, sy + 4), Vector2(x, sy + 90), Color("#8b949e"), 1)
+	draw_line(Vector2(0, sy + 6), Vector2(Map.WORLD.size.x, sy + 6), Color("#facc15"), 3)
+	var r: Rect2 = Map.PORT_ROAD
+	draw_rect(r.grow(6), Color("#9ca3af"))
+	draw_rect(r, Color("#3f4148"))
+	for x in range(0, int(Map.WORLD.size.x), 70):
+		draw_rect(Rect2(x, r.get_center().y - 3, 34, 6), Color(1, 1, 1, 0.6))
+	# liman iskelesi
+	var pp: Rect2 = Map.PORT_PIER
+	draw_rect(pp, Color("#78716c"))
+	for y in range(int(pp.position.y), int(pp.end.y), 18):
+		draw_line(Vector2(pp.position.x, y), Vector2(pp.end.x, y), Color("#57534e"), 2)
+	draw_rect(pp, Color("#232634"), false, 3)
+	_text(Vector2(pp.position.x - 70, pp.position.y - 12), "LİMAN İSKELESİ (FERİBOT)", 14, Color.WHITE, pp.size.x + 140)
+	# konteyner sahası
+	var cy: Rect2 = Map.CONTAINER_YARD
+	var cols := [Color("#dc2626"), Color("#2563eb"), Color("#16a34a"), Color("#f59e0b"), Color("#7c3aed"), Color("#0891b2")]
+	for row in 3:
+		for k in 8:
+			var c := Rect2(cy.position.x + k * 145, cy.position.y + row * 100, 130, 80)
+			var col: Color = cols[(row * 3 + k * 5) % cols.size()]
+			draw_rect(Rect2(c.position + Vector2(4, 6), c.size), Color(0, 0, 0, 0.25))
+			draw_rect(c, col)
+			for x in range(int(c.position.x) + 8, int(c.end.x), 12):
+				draw_line(Vector2(x, c.position.y + 4), Vector2(x, c.end.y - 4), col.darkened(0.25), 2)
+			draw_rect(c, col.darkened(0.45), false, 2)
+	_text(Vector2(cy.position.x, cy.position.y - 12), "KONTEYNER SAHASI", 16, Color("#fde68a"), cy.size.x)
+	_text(Vector2(0, sy + 52), "SANAYİ LİMANI", 26, Color(1, 1, 1, 0.85), Map.WORLD.size.x)
+
+
+func _draw_crane(base: Vector2) -> void:
+	var swing := sin(_t * 0.3 + base.x) * 30.0
+	for dx in [-30, 30]:
+		draw_line(base + Vector2(dx, 0), base + Vector2(dx * 0.4, -170), Color("#f59e0b"), 6)
+	draw_rect(Rect2(base.x - 40, base.y - 6, 80, 12), Color("#78350f"))
+	draw_line(base + Vector2(-70, -170), base + Vector2(150, -170), Color("#f59e0b"), 8)
+	draw_rect(Rect2(base.x - 16, base.y - 196, 32, 26), Color("#fbbf24"))
+	var hook := base + Vector2(80 + swing, -170)
+	draw_line(hook, hook + Vector2(0, 90), Color("#374151"), 2)
+	draw_rect(Rect2(hook.x - 30, hook.y + 90, 60, 34), Color("#2563eb"))
 
 
 ## Martı Adası: kumsal, çim, iskele, deniz feneri (gece döner ışık).

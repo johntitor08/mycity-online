@@ -8,6 +8,6 @@ trap 'pkill -f "^/app/bin/godot-bin.*test_srv[.]json"; pkill -f "^/app/bin/godot
 $G -- --test-yardimci > /dev/null 2>&1 &
 $G -- --test-host | grep -E "OK|HATA|SONUÇ|poker\]|atlandı" || exit 1
 # Test sunucusu ayrı portta çalışır; açık bir oyun sunucusuyla çakışmaz.
-$G -- --sunucu --port=7795 --kayit=user://test_srv.json > /dev/null 2>&1 &
+$G -- --sunucu --port=7795 --kayit=user://test_srv.json --hizsiz > /dev/null 2>&1 &
 sleep 3
 $G -- --test-istemci --port=7795 | grep -E "HATA|SONUÇ"

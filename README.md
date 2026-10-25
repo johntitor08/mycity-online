@@ -7,7 +7,8 @@ RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri
 klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri, polis ve suç sistemi (0.6);
 Çarşı ve aksesuarlar, banka ve borsa, belediye seçimi, düğün ve aile (0.7); başarımlar ve unvanlar,
 mini harita, açık deniz ve Martı Adası, mevsimlik eğlence, plaj futbolu ve langırt (0.8); taksi, kargo,
-itfaiye ve çöpçülük meslekleri, nehir/park/otobüs, ev partileri, ayarlar ve eğitim turu (0.9).
+itfaiye ve çöpçülük meslekleri, nehir/park/otobüs, ev partileri, ayarlar ve eğitim turu (0.9); Sanayi Limanı,
+feribot ve fabrika, haftalık lig, mevsim/gece müzikleri, yönetici komutları ve otomatik yedekler (1.0).
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 **Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
@@ -33,6 +34,32 @@ Menüde:
 - **Sunucuya Katıl**: Arkadaşının IP adresini ve portunu yazıp bağlan.
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
+
+## 1.0: Sanayi Limanı, lig ve sezonlar, yeni sesler, sağlamlık
+
+| | |
+|---|---|
+| ![Liman](docs/ekran/liman.png) | ![Fabrika](docs/ekran/fabrika.png) |
+| ![Lig](docs/ekran/lig.png) | ![Şampiyonlar](docs/ekran/sampiyonlar.png) |
+
+- **Sanayi Limanı:** Açık denizin karşısında yeni kara: rıhtım, vinçler, konteyner sahası, liman
+  iskelesi ve fabrika. **Feribot** şehir (batı plajındaki feribot iskelesi), Martı Adası ve Liman
+  arasında sefer yapar (20 TL, fırtınada iptal); kendi teknenle de gidebilirsin.
+  **Fabrika işi:** üretim bandından gelen parçayı doğru kutuya ayır (1 Kırmızı, 2 Mavi, 3 Sarı);
+  seri yaptıkça kazanç artar ve bant hızlanır. Sunucu süreyi denetler (bot cevapları sayılmaz).
+- **Lig ve sezonlar:** Her hafta bir sezon. Zenginlik, Balık, Yarış, Futbol ve Tecrübe ligleri; sezon
+  sonunda her ligde ilk üçe 5.000/2.500/1.000 TL ve kalıcı rozet. Parktaki **Şampiyonlar Duvarı** ve
+  HUD'daki "Lig" butonu geçmiş şampiyonları gösterir.
+- **Sesler ve müzik:** Gece, kış ve yaz için ayrı müzikler (yumuşak geçişle), kuş cıvıltısı, martılar,
+  rüzgâr, bina içi uğultu ve adım sesleri.
+- **Balık tutma artık pencere açmadan:** iskelede/teknede E ile olta at, şamandıra batınca E ile çek;
+  sonuç ekranda bildirim olarak çıkar, kova sol üstte görünür. Balıklar Pazar Yeri'ndeki Hal'de satılır.
+  Otobüse de çarpışma geldi (içinden geçilmez, üstüne gelirse seni kenara iter).
+- **Sağlamlık:** Kayıt dosyası açılışta ve 6 saatte bir `yedekler/` klasörüne yedeklenir (son 14).
+  Yönetici komutları (sohbette): `/duyuru`, `/kick`, `/sustur isim dk`, `/hava`, `/etkinlik`,
+  `/kaydet`, `/yedekle`, `/oyuncular`, `/yonetici isim` — sunucuyu kuran ya da `--yonetici=ad`
+  ile başlatılan hesaplar yöneticidir. Sunucu oyuncu hızını denetler (ışınlanma hilesi geri alınır).
+  Adanmış sunucuda durum sayfası: `http://127.0.0.1:<port+3>` (JSON: `/json`).
 
 ## Meslekler, şehir detayları, ev partileri, ayarlar ve eğitim (0.9)
 
@@ -220,8 +247,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.9
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.9
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.0
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.0
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -342,6 +369,8 @@ scripts/
   party.gd    (autoload) ev partileri, misafir defteri, ev puanı
   settings.gd (autoload) oyuncu ayarları ve tuş atamaları (istemci)
   tutorial.gd (autoload) ilk giriş eğitim turu (istemci)
+  league.gd   (autoload) haftalık lig/sezonlar, rozetler, Şampiyonlar Duvarı
+  factory.gd  (autoload) fabrika üretim bandı işi
   npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)

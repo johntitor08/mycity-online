@@ -834,6 +834,28 @@ def carsi():
     save("buildings/carsi.svg", svg(W, H, p, GLASS))
 
 
+# ---------------------------------------------------------------- 1.0: fabrika
+
+def fabrika():
+    W, H = 440, 280
+    p = []
+    # testere dişi çatı
+    for i in range(5):
+        x = 8 + i * 84
+        p.append(poly([(x, 80), (x + 84, 80), (x + 84, 30), (x, 80)], "#64748b", 2.5))
+        p.append(poly([(x + 84, 30), (x + 84, 80), (x + 70, 80), (x + 70, 44)], "#bae6fd", 1.5))
+    p += [rect(8, 78, W - 16, 198, "#cbd5e1"), rect(8, 256, W - 16, 20, "#94a3b8"),
+          rect(360, 0, 34, 80, "#78716c", 3), rect(356, 0, 42, 12, "#57534e", 3),
+          circle(377, -6, 10, "#e5e7eb", 0, extra='opacity="0.6"')]
+    for x in (24, 92, 300, 368):
+        p += [rect(x, 150, 52, 40, "url(#glass)", 3, 2), path(f"M{x + 26} 150v40M{x} 170h52", "none", 1.5)]
+    # yükleme kapısı
+    p += [rect(160, 140, 120, 136, "#475569", 4), path("M160 160h120M160 180h120M160 200h120M160 220h120M160 240h120", "none", 1.5, "#334155"),
+          poly([(150, 140), (290, 140), (280, 128), (160, 128)], "#f59e0b", 2)]
+    p.append(rect(W / 2 - 92, 82, 184, 32, "#1e293b", 7, 3, "#f59e0b"))
+    save("buildings/fabrika.svg", svg(W, H, p, GLASS))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -858,3 +880,4 @@ if __name__ == "__main__":
     karakol()
     banka()
     carsi()
+    fabrika()

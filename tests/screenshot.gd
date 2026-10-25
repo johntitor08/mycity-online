@@ -10,6 +10,12 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--sadece10" in OS.get_cmdline_user_args():
+		Net.add_money(1, 200000)
+		Rpg.add_xp(1, "", 15000)
+		await _shots_10(w)
+		get_tree().quit()
+		return
 	if "--sadece09" in OS.get_cmdline_user_args():
 		Net.add_money(1, 200000)
 		Rpg.add_xp(1, "", 15000)
@@ -139,6 +145,65 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_10(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0
+	Env.hour = 13.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Tutorial.finish()
+	w.camera.zoom = Vector2(1, 1)
+	# feribot iskelesi ve gemi
+	w.my_pos = Map.FERRY_STOPS.sehir[1] + Vector2(60, -120)
+	await _wait(1.5)
+	_shot("feribot")
+	# Sanayi Limanı: vinçler, konteynerler
+	w.my_pos = Map.FERRY_STOPS.liman[1]
+	await _wait(0.2)
+	Work.ride_ferry("liman")
+	await _wait(0.5)
+	w.my_pos = Vector2(1900, 3700)
+	await _wait(1.5)
+	_shot("liman")
+	# fabrika
+	w.my_pos = Map.building("fabrika").rect.get_center() + Vector2(120, 170)
+	await _wait(1.2)
+	_shot("fabrika_dis")
+	w.zone = {"type": "fabrika", "label": "x"}
+	w._open_panel()
+	await _wait(0.3)
+	w.panel._start()
+	await _wait(0.9)
+	_shot("fabrika")
+	w._close_panel()
+	# lig
+	League.add(1, "fish", 4200.0)
+	League.add(1, "goals", 7.0)
+	League.add(1, "xp", 3200.0)
+	League.best(1, "race", 24.31)
+	var sc: Dictionary = League._data().scores
+	for n in ["Ayşe", "Mehmet", "Zeynep", "Can"]:
+		sc.fish[n] = randf_range(500, 5000)
+		sc.goals[n] = float(randi_range(1, 9))
+		sc.xp[n] = randf_range(400, 4000)
+		sc.race[n] = randf_range(22.0, 40.0)
+	League.force_end()
+	League.add(1, "fish", 900.0)
+	sc = League._data().scores
+	sc.fish["Zeynep"] = 1800.0
+	sc.fish["Can"] = 650.0
+	await _wait(0.4)
+	w.open_simple_panel("res://scripts/ui/league_panel.gd")
+	await _wait(0.3)
+	w.panel._show("fish")
+	await _wait(0.6)
+	_shot("lig")
+	w.panel._show("wall")
+	await _wait(0.6)
+	_shot("sampiyonlar")
+	w._close_panel()
 
 
 func _shots_09(w) -> void:
