@@ -32,7 +32,17 @@ const BUILDINGS := [
 	# 1.2: müze (Sanayi) ve teleferik istasyonu (arsaların altı)
 	{"type": "muze", "label": "Müze", "rect": Rect2(860, 3800, 420, 280), "sign_y": 104},
 	{"type": "teleferik", "label": "Teleferik", "rect": Rect2(2050, 1506, 180, 116), "sign_y": 30},
+	# 1.3: hara (at çiftliği), Sanayi bölgesinde müzenin yanında
+	{"type": "hara", "label": "Hara", "rect": Rect2(1316, 3806, 196, 150), "sign_y": 26},
 ]
+# 1.3: hipodrom (güney şeridi): 4 kulvar, soldan sağa
+const HIPPODROME := Rect2(260, 4116, 2440, 172)
+const HIPPO_START_X := 330.0
+const HIPPO_FINISH_X := 2600.0
+const HIPPO_BOOTH := Vector2(190, 4196)
+const HIPPO_STANDS := Rect2(1560, 4094, 700, 22)
+static func hippo_lane_y(i: int) -> float:
+	return HIPPODROME.position.y + 24.0 + i * 41.0
 
 # Görev veren NPC'ler (sabit duranlar): kimlik -> ad, konum, görünüm
 const NPCS := {
@@ -121,7 +131,9 @@ const FERRY_STOPS := {
 	"ada": ["Martı Adası", Vector2(1500, 2710)],
 	"liman": ["Sanayi Limanı", Vector2(1345, 3420)],
 }
-const FERRY_ROUTE := [Vector2(340, 2060), Vector2(1500, 2620), Vector2(1345, 3330), Vector2(1500, 2620)]
+# ada ile liman arasında adanın batısından dolaşır (adanın içinden geçmesin)
+const FERRY_ROUTE := [Vector2(340, 2060), Vector2(1500, 2620), Vector2(1060, 2700), Vector2(1040, 3200), Vector2(1345, 3330),
+	Vector2(1040, 3200), Vector2(1060, 2700), Vector2(1500, 2620)]
 const FERRY_SPEED := 150.0
 const DEEP_Y := 2380.0                          # bundan sonrası derin deniz: sadece tekneyle
 # Martı Adası (açık denizde): kum + çim elips, deniz feneri, adanın kuzeyinde balık iskelesi
@@ -149,6 +161,10 @@ const SKI_FINISH_Y := 2640.0
 const SKI_GATE_W := 120.0
 const LIFT := Vector2(9930, 2680)                 # telesiyejin alt istasyonu
 const SNOW_LINE := 1300.0                         # bunun üstü her mevsim karlı
+# 1.3: kamp alanı (dağ köyünün kuzeybatısı): ateş çukurları, teleskop; çadırlar buraya kurulur
+const CAMP := Rect2(7960, 2230, 500, 360)
+const CAMPFIRES := [Vector2(8090, 2380), Vector2(8300, 2450), Vector2(8150, 2530)]
+const TELESCOPE := Vector2(8400, 2290)
 const WRECK := Vector2(6300, 3600)
 const BOAT_RENT_SPOT := Vector2(1530, 1680)    # deniz iskelesinin başı (Kaptan Rüstem'in solunda)
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
@@ -204,6 +220,17 @@ static func in_sea(p: Vector2) -> bool:
 	return p.y > SEA.position.y + sin(p.x / 60.0) * 6.0 and p.y < SOUTH_COAST_Y + sin(p.x / 70.0) * 6.0 \
 		and not PIER.has_point(p) and not ISLAND_PIER.has_point(p) and not on_island(p) \
 		and not PORT_PIER.has_point(p) and not FERRY_PIER.has_point(p)
+
+
+## Tekne gövdesi için şişirilmiş ada (kumsal dahil) ve iskeleler: tekne merkezi buraya giremez.
+static func boat_blocked(p: Vector2) -> bool:
+	var d := (p - ISLAND.get_center()) / (ISLAND.size / 2.0 + Vector2(46, 34))
+	if d.length_squared() < 1.0:
+		return true
+	for r in [PIER, ISLAND_PIER, PORT_PIER, FERRY_PIER]:
+		if r.grow(24).has_point(p):
+			return true
+	return false
 
 
 ## Martı Adası'nın karası (elips).

@@ -19,6 +19,8 @@ func _ready() -> void:
 	add_button(body, "Gönder", _send).custom_minimum_size = Vector2(0, 40)
 	body.add_child(HSeparator.new())
 	add_button(body, "Özel Mesaj Yaz", func(): pm_requested.emit(to_name)).custom_minimum_size = Vector2(0, 36)
+	add_button(body, "Takas teklif et (yanında olmalısın)", func(): Trade.invite(to_name); close()).custom_minimum_size = Vector2(0, 36)
+	add_button(body, "Arkadaş ekle", func(): Phone.add_friend(to_name); close()).custom_minimum_size = Vector2(0, 32)
 	if Family.info.is_empty():
 		var b := add_button(body, "Evlenme Teklif Et (yüzük: %d)" % Shops.rings, _propose)
 		b.custom_minimum_size = Vector2(0, 36)

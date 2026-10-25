@@ -17,6 +17,7 @@ const SKILLS := {
 	"police": "Polislik",
 	"mining": "Madencilik",
 	"music": "Müzisyenlik",
+	"riding": "Binicilik",
 }
 const SKILL_PERKS := {
 	"fishing": "Her seviye: nadir balık şansı +%8, çekme süresi +0,1 sn",
@@ -27,6 +28,7 @@ const SKILL_PERKS := {
 	"police": "Her seviye: devriye maaşı +%5, süre +0,5 sn",
 	"mining": "Her seviye: değerli maden ve fosil şansı +%6",
 	"music": "Her seviye yeni bir şarkı açar",
+	"riding": "Her seviye: yarışta atın hızı +%1",
 }
 const FOODS := {
 	"simit": {"name": "Simit", "price": 15, "energy": 10},
@@ -128,6 +130,8 @@ static func level_of_rec(rec: Dictionary) -> int:
 func food_info(k: String) -> Dictionary:
 	if FOODS.has(k):
 		return FOODS[k]
+	if Camp.CAMP_FOODS.has(k):
+		return Camp.CAMP_FOODS[k]
 	if Mountain.LODGE_FOODS.has(k):
 		return Mountain.LODGE_FOODS[k]
 	if Kitchen.RECIPES.has(k):

@@ -35,6 +35,40 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.3: Telefon ve fotoğraf, güvenli takas, at ve hipodrom, kamp, animasyonlar
+
+| | |
+|---|---|
+| ![Telefon](docs/ekran/telefon.png) | ![Fotoğraf modu](docs/ekran/foto_modu.png) |
+| ![Takas](docs/ekran/takas.png) | ![Hara](docs/ekran/hara.png) |
+| ![Hipodrom](docs/ekran/hipodrom.png) | ![Kamp](docs/ekran/kamp.png) |
+| ![Olta: atış](docs/ekran/olta_atis.png) | ![Olta: vurdu](docs/ekran/olta_vurdu.png) |
+
+- **Telefon (P):** Mesajlar çevrimdışı oyuncuya da ulaşır (gelen kutusu kalıcı). Arkadaş listesi:
+  karşılıklı arkadaşsanız birbirinizin nerede olduğunu görür, yol tarifi alırsınız. Şehir haberleri
+  (tüm duyurular) ve fotoğraf albümü.
+- **Fotoğraf modu (O):** arayüz gizlenir; 1-7 filtre (siyah-beyaz, sepya, sıcak, soğuk, vintage, poster),
+  tekerlekle yakınlaştır, N ile isimleri gizle, Boşluk ile çek. Fotoğraflar albüme (user://album) kaydedilir.
+- **Güvenli takas:** Yanındaki oyuncunun adına tıkla → "Takas teklif et" (ya da sohbette `/takas isim`).
+  Para, balık, ambar ürünleri ve çanta yiyecekleri koyulur; iki taraf da onaylayınca sunucu her şeyi
+  yeniden denetleyip takası tek seferde yapar. Teklif değişirse onaylar sıfırlanır, uzaklaşınca iptal olur.
+- **At çiftliği (Hara, Sanayi):** At al (en fazla 2), yem ya da mısırla besle, antrenmanla hız ve
+  dayanıklılık geliştir. **H** ile atına bin (karada).
+- **Hipodrom:** Atınla yarışa katıl, boş kulvarları NPC atlar doldurur. Bekleme sırasında herkes bahis
+  oynar (oranlar atların gücüne göre). Yarışta **Boşluk = kamçı**: hızlandırır ama dayanıklılığı bitirir.
+  İlk üçe ödül, kazanan ata +1 hız. Yeni yetenek **Binicilik**.
+- **Kamp ve orman (dağ eteği):** Mantar, kuzugöbeği, böğürtlen, yaban mersini, kozalak ve odun topla.
+  Kamp ateşi yak (2 odun), başında enerji daha hızlı dolar, marshmallow kızart. Dağ Evi'nden çadır al,
+  kamp alanına kur, içinde dinlen. Gece teleskoptan takımyıldızları izle, kayan yıldıza dilek tut.
+  Yeni orman tarifleri ve müzede **Orman** koleksiyonu.
+- **Animasyonlar:** olta artık belirgin (savrularak atış, şamandıra yayı, vurunca bükülen olta ve "!",
+  sudan çırpınarak çıkan balık, kaçınca gevşeyen misina); kazmayla kaya kırarken savurma ve taş
+  kıymıkları; tarlada ekim/sulama/hasat efektleri; arabada egzoz, teknede köpük izi, bisiklette pedal;
+  para değişince yüzen tutar, seviye atlayınca parıltı, yemek pişince buhar; ağaçlar rüzgârda sallanır.
+- **Çarpışmalar:** feribot artık adanın içinden geçmiyor (batıdan dolaşır); tekne gövdesi adanın kumsalına
+  ve iskelelere giremez; diğer oyuncuların araba ve tekneleri engeldir; NPC arabalar birbirinin ve
+  otobüsün içinden geçmez; ahır ve deniz fenerine çarpılır.
+
 ## 1.2: Dağ bölgesi, müze, restoran menüsü, konserler
 
 | | |
@@ -301,8 +335,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.2
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.2
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.3
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.3
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

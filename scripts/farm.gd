@@ -10,6 +10,7 @@ extends Node
 signal crops_changed
 
 const MountainS = preload("res://scripts/mountain.gd")
+const CampS = preload("res://scripts/camp.gd")
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 
@@ -104,6 +105,8 @@ static func item_info(k: String) -> Dictionary:
 		return CROPS[k]
 	if PRODUCTS.has(k):
 		return PRODUCTS[k]
+	if CampS.FORAGE.has(k):
+		return CampS.FORAGE[k]
 	return MountainS.ORES.get(k, {})
 
 

@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "1.2"
+const VERSION := "1.3"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -118,6 +118,7 @@ func notify(id: int, text: String, good: bool = true) -> void:
 
 func announce(text: String) -> void:
 	tell_all(self, "on_chat", {"name": "Duyuru", "text": text, "color": Color(1, 0.82, 0.3)})
+	Phone.add_news(text)
 
 
 func id_by_name(player_name: String) -> int:
@@ -250,6 +251,10 @@ func _reset_peer() -> void:
 	Mountain.reset()
 	Museum.reset()
 	Band.reset()
+	Phone.reset()
+	Trade.reset()
+	Horses.reset()
+	Camp.reset()
 
 
 func _on_connected() -> void:
@@ -292,7 +297,10 @@ func _command(id: int, text: String) -> void:
 		var names: Array = []
 		for pid in players:
 			names.append("%s (Sv.%d)" % [players[pid].name, int(players[pid].get("level", 1))])
-		notify(id, ("Çevrimiçi: " + ", ".join(names)) if cmd == "oyuncular" else (HELP if is_admin(id) else "Sohbet: /k klan, /y yakın, /m isim mesaj"))
+		notify(id, ("Çevrimiçi: " + ", ".join(names)) if cmd == "oyuncular" else (HELP if is_admin(id) else "Sohbet: /k klan, /y yakın, /m isim mesaj, /takas isim"))
+		return
+	if cmd == "takas":
+		Trade.invite_from(id, arg)
 		return
 	if not is_admin(id):
 		notify(id, "Bu komut sadece yöneticiler için.", false)
@@ -427,6 +435,9 @@ func _on_peer_disconnected(id: int) -> void:
 	Dive.on_player_left(id)
 	Mountain.on_player_left(id)
 	Band.on_player_left(id)
+	Trade.on_player_left(id)
+	Horses.on_player_left(id)
+	Camp.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -566,6 +577,9 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Mountain.send_state(id)
 	Museum.send_state(id)
 	Band.send_state(id)
+	Phone.send_state(id)
+	Horses.send_state(id)
+	Camp.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""

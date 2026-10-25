@@ -28,6 +28,9 @@ const PANELS := {
 	"muze": preload("res://scripts/ui/museum_panel.gd"),
 	"dagevi": preload("res://scripts/ui/lodge_panel.gd"),
 	"stage": preload("res://scripts/ui/band_panel.gd"),
+	"hara": preload("res://scripts/ui/hara_panel.gd"),
+	"hipodrom": preload("res://scripts/ui/hippo_panel.gd"),
+	"teleskop": preload("res://scripts/ui/sky_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -56,6 +59,7 @@ const BUILDING_TEX := {
 	"teleferik": preload("res://assets/buildings/teleferik.svg"),
 	"teleferik_dag": preload("res://assets/buildings/teleferik.svg"),
 	"dagevi": preload("res://assets/buildings/dagevi.svg"),
+	"hara": preload("res://assets/buildings/hara.svg"),
 	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
 	"karakol": preload("res://assets/buildings/karakol.svg"),
 	"banka": preload("res://assets/buildings/banka.svg"),
@@ -91,6 +95,9 @@ const PROPS := [
 const BOAT_TEX := preload("res://assets/beach/boat.svg")
 const SPEED := 300.0
 # sahne önündeki seyirciler (biri çalarken görünür): konum, görünüm
+const PADDOCK := Rect2(1322, 3968, 190, 112)       # haranın önündeki padok
+const PADDOCK_HORSES := [[Vector2(1380, 4020), 0], [Vector2(1450, 4056), 4]]
+const PHOTO_FILTERS := ["Normal", "Siyah-Beyaz", "Sepya", "Sıcak", "Soğuk", "Vintage", "Poster"]
 const AUDIENCE := [
 	[Vector2(150, 1590), {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
 	[Vector2(205, 1606), {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
@@ -140,6 +147,13 @@ const INDOOR_PANELS := ["casino", "poker", "market", "hospital", "banka", "carsi
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
 var _label_queue: Array = []
+var fx: Array = []                 # 1.3 efektler: {k, pos, t0, dur, d}
+var _beds_seen := {}               # tarla tarhlarının son durumu (efekt için)
+var _rocks_seen := {}              # kayaların son canı
+var _last_money := -1
+var _last_level := -1
+var _dishes_seen := {}
+var _trail_acc := 0.0
 
 
 ## İsimler/tabelalar/işaretler: dünya koordinatında ama CanvasModulate'in dışında çizilir.
@@ -198,6 +212,10 @@ func _ready() -> void:
 		furn_tex[k] = load("res://assets/furniture/%s.svg" % k)
 	Homes.teleported.connect(_on_teleport)
 	Land.plots_changed.connect(_rebuild_blockers)
+	Land.plots_changed.connect(_fx_from_plots)
+	Mountain.changed.connect(_fx_from_rocks)
+	Net.roster_changed.connect(_fx_from_roster)
+	Rpg.sheet_changed.connect(_fx_from_sheet)
 	_rebuild_blockers()
 	npc = NpcSim.new()
 	Story.dialog.connect(_on_dialog)
@@ -223,6 +241,14 @@ func _ready() -> void:
 		_splats.append({"pos": d.pos, "t0": _t})
 		Sfx.play("splash_small", -6.0, 1.4))
 	Family.wedding.connect(func(_d): Sfx.play("success"))
+	hud.phone_requested.connect(open_phone)
+	Trade.invited.connect(_on_trade_invite)
+	Trade.opened.connect(_on_trade_open)
+	Trade.closed.connect(func(t): hud.show_toast(t, t.contains("tamam")))
+	Phone.message.connect(func(d):
+		hud.show_toast("📱 %s: %s" % [d.w, str(d.x).left(60)])
+		Sfx.play("notify", -4.0))
+	_build_photo_layer()
 	Mountain.ski_result.connect(func(d):
 		hud.show_toast(str(d.get("text", "")), bool(d.get("ok", false)))
 		if d.get("ok", false):
@@ -232,6 +258,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_fx_tick(delta)
+	_fx_trash()
 	my_moving = false
 	if my_ride() == "ski":
 		_ski_move(delta)
@@ -355,7 +383,8 @@ func _can_stand(p: Vector2, ride: String) -> bool:
 	if Map.in_water(p):
 		return false              # göl
 	if ride == "boat":
-		return Map.in_sea(p)      # tekne karaya çıkamaz
+		# tekne karaya çıkamaz; gövdesi adanın kumsalına ve iskelelere de giremez
+		return Map.in_sea(p) and not (Map.boat_blocked(p) and not Map.boat_blocked(my_pos))
 	if ride == "" and Map.in_deep(p) and not Map.in_deep(my_pos):
 		return false              # açık denize yüzülmez, tekne gerekir
 	if ride != "":
@@ -453,7 +482,7 @@ func _water_near(p: Vector2) -> Variant:
 
 
 func _near_shore() -> bool:
-	for off in [Vector2(0, -90), Vector2(60, 0), Vector2(-60, 0)]:
+	for off in [Vector2(0, -90), Vector2(70, 0), Vector2(-70, 0), Vector2(0, 80)]:
 		if not Map.in_sea(my_pos + off):
 			return true
 	return false
@@ -481,6 +510,15 @@ func _facing_of(v: Vector2) -> String:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if photo_mode:
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				camera.zoom = (camera.zoom * 1.1).clamp(Vector2(0.5, 0.5), Vector2(3, 3))
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				camera.zoom = (camera.zoom / 1.1).clamp(Vector2(0.5, 0.5), Vector2(3, 3))
+		elif event is InputEventKey and event.pressed and not event.echo:
+			_photo_input(event)
+		return
 	if event is InputEventMouseButton and event.pressed and panel == null:
 		if _room >= 0 and _room < Land.view.size() and Land.view[_room].owner == Net.my_name:
 			if event.button_index == MOUSE_BUTTON_LEFT and placing != "":
@@ -531,6 +569,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_vehicle()
 	elif Settings.is_key(k, "map"):
 		open_map()
+	elif Settings.is_key(k, "phone"):
+		open_phone()
+	elif Settings.is_key(k, "photo"):
+		set_photo_mode(true)
+	elif Settings.is_key(k, "horse"):
+		_toggle_horse()
 	elif Settings.is_key(k, "throw") and Env.season == "winter" and _room < 0 and not _jail:
 		var aim := get_global_mouse_position() - my_pos
 		if aim.length() < 10.0:
@@ -622,6 +666,8 @@ func _update_zone() -> void:
 		z = {"type": "firestation", "label": "İtfaiye — %s" % ("görevi bırak" if Work.on_duty_fire() else "göreve başla")}
 	if my_pos.distance_to(Map.RECYCLE) < 90.0:
 		z = {"type": "recycle", "label": "Geri dönüşüm (%d torba elinde)" % Work.carrying}
+	if my_pos.distance_to(Map.HIPPO_BOOTH) < 120.0 or Map.HIPPO_STANDS.grow(70).has_point(my_pos):
+		z = {"type": "hipodrom", "label": "Hipodrom — yarış ve bahis"}
 	if Map.STAGE.grow(50).has_point(my_pos):
 		z = {"type": "stage", "label": "Park Sahnesi — çal, dinle, bahşiş ver"}
 	if my_pos.distance_to(Map.CHAMPIONS_WALL) < 70.0:
@@ -728,6 +774,28 @@ func _open_panel() -> void:
 			return
 		"lift":
 			Mountain.ski_start()
+			return
+		"roast":
+			Camp.roast(int(zone.i))
+			return
+		"fire_light":
+			Camp.light(int(zone.i))
+			Sfx.play("splash_small", -10.0, 0.5)
+			return
+		"tent_rest":
+			Camp.rest()
+			return
+		"tent_pitch":
+			Camp.pitch()
+			Sfx.play("place")
+			return
+		"forage":
+			Camp.pick(int(zone.id))
+			Sfx.play("place", -6.0, 1.3)
+			return
+		"wish_star":
+			Camp.wish()
+			Sfx.play("success", -4.0)
 			return
 		"dive_pick":
 			Dive.pick(zone.id)
@@ -847,9 +915,13 @@ func _rebuild_blockers() -> void:
 	for b in Map.MOUNTAIN_BUILDINGS:
 		var mr: Rect2 = b.rect
 		_blockers.append(Rect2(mr.position.x + 6, mr.position.y + 16, mr.size.x - 12, mr.size.y - 26))
+	_blockers.append(Rect2(Map.LIGHTHOUSE.x - 22, Map.LIGHTHOUSE.y - 30, 44, 34))
 	var fs: Rect2 = Map.FIRE_STATION
 	_blockers.append(Rect2(fs.position.x + 4, fs.position.y + 20, fs.size.x - 8, fs.size.y - 34))
 	for i in mini(Land.view.size(), Map.PLOT_COUNT):
+		if Farm.is_ranch(Land.view[i]) and str(Land.view[i].get("owner", "")) != "":
+			var pr := Map.plot_rect(i)
+			_blockers.append(Rect2(pr.position.x + 14, pr.position.y + 34, 92, 64))     # ahır binası (kapı önü serbest)
 		var s := _structure_of(i, Land.view[i])
 		if s.is_empty():
 			continue
@@ -868,6 +940,20 @@ func _blocked(p: Vector2) -> bool:
 	for c in npc.cars:
 		var lane: Array = Map.TRAFFIC_LANES[c.lane]
 		if Rect2(float(c.x) - 46, float(lane[0]) - 24, 92, 48).has_point(p):
+			return true
+	# diğer oyuncuların arabaları ve tekneleri
+	for id in shown:
+		var info = Net.roster.get(id)
+		if info == null:
+			continue
+		var ride := str(info.get("ride", ""))
+		if ride != "car" and ride != "boat":
+			continue
+		var f: String = anim.get(id, {}).get("facing", "down")
+		var half := Vector2(46, 22) if f in ["left", "right"] else Vector2(22, 44)
+		if ride == "boat":
+			half = Vector2(54, 26) if f in ["left", "right"] else Vector2(26, 50)
+		if Rect2(shown[id] - half, half * 2.0).has_point(p):
 			return true
 	return _in_bus(p) != 0.0
 
@@ -931,52 +1017,112 @@ func _draw_rod(p: Vector2, facing: String, info: Dictionary) -> void:
 	var tp: Vector2 = bp
 	var dir := (tp - p).normalized()
 	var side := 1.0 if dir.x >= 0.0 else -1.0
-	var hand := p + Vector2(10 * side, -26)
-	var bend := 9.0 if st == "bite" else 0.0
-	var tip := hand + Vector2(dir.x * 26 + 6 * side, -30 + dir.y * 8 + bend)
-	draw_line(hand, tip, Color("#78350f"), 3.0)
-	draw_line(hand.lerp(tip, 0.6), tip, Color("#a16207"), 2.0)
-	draw_circle(hand + (tip - hand) * 0.15, 2.5, Color("#1f2937"))       # makara
-	var target := tp
-	if st == "cast":
-		target += Vector2(0, sin(_t * 3.0) * 2.0)
-	elif st == "bite":
-		target += Vector2(sin(_t * 30.0) * 2.0, 4.0)
-	# misina: uçtan şamandıraya hafif sarkarak
-	var pts := PackedVector2Array()
-	var sag := 26.0 if st != "bite" else 6.0
-	for j in 13:
-		var u := j / 12.0
-		var q := tip.lerp(target, u) + Vector2(0, sin(u * PI) * sag)
-		pts.append(q)
-	if st != "caught":
-		draw_polyline(pts, Color(1, 1, 1, 0.75), 1.2)
+	var hand := p + Vector2(9 * side, -24)
+	# oltanın açısı: atışta arkadan öne savrulur, çekişte yukarı kalkar
+	var forward := Vector2(dir.x * 0.75 + 0.25 * side, -0.85 + dir.y * 0.35).normalized()
+	var back := Vector2(-side * 0.45, -1.0).normalized()
+	var rod_dir := forward
+	var bend := 0.0
 	match st:
 		"cast":
-			draw_arc(target + Vector2(0, 4), 9.0 + fmod(_t * 6.0, 6.0), 0, TAU, 20, Color(1, 1, 1, 0.35), 1.5)
-			draw_circle(target, 5.0, Color("#ef4444"))
-			draw_circle(target + Vector2(0, -2), 2.6, Color("#f8fafc"))
+			var sw := clampf(k / 0.45, 0.0, 1.0)
+			rod_dir = back.slerp(forward, ease(sw, 0.4)) if k < 0.45 else forward.rotated(sin(_t * 1.6) * 0.04)
 		"bite":
+			bend = 16.0 + sin(_t * 26.0) * 5.0
+			rod_dir = forward.rotated(sin(_t * 22.0) * 0.06)
+		"caught":
+			var up := clampf(k / 0.35, 0.0, 1.0)
+			rod_dir = forward.slerp(back, up * 0.85)
+			bend = 10.0 * (1.0 - up)
+		"escaped":
+			rod_dir = forward.rotated(-side * clampf(k * 2.0, 0.0, 0.5) * 0.4)
+	var rod_len := 54.0
+	var tip_straight := hand + rod_dir * rod_len
+	# bükülme: uç suya (şamandıraya) doğru çekilir
+	var pull := (tp - tip_straight).normalized() * bend
+	var tip := tip_straight + pull
+	var ctrl := hand + rod_dir * rod_len * 0.6 + pull * 0.35
+	var rod := PackedVector2Array()
+	for j in 9:
+		var u := j / 8.0
+		rod.append(hand.lerp(ctrl, u).lerp(ctrl.lerp(tip, u), u))
+	draw_polyline(rod, Color("#3b1d0a"), 5.0)
+	draw_polyline(rod, Color("#a16207"), 3.0)
+	draw_line(rod[6], tip, Color("#fde68a"), 1.5)
+	draw_circle(hand + rod_dir * 7.0, 4.0, Color("#1f2937"))           # makara
+	draw_circle(hand + rod_dir * 7.0 + Vector2(side * 3, 0), 1.6, Color("#e5e7eb"))
+	draw_circle(hand, 3.5, Color("#f1c27d"))                            # el
+	# şamandıra / balık
+	match st:
+		"cast":
+			var fly := clampf((k - 0.25) / 0.4, 0.0, 1.0)
+			var bob := tp + Vector2(0, sin(_t * 3.0) * 2.0)
+			if fly < 1.0:
+				bob = tip.lerp(tp, fly) + Vector2(0, -sin(fly * PI) * 60.0)
+			_draw_line_sag(tip, bob, 22.0 * fly)
+			if fly >= 1.0:
+				var land := k - 0.65
+				if land < 0.6:
+					for d in 6:
+						var a := TAU * d / 6.0
+						draw_circle(tp + Vector2(cos(a) * land * 40.0, -6.0 + sin(a) * land * 14.0 - land * 30.0 + land * land * 60.0), 2.2, Color(0.85, 0.95, 1.0, 0.9 - land))
+					draw_arc(tp + Vector2(0, 3), 6.0 + land * 34.0, 0, TAU, 24, Color(1, 1, 1, 0.8 - land), 2.0)
+				draw_arc(tp + Vector2(0, 4), 9.0 + fmod(_t * 6.0, 8.0), 0, TAU, 20, Color(1, 1, 1, 0.35), 1.5)
+			draw_circle(bob, 6.0, Color("#ef4444"))
+			draw_circle(bob + Vector2(0, -2.5), 3.0, Color("#f8fafc"))
+			draw_line(bob + Vector2(0, -5), bob + Vector2(0, -10), Color("#111827"), 1.5)
+		"bite":
+			var dunk := tp + Vector2(sin(_t * 30.0) * 2.5, 5.0 + sin(_t * 12.0) * 3.0)
+			_draw_line_sag(tip, dunk, 3.0)
 			for r in 3:
 				var rr := fmod(_t * 40.0 + r * 9.0, 27.0)
 				draw_arc(tp + Vector2(0, 4), 6.0 + rr, 0, TAU, 24, Color(1, 1, 1, 0.6 * (1.0 - rr / 27.0)), 2.0)
-			draw_circle(target, 3.0, Color("#ef4444"))
+			for d in 4:
+				var ph := fmod(_t * 3.0 + d * 0.25, 1.0)
+				draw_circle(tp + Vector2((d - 1.5) * 7.0, -ph * 22.0 + ph * ph * 22.0), 2.0, Color(0.85, 0.95, 1.0, 1.0 - ph))
+			draw_circle(dunk, 3.5, Color("#ef4444"))
+			# "!" baloncuğu
+			var ex := p + Vector2(0, -92 + sin(_t * 10.0) * 2.0)
+			draw_circle(ex, 13, Color("#facc15"))
+			draw_circle(ex, 13, Color("#92400e"), false, 2.0)
+			draw_rect(Rect2(ex.x - 2, ex.y - 8, 4, 10), Color("#111827"))
+			draw_circle(ex + Vector2(0, 6), 2.2, Color("#111827"))
 			_text(tp + Vector2(-60, -30), "VURDU!", 16, Color("#facc15"), 120)
 		"caught":
-			var u := clampf(k / 0.9, 0.0, 1.0)
-			var fp := tp.lerp(p + Vector2(0, -34), u) + Vector2(0, -sin(u * PI) * 70.0)
-			draw_set_transform(fp, k * 9.0, Vector2.ONE)
-			draw_colored_polygon(PackedVector2Array([Vector2(-12, 0), Vector2(0, -6), Vector2(10, 0), Vector2(0, 6)]), Color("#f59e0b"))
-			draw_colored_polygon(PackedVector2Array([Vector2(-11, 0), Vector2(-19, -6), Vector2(-19, 6)]), Color("#d97706"))
-			draw_circle(Vector2(5, -1.5), 1.5, Color("#111827"))
+			var u := clampf(k / 0.8, 0.0, 1.0)
+			var held := p + Vector2(side * 4, -94)
+			var fp := tp.lerp(held, ease(u, 0.6)) + Vector2(0, -sin(u * PI) * 80.0)
+			draw_line(tip, fp, Color(1, 1, 1, 0.8), 1.3)
+			var flap := sin(_t * 30.0) * (0.5 if u < 1.0 else 0.25)
+			draw_set_transform(fp, (k * 10.0 if u < 1.0 else flap) , Vector2(1.3, 1.3))
+			draw_colored_polygon(PackedVector2Array([Vector2(-12, 0), Vector2(0, -7), Vector2(11, 0), Vector2(0, 7)]), Color("#f59e0b"))
+			draw_colored_polygon(PackedVector2Array([Vector2(-11, 0), Vector2(-20, -7 + flap * 4.0), Vector2(-20, 7 + flap * 4.0)]), Color("#d97706"))
+			draw_line(Vector2(-2, -6), Vector2(2, 6), Color("#b45309"), 1.0)
+			draw_circle(Vector2(6, -2), 1.8, Color("#111827"))
 			draw_set_transform(Vector2.ZERO)
+			if u < 1.0:
+				for d in 3:
+					draw_circle(fp + Vector2(-8 - d * 9, 6 + d * 7) * Vector2(side, 1), 2.2 - d * 0.5, Color(0.85, 0.95, 1.0, 0.8 - d * 0.2))
+			else:
+				for d in 4:
+					var a := _t * 4.0 + d * TAU / 4.0
+					draw_circle(held + Vector2(cos(a), sin(a)) * 22.0, 2.0, Color("#fde68a"))
 			if k < 0.6:
 				draw_arc(tp, 8.0 + k * 40.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k), 2.0)
-			draw_polyline(PackedVector2Array([tip, fp]), Color(1, 1, 1, 0.75), 1.2)
 		"escaped":
+			var fall := clampf(k / 0.8, 0.0, 1.0)
+			_draw_line_sag(tip, tip.lerp(tp, 0.6) + Vector2(0, 30.0 * fall), 30.0)
 			if k < 0.8:
 				draw_arc(tp, 6.0 + k * 30.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k * 0.8), 2.0)
+			_text(tp + Vector2(-60, -24 - k * 20.0), "kaçtı...", 14, Color(0.85, 0.85, 0.9, 1.0 - fall), 120)
 
+
+func _draw_line_sag(a: Vector2, b: Vector2, sag: float) -> void:
+	var pts := PackedVector2Array()
+	for j in 13:
+		var u := j / 12.0
+		pts.append(a.lerp(b, u) + Vector2(0, sin(u * PI) * sag))
+	draw_polyline(pts, Color(1, 1, 1, 0.85), 1.4)
 
 ## Müzik ve ortam sesleri; adımlar.
 func _update_sound(delta: float, outside: bool) -> void:
@@ -1549,6 +1695,7 @@ func _draw() -> void:
 	_draw_jail()
 	_draw_seabed()
 	_draw_mountain()
+	_draw_hippodrome()
 	for lp in Map.lamp_positions():
 		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
 		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
@@ -1599,9 +1746,22 @@ func _draw() -> void:
 		var gates := Map.ski_gates()
 		for gi in gates.size():
 			items.append([gates[gi].y, "gate", [gates[gi], gi]])
+		for s in Camp.spots:
+			items.append([float(s.y), "spot", s])
+		for n in Camp.tents:
+			items.append([float(Camp.tents[n].y), "tent", [n, Camp.tents[n]]])
+		for fi in Map.CAMPFIRES.size():
+			items.append([Map.CAMPFIRES[fi].y, "cfire", fi])
+		items.append([Map.TELESCOPE.y, "scope", Map.TELESCOPE])
 	elif _room < 0 and not Band.performers_seen().is_empty():
 		for k in AUDIENCE.size():
 			items.append([AUDIENCE[k][0].y, "aud", k])
+	if _room < 0 and Map.in_south(my_pos):
+		for li in Horses.race.get("lanes", []).size():
+			var l: Dictionary = Horses.race.lanes[li]
+			items.append([Map.hippo_lane_y(li), "rh", [l, li]])
+		for k in PADDOCK_HORSES.size():
+			items.append([PADDOCK_HORSES[k][0].y, "ph", k])
 	if _room < 0:
 		var bp := Football.ball_now()
 		items.append([bp.y, "ball", bp])
@@ -1653,6 +1813,19 @@ func _draw() -> void:
 			_draw_clock_tower(it[2])
 		elif it[1] == "mp":
 			_draw_mpine(it[2])
+		elif it[1] == "spot":
+			_draw_forage(it[2])
+		elif it[1] == "tent":
+			_draw_tent(it[2][0], it[2][1])
+		elif it[1] == "cfire":
+			_draw_campfire(it[2])
+		elif it[1] == "scope":
+			_draw_telescope(it[2])
+		elif it[1] == "rh":
+			_draw_race_horse(it[2][0], it[2][1])
+		elif it[1] == "ph":
+			var ph: Array = PADDOCK_HORSES[it[2]]
+			_draw_horse(ph[0] + Vector2(sin(_t * 0.3 + it[2]) * 30.0, 0), "right" if cos(_t * 0.3 + it[2]) > 0 else "left", true, Horses.COLORS[ph[1]])
 		elif it[1] == "rock":
 			_draw_rock(it[2])
 		elif it[1] == "gate":
@@ -1671,6 +1844,7 @@ func _draw() -> void:
 		else:
 			var a: Array = it[2]
 			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
+	_draw_fx()
 	_draw_placement_ghost()
 	_draw_snow_fx()
 	_draw_nav()
@@ -1815,7 +1989,14 @@ func _draw_nature(n: Array) -> void:
 				tint = Color(1.0, 0.72, 0.42) if n[1] != 1 else Color(0.9, 0.95, 0.85)
 			"winter":
 				tint = Color(0.82, 0.86, 0.9)
-	_draw_tex_at(prop[0], p, h, tint)
+	if n[1] <= 1 or n[1] == 3:
+		# rüzgârda hafif salınım (fırtınada daha çok)
+		var wind := 0.05 if Env.weather == "storm" else 0.018
+		draw_set_transform(p, sin(_t * 1.3 + p.x * 0.013) * wind, Vector2.ONE)
+		_draw_tex_at(prop[0], Vector2.ZERO, h, tint)
+		draw_set_transform(Vector2.ZERO)
+	else:
+		_draw_tex_at(prop[0], p, h, tint)
 	if Env.season == "winter" and n[1] <= 1:
 		draw_set_transform(p + Vector2(0, -h * 0.82), 0, Vector2(1, 0.45))
 		draw_circle(Vector2.ZERO, h * 0.22, Color(1, 1, 1, 0.9))     # karlı tepe
@@ -2464,9 +2645,16 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 			_draw_skier(p, app, moving)
 			_name(p, -56, pname, name_col, extra)
 			return
+		"horse":
+			_draw_horse(p, facing, moving, Horses.COLORS[int(extra.get("hc", 0)) % Horses.COLORS.size()])
+			Avatar.draw(self, p + Vector2(0, -20), app, facing, 0)
+			if facing == "up":
+				_draw_horse_head_front(p, facing, Horses.COLORS[int(extra.get("hc", 0)) % Horses.COLORS.size()])
+			_name(p, -78, pname, name_col, extra)
+			return
 		"bike":
 			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
-			Avatar.draw(self, p, app, facing, 0)
+			Avatar.draw(self, p, app, facing, [1, 0, 2, 0][int(_t * 8.0) % 4] if moving else 0)
 			_name(p, -56, pname, name_col, extra)
 			return
 		"boat":
@@ -2499,6 +2687,8 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	Avatar.draw(self, p, app, facing, frame, 1.0, swim)
 	if str(extra.get("playing", "")) != "":
 		_draw_instrument(p, str(extra.playing), facing)
+	if extra.get("roast", false):
+		_draw_roast_stick(p)
 	if Map.SEA_BED.has_point(p):
 		draw_rect(Rect2(p.x - 9, p.y - 35, 18, 9), Color(0.6, 0.85, 1.0, 0.6))
 		draw_rect(Rect2(p.x - 9, p.y - 35, 18, 9), Color("#facc15"), false, 2)
@@ -2546,6 +2736,7 @@ func _update_mountain_zone() -> void:
 		if d < best_d:
 			best_d = d
 			mz = {"type": "rock", "id": int(r.id), "label": "Kayayı kır (basılı tut)" if Mountain.has_pickaxe else "Kaya — kazma Dağ Evi'nde"}
+	mz = _camp_zone(mz)
 	zone = mz
 	var hint := ""
 	if my_ride() == "ski":
@@ -2561,7 +2752,7 @@ func _make_mountain_nature() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1212
 	var m: Rect2 = Map.MOUNTAIN
-	var keep_out: Array = [Map.QUARRY.grow(40), Map.SLOPE.grow(70), Rect2(Map.LIFT.x - 50, Map.MOUNTAIN_TOP_Y, 100, Map.LIFT.y - Map.MOUNTAIN_TOP_Y + 80)]
+	var keep_out: Array = [Map.QUARRY.grow(40), Map.SLOPE.grow(70), Rect2(Map.LIFT.x - 50, Map.MOUNTAIN_TOP_Y, 100, Map.LIFT.y - Map.MOUNTAIN_TOP_Y + 80), Map.CAMP.grow(30)]
 	for b in Map.MOUNTAIN_BUILDINGS:
 		keep_out.append(b.rect.grow(60))
 	for seg in _mountain_paths():
@@ -2683,6 +2874,38 @@ func _draw_mountain() -> void:
 		draw_rect(Rect2(hp.x - 40, hp.y - 50, 80, 56), Color("#7c2d12"))
 		draw_colored_polygon(PackedVector2Array([hp + Vector2(-48, -48), hp + Vector2(0, -80), hp + Vector2(48, -48)]), Color("#e2e8f0"))
 	_text(Vector2(Map.LIFT.x - 80, Map.LIFT.y + 30), "TELESİYEJ", 16, Color("#1e293b"), 160)
+	# kamp alanı: açıklık, kütükler
+	var cp: Rect2 = Map.CAMP
+	var camp_poly := PackedVector2Array()
+	for i in 20:
+		var a := TAU * i / 20.0
+		camp_poly.append(cp.get_center() + Vector2(cos(a) * cp.size.x * (0.52 + 0.03 * sin(i * 1.9)), sin(a) * cp.size.y * (0.52 + 0.03 * cos(i * 2.3))))
+	draw_colored_polygon(camp_poly, Color("#c9b98a") if not winter else Color("#dfe7ec"))
+	for f in Map.CAMPFIRES:
+		for k in 3:
+			var a := TAU * k / 3.0 + 0.4
+			var lp: Vector2 = f + Vector2(cos(a) * 62.0, sin(a) * 34.0)
+			draw_rect(Rect2(lp.x - 22, lp.y - 7, 44, 14), Color("#78350f"))
+			draw_circle(lp + Vector2(-22, 0), 7, Color("#a16207"))
+			draw_circle(lp + Vector2(22, 0), 7, Color("#a16207"))
+	_text(Vector2(cp.position.x, cp.position.y + 4), "KAMP ALANI", 16, Color("#fde68a"), cp.size.x)
+	# ateş böcekleri (gece ormanda)
+	if Env.darkness() > 0.4:
+		for i in 40:
+			var fp := Vector2(b.position.x + fmod(i * 233.7, b.size.x), Map.SNOW_LINE + fmod(i * 157.3, b.end.y - Map.SNOW_LINE))
+			fp += Vector2(sin(_t * 0.7 + i) * 30.0, cos(_t * 0.9 + i * 1.3) * 20.0)
+			var glow := 0.5 + 0.5 * sin(_t * 3.0 + i * 2.1)
+			draw_circle(fp, 2.2, Color(1.0, 0.95, 0.4, glow))
+			draw_circle(fp, 6.0, Color(1.0, 0.95, 0.4, glow * 0.15))
+	# kayan yıldız
+	if not Camp.star.is_empty():
+		var sk := (Time.get_ticks_msec() / 1000.0 - float(Camp.star.t0)) / 1.4
+		if sk < 1.0:
+			var a0 := view.position + Vector2(float(Camp.star.a), float(Camp.star.b)) * view.size
+			var b0 := a0 + Vector2(view.size.x * 0.35, view.size.y * 0.25)
+			var head := a0.lerp(b0, sk)
+			draw_line(a0.lerp(b0, maxf(0.0, sk - 0.3)), head, Color(1, 1, 1, 0.85), 4.0)
+			draw_circle(head, 5.0, Color.WHITE)
 	# kar yağışı (karlı bölgede hafif)
 	if view.position.y < Map.SNOW_LINE + 300 or winter:
 		for i in 70:
@@ -2830,7 +3053,7 @@ func _draw_stage() -> void:
 ## Teleferik halatı ve gidip gelen kabin (şehirde kuzeydoğuya, dağda yukarı doğru uzanır).
 func _draw_cable(r: Rect2, city: bool) -> void:
 	var a := r.position + Vector2(r.size.x * 0.5, 8)
-	var dir := Vector2(0.12, -1.0).normalized() if city else Vector2(-0.3, -1.0).normalized()
+	var dir := Vector2(0.12, -1.0).normalized() if city else Vector2(0.3, 1.0).normalized()      # dağda şehre doğru aşağı iner
 	var length := 560.0
 	# halat uzaklaştıkça solar (dağlara / şehre doğru gider)
 	for k in 14:
@@ -2849,3 +3072,629 @@ func _draw_cable(r: Rect2, city: bool) -> void:
 		draw_line(c, c + Vector2(0, 16), Color(0.12, 0.16, 0.22, al), 2)
 		draw_rect(Rect2(c.x - 16, c.y + 14, 32, 24), Color(0.86, 0.15, 0.15, al))
 		draw_rect(Rect2(c.x - 12, c.y + 18, 24, 9), Color(0.73, 0.9, 0.99, al))
+
+
+
+# ================================================================== 1.3: animasyon efektleri
+
+func add_fx(k: String, pos: Vector2, dur: float, d: Dictionary = {}) -> void:
+	if fx.size() > 260:
+		return
+	fx.append({"k": k, "pos": pos, "t0": _t, "dur": dur, "d": d})
+
+
+func _fx_tick(delta: float) -> void:
+	var i := fx.size() - 1
+	while i >= 0:
+		if _t - float(fx[i].t0) > float(fx[i].dur):
+			fx.remove_at(i)
+		i -= 1
+	# hareket eden araçların izi: arabada egzoz, teknede köpük
+	_trail_acc += delta
+	if _trail_acc < 0.09:
+		return
+	_trail_acc = 0.0
+	var movers: Array = []
+	var me = Net.roster.get(Net.my_id())
+	if me and my_moving:
+		movers.append([my_pos, my_facing, str(me.get("ride", ""))])
+	for id in shown:
+		var info = Net.roster.get(id)
+		var a: Dictionary = anim.get(id, {})
+		if info and a.get("moving", false):
+			movers.append([shown[id], str(a.get("facing", "down")), str(info.get("ride", ""))])
+	for m in movers:
+		var back: Vector2 = {"left": Vector2.RIGHT, "right": Vector2.LEFT, "up": Vector2.DOWN, "down": Vector2.UP}.get(m[1], Vector2.UP)
+		match m[2]:
+			"car":
+				add_fx("smoke", m[0] + back * 44.0 + Vector2(randf_range(-4, 4), 4), 0.7)
+			"boat":
+				add_fx("wake", m[0] + back * 46.0 + Vector2(randf_range(-6, 6), 6), 1.2)
+			"horse":
+				add_fx("dust", m[0] + back * 30.0 + Vector2(randf_range(-6, 6), 12), 0.5)
+
+
+var _trash_seen := {}
+
+
+## Çöp torbası alınınca küçük bir toz bulutu.
+func _fx_trash() -> void:
+	if Work.trash.size() == _trash_seen.size():
+		return
+	var cur := {}
+	for t in Work.trash:
+		cur[int(t.id)] = Vector2(float(t.x), float(t.y))
+	for id in _trash_seen:
+		if not cur.has(id):
+			add_fx("chips", _trash_seen[id], 0.5)
+	_trash_seen = cur
+
+
+func _bed_rect(r: Rect2, k: int) -> Rect2:
+	var bw := 70.0
+	var bh := 52.0
+	var x0 := r.position.x + (r.size.x - 3 * bw - 2 * 12.0) / 2.0
+	return Rect2(x0 + (k % 3) * (bw + 12.0), r.position.y + 42 + int(k / 3.0) * (bh + 10.0), bw, bh)
+
+
+## Tarhlar değişince: ekim (toprak), sulama (damla), hasat (ürün fırlar).
+func _fx_from_plots() -> void:
+	for i in mini(Land.view.size(), Map.PLOT_COUNT):
+		var p: Dictionary = Land.view[i]
+		if not Farm.is_farm(p) or not p.get("farm") is Dictionary:
+			continue
+		var beds: Array = p.farm.get("beds", [])
+		for k in beds.size():
+			var b: Dictionary = beds[k]
+			var key := "%d:%d" % [i, k]
+			var now_s := [str(b.get("c", "")), bool(b.get("w", false)), float(b.get("t", 0.0))]
+			var old = _beds_seen.get(key)
+			_beds_seen[key] = now_s
+			if old == null:
+				continue
+			var c := _bed_rect(Map.plot_rect(i), k).get_center()
+			if old[0] == "" and now_s[0] != "":
+				add_fx("dirt", c, 0.7)
+			elif old[0] != "" and now_s[0] == "":
+				var col := Color(Farm.CROPS.get(old[0], {}).get("color", "#22c55e"))
+				add_fx("harvest", c, 1.0, {"col": col})
+			elif not old[1] and now_s[1]:
+				add_fx("water", c, 0.9)
+
+
+## Kaya canı azalınca: taş kıymıkları ve en yakındaki oyuncuda kazma savurma.
+func _fx_from_rocks() -> void:
+	var cur := {}
+	for r in Mountain.rocks:
+		cur[int(r.id)] = [int(r.hp), Vector2(float(r.x), float(r.y))]
+	for id in _rocks_seen:
+		var old: Array = _rocks_seen[id]
+		var hit := not cur.has(id) or int(cur[id][0]) < int(old[0])
+		if not hit:
+			continue
+		var rp: Vector2 = old[1]
+		add_fx("chips", rp + Vector2(0, -18), 0.6 if cur.has(id) else 0.9, {"big": not cur.has(id)})
+		var best := my_pos
+		var bd := my_pos.distance_to(rp)
+		for pid in shown:
+			var dd: float = shown[pid].distance_to(rp)
+			if dd < bd:
+				bd = dd
+				best = shown[pid]
+		if bd < 120.0:
+			add_fx("pick", best, 0.35, {"side": 1.0 if rp.x >= best.x else -1.0})
+	_rocks_seen = cur
+
+
+func _fx_from_roster() -> void:
+	var me = Net.roster.get(Net.my_id())
+	if me == null:
+		return
+	var m := int(me.get("money", 0))
+	if _last_money >= 0 and m != _last_money:
+		add_fx("money", my_pos + Vector2(0, -70), 1.4, {"v": m - _last_money})
+	_last_money = m
+	var lv := int(me.get("level", 1))
+	if _last_level > 0 and lv > _last_level:
+		add_fx("level", my_pos, 1.6)
+	_last_level = lv
+
+
+func _fx_from_sheet() -> void:
+	var items: Dictionary = Rpg.sheet.get("items", {})
+	for k in Kitchen.RECIPES:
+		var n := int(items.get(k, 0))
+		if n > int(_dishes_seen.get(k, n)):
+			add_fx("steam", my_pos + Vector2(0, -30), 1.6)
+		_dishes_seen[k] = n
+
+
+func _draw_fx() -> void:
+	for f in fx:
+		var u: float = clampf((_t - float(f.t0)) / float(f.dur), 0.0, 1.0)
+		var p: Vector2 = f.pos
+		match str(f.k):
+			"smoke":
+				draw_circle(p + Vector2(0, -u * 14.0), 4.0 + u * 8.0, Color(0.55, 0.55, 0.6, 0.45 * (1.0 - u)))
+			"wake":
+				draw_set_transform(p, 0, Vector2(1, 0.45))
+				draw_arc(Vector2.ZERO, 6.0 + u * 26.0, 0, TAU, 20, Color(1, 1, 1, 0.55 * (1.0 - u)), 2.0)
+				draw_set_transform(Vector2.ZERO)
+			"dust":
+				draw_circle(p + Vector2(0, -u * 8.0), 3.0 + u * 7.0, Color(0.78, 0.68, 0.5, 0.5 * (1.0 - u)))
+			"dirt":
+				for j in 7:
+					var a := -PI * (0.15 + 0.7 * j / 6.0)
+					var q := p + Vector2(cos(a), sin(a)) * 30.0 * u + Vector2(0, 40.0 * u * u)
+					draw_circle(q, 3.0, Color(0.4, 0.26, 0.13, 1.0 - u))
+			"water":
+				for j in 8:
+					var x := -24.0 + j * 7.0
+					var drop := fmod(u * 1.6 + j * 0.13, 1.0)
+					draw_line(p + Vector2(x, -40 + drop * 40.0), p + Vector2(x - 1, -34 + drop * 40.0), Color(0.55, 0.8, 1.0, 1.0 - u), 2.0)
+				draw_arc(p + Vector2(0, 6), 8.0 + u * 22.0, 0, TAU, 20, Color(0.6, 0.85, 1.0, 0.7 * (1.0 - u)), 2.0)
+			"harvest":
+				var col: Color = f.d.get("col", Color("#22c55e"))
+				for j in 6:
+					var a := -PI * (0.2 + 0.6 * j / 5.0)
+					var q := p + Vector2(cos(a) * 36.0 * u, sin(a) * 56.0 * u + 70.0 * u * u)
+					draw_circle(q, 5.0, Color(col, 1.0 - u * 0.8))
+					draw_circle(q + Vector2(-2, -2), 1.6, Color(1, 1, 1, 0.7 * (1.0 - u)))
+				for j in 3:
+					var q2 := p + Vector2(-12 + j * 12, -10 - u * 40.0)
+					draw_colored_polygon(PackedVector2Array([q2, q2 + Vector2(5, -3), q2 + Vector2(2, 4)]), Color(0.2, 0.6, 0.2, 1.0 - u))
+			"chips":
+				var n := 10 if f.d.get("big", false) else 6
+				for j in n:
+					var a := -PI * (0.1 + 0.8 * j / float(n - 1))
+					var q := p + Vector2(cos(a) * 40.0 * u, sin(a) * 34.0 * u + 60.0 * u * u)
+					draw_rect(Rect2(q - Vector2(2.5, 2.5), Vector2(5, 5)), Color(0.45, 0.42, 0.4, 1.0 - u))
+				if f.d.get("big", false):
+					draw_circle(p, 10.0 + u * 30.0, Color(0.7, 0.66, 0.6, 0.4 * (1.0 - u)))
+			"pick":
+				var side: float = f.d.get("side", 1.0)
+				var ang := lerpf(-2.2, 0.6, ease(u, 0.5)) * side
+				var hand := p + Vector2(8 * side, -26)
+				var head := hand + Vector2(0, -30).rotated(ang)
+				draw_line(hand, head, Color("#78350f"), 4.0)
+				var perp := (head - hand).normalized().rotated(PI / 2.0)
+				draw_line(head - perp * 11.0, head + perp * 11.0, Color("#9ca3af"), 5.0)
+				draw_line(head - perp * 11.0, head + perp * 11.0, Color("#4b5563"), 1.5)
+			"money":
+				var v := int(f.d.get("v", 0))
+				var col := Color("#86efac") if v > 0 else Color("#fca5a5")
+				_text(p + Vector2(-80, -u * 34.0), ("+%s" if v > 0 else "−%s") % U.money(absi(v)), 17, Color(col, 1.0 - u * u), 160)
+			"level":
+				for j in 3:
+					var rr := 14.0 + (u * 70.0 + j * 14.0)
+					draw_arc(p + Vector2(0, -20), rr, 0, TAU, 32, Color(1.0, 0.85, 0.2, 0.8 * (1.0 - u)), 3.0)
+				for j in 8:
+					var a := TAU * j / 8.0 + u * 2.0
+					var q := p + Vector2(0, -20) + Vector2(cos(a), sin(a)) * (20.0 + u * 60.0)
+					_draw_star(q, 6.0 * (1.0 - u * 0.5), Color(1.0, 0.95, 0.5, 1.0 - u))
+			"steam":
+				for j in 4:
+					var ph := fmod(u * 1.4 + j * 0.25, 1.0)
+					draw_circle(p + Vector2(-12 + j * 8 + sin(ph * 6.0 + j) * 4.0, -ph * 40.0), 4.0 + ph * 6.0, Color(1, 1, 1, 0.5 * (1.0 - ph) * (1.0 - u * 0.5)))
+
+
+func _draw_star(c: Vector2, r: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for j in 10:
+		var a := -PI / 2.0 + j * PI / 5.0
+		pts.append(c + Vector2(cos(a), sin(a)) * (r if j % 2 == 0 else r * 0.45))
+	draw_colored_polygon(pts, col)
+
+
+
+# ================================================================== 1.3: telefon, takas, at, hipodrom, kamp, fotoğraf
+
+func open_phone() -> void:
+	if panel != null:
+		return
+	panel = preload("res://scripts/ui/phone_panel.gd").new()
+	panel.camera_requested.connect(func():
+		_close_panel()
+		set_photo_mode(true))
+	panel.nav_requested.connect(func(pos):
+		_close_panel()
+		set_nav(pos))
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("open", -6.0, 1.3)
+
+
+func _on_trade_invite(from_id: int, from_name: String) -> void:
+	if panel != null:
+		_close_panel()
+	panel = preload("res://scripts/ui/trade_invite_panel.gd").new()
+	panel.from_id = from_id
+	panel.from_name = from_name
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("notify")
+
+
+func _on_trade_open(_d: Dictionary) -> void:
+	if panel != null:
+		_close_panel()
+	panel = preload("res://scripts/ui/trade_panel.gd").new()
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("open")
+
+
+func _toggle_horse() -> void:
+	if my_ride() == "horse":
+		Garage.ride("")
+		return
+	if my_ride() != "":
+		hud.show_toast("Önce aracından in.", false)
+		return
+	if _mount or _room >= 0 or _dive or Map.in_sea(my_pos):
+		hud.show_toast("Ata sadece şehirde, karada binilir.", false)
+		return
+	if not Horses.has_horse():
+		hud.show_toast("Atın yok. Sanayi'deki Hara'dan at alabilirsin.", false)
+		return
+	Garage.ride("horse")
+	Sfx.play("gallop", -6.0)
+
+
+## Kamp alanı ve orman etkileşimleri (dağ bölgesinde).
+func _camp_zone(mz: Dictionary) -> Dictionary:
+	for s in Camp.spots:
+		if my_pos.distance_to(Vector2(float(s.x), float(s.y))) < Camp.PICK_RANGE:
+			var names := {"mantar": "Mantar topla", "kuzugobegi": "Kuzugöbeği topla!", "sinekmantari": "Mantar topla (kırmızı... zehirli olabilir)",
+				"bogurtlen": "Böğürtlen topla", "yabanmersini": "Yaban mersini topla", "kozalak": "Kozalak topla", "dal": "Kuru dal topla (odun)"}
+			mz = {"type": "forage", "id": int(s.id), "label": names.get(str(s.k), "Topla")}
+	if Map.CAMP.grow(30).has_point(my_pos):
+		var mine: Dictionary = Camp.tents.get(Net.my_name, {})
+		if Camp.has_tent and mz.is_empty():
+			mz = {"type": "tent_pitch", "label": "Çadırını buraya kur" if mine.is_empty() else "Çadırını buraya taşı"}
+		if not mine.is_empty() and my_pos.distance_to(Vector2(float(mine.x), float(mine.y))) < 90.0:
+			mz = {"type": "tent_rest", "label": "Çadırında dinlen (enerji dolar)"}
+		var near_fire := -1
+		for i in Map.CAMPFIRES.size():
+			if my_pos.distance_to(Map.CAMPFIRES[i]) < 110.0 and (near_fire < 0 or my_pos.distance_to(Map.CAMPFIRES[i]) < my_pos.distance_to(Map.CAMPFIRES[near_fire])):
+				near_fire = i
+		if near_fire >= 0:
+			if Camp.fire_left(near_fire) > 0.0:
+				mz = {"type": "roast", "i": near_fire, "label": "Marshmallow kızart (%d çantada)" % int(Rpg.sheet.get("items", {}).get("marshmallow", 0))}
+			else:
+				mz = {"type": "fire_light", "i": near_fire, "label": "Kamp ateşi yak (2 odun, ambarda %d)" % int(Farm.my_crops.get("odun", 0))}
+	if my_pos.distance_to(Map.TELESCOPE) < 100.0:
+		mz = {"type": "teleskop", "label": "Teleskop — yıldızları izle"}
+	if not Camp.star.is_empty() and Time.get_ticks_msec() / 1000.0 - float(Camp.star.t0) < Camp.STAR_WINDOW and Map.CAMP.grow(260).has_point(my_pos):
+		mz = {"type": "wish_star", "label": "KAYAN YILDIZ! Dilek tut"}
+	return mz
+
+
+# --- çizimler
+
+## At (yandan ya da önden/arkadan). Ayaklar dörtnala hareket eder.
+func _draw_horse(p: Vector2, facing: String, moving: bool, col: Color) -> void:
+	var dark := col.darkened(0.35)
+	var gal := sin(_t * 16.0) if moving else 0.0
+	draw_set_transform(p + Vector2(0, 12), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 30, Color(0, 0, 0, 0.22))
+	draw_set_transform(Vector2.ZERO)
+	if facing in ["left", "right"]:
+		var s := 1.0 if facing == "right" else -1.0
+		var body := p + Vector2(0, -8 + absf(gal) * -2.0)
+		# bacaklar
+		for k in 4:
+			var lx: float = [-20.0, -12.0, 12.0, 20.0][k] * s
+			var sw := gal * (8.0 if k % 2 == 0 else -8.0)
+			draw_line(body + Vector2(lx, 6), body + Vector2(lx + sw * s, 22), dark if k % 2 == 0 else col.darkened(0.15), 4.0)
+			draw_circle(body + Vector2(lx + sw * s, 22), 2.5, Color("#1f2937"))
+		draw_set_transform(body, 0, Vector2(1.0, 0.55))
+		draw_circle(Vector2.ZERO, 26, col)
+		draw_set_transform(Vector2.ZERO)
+		# kuyruk
+		draw_line(body + Vector2(-24 * s, -4), body + Vector2(-34 * s, 8 + gal * 3.0), dark, 5.0)
+		# boyun ve baş
+		var neck := body + Vector2(18 * s, -6)
+		var head := body + Vector2(32 * s, -22 + gal * 1.5)
+		draw_line(neck, head, col, 10.0)
+		draw_set_transform(head + Vector2(5 * s, 2), 0.35 * s, Vector2(1.0, 0.6))
+		draw_circle(Vector2.ZERO, 9, col)
+		draw_set_transform(Vector2.ZERO)
+		draw_circle(head + Vector2(2 * s, -2), 1.6, Color("#111827"))
+		draw_line(head + Vector2(-2 * s, -6), head + Vector2(-1 * s, -12), dark, 3.0)        # kulak
+		draw_line(neck + Vector2(-2 * s, -6), head + Vector2(-6 * s, -6), dark, 3.0)         # yele
+		# eyer
+		draw_rect(Rect2(body.x - 10, body.y - 14, 20, 8), Color("#7f1d1d"))
+	else:
+		var front := facing == "down"
+		var body2 := p + Vector2(0, -6)
+		for k in 2:
+			var lx := -8.0 + k * 16.0
+			var sw := gal * (5.0 if k == 0 else -5.0)
+			draw_line(body2 + Vector2(lx, 6), body2 + Vector2(lx, 22 + sw), dark, 4.0)
+		draw_set_transform(body2, 0, Vector2(0.55, 1.0))
+		draw_circle(Vector2.ZERO, 22, col)
+		draw_set_transform(Vector2.ZERO)
+		draw_rect(Rect2(body2.x - 9, body2.y - 12, 18, 8), Color("#7f1d1d"))
+		if front:
+			draw_circle(body2 + Vector2(0, 16), 9, col)
+			draw_circle(body2 + Vector2(-3, 14), 1.4, Color("#111827"))
+			draw_circle(body2 + Vector2(3, 14), 1.4, Color("#111827"))
+		else:
+			draw_line(body2 + Vector2(0, 18), body2 + Vector2(sin(_t * 6.0) * 4.0, 30), dark, 5.0)
+
+
+func _draw_horse_head_front(p: Vector2, _facing: String, col: Color) -> void:
+	# yukarı giderken atın başı binicinin önünde (üstte) görünür
+	draw_circle(p + Vector2(0, -50), 9, col)
+	draw_line(p + Vector2(-4, -58), p + Vector2(-5, -64), col.darkened(0.35), 3.0)
+	draw_line(p + Vector2(4, -58), p + Vector2(5, -64), col.darkened(0.35), 3.0)
+
+
+func _draw_race_horse(l: Dictionary, lane: int) -> void:
+	var x := float(l.x)
+	var p := Vector2(x, Map.hippo_lane_y(lane))
+	var running := str(Horses.race.get("state", "")) == "run" and int(l.place) == 0 and float(Horses.race.get("left", 0.0)) >= 3.0
+	_draw_horse(p, "right", running, Horses.COLORS[int(l.c) % Horses.COLORS.size()])
+	var app := {"skin": 1, "hair": 3, "hair_color": 0, "shirt": [1, 4, 7, 10][lane % 4], "pants": 0}
+	var pid := int(l.get("pid", 0))
+	if pid != 0 and Net.roster.has(pid):
+		app = Net.roster[pid].get("appearance", app)
+	Avatar.draw(self, p + Vector2(0, -22), app, "right", 0, 0.9)
+	if l.get("whip", false):
+		draw_line(p + Vector2(-6, -40), p + Vector2(-22, -30 + sin(_t * 30.0) * 6.0), Color("#78350f"), 2.0)
+	_text(p + Vector2(-60, -66), "%s%s" % [("%d. " % int(l.place)) if int(l.place) > 0 else "", l.n], 12, Color.WHITE, 120)
+
+
+func _draw_hippodrome() -> void:
+	var h: Rect2 = Map.HIPPODROME
+	var vsize := get_viewport_rect().size / camera.zoom
+	if not Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(200).intersects(h.grow(200)):
+		return
+	draw_rect(h, Color("#a47148"))
+	for i in Horses.LANES + 1:
+		var y := h.position.y + 4.0 + i * 41.0
+		draw_line(Vector2(h.position.x, y), Vector2(h.end.x, y), Color(1, 1, 1, 0.55), 2)
+	for x in range(int(h.position.x), int(h.end.x), 60):
+		draw_rect(Rect2(x, h.position.y - 4, 4, 10), Color("#f8fafc"))
+		draw_rect(Rect2(x, h.end.y - 6, 4, 10), Color("#f8fafc"))
+	draw_line(Vector2(h.position.x, h.position.y), Vector2(h.end.x, h.position.y), Color("#f8fafc"), 3)
+	draw_line(Vector2(h.position.x, h.end.y), Vector2(h.end.x, h.end.y), Color("#f8fafc"), 3)
+	# başlangıç kapıları ve finiş
+	for i in Horses.LANES:
+		var y := Map.hippo_lane_y(i)
+		draw_rect(Rect2(Map.HIPPO_START_X - 34, y - 20, 10, 40), Color("#475569"))
+	var fx := Map.HIPPO_FINISH_X
+	for k in int(h.size.y / 12.0):
+		draw_rect(Rect2(fx, h.position.y + k * 12, 12, 12), Color.WHITE if k % 2 == 0 else Color.BLACK)
+	draw_rect(Rect2(fx + 20, h.position.y - 60, 6, 64), Color("#dc2626"))
+	_text(Vector2(fx - 40, h.position.y - 66), "FİNİŞ", 16, Color("#fde68a"), 120)
+	# tribün ve seyirciler
+	var s: Rect2 = Map.HIPPO_STANDS
+	draw_rect(s, Color("#334155"))
+	var live := str(Horses.race.get("state", "idle")) == "run"
+	for i in int(s.size.x / 14.0):
+		var c := Color.from_hsv(fmod(i * 0.137, 1.0), 0.6, 0.9)
+		var jump := absf(sin(_t * 8.0 + i)) * 4.0 if live else 0.0
+		draw_circle(Vector2(s.position.x + 7 + i * 14, s.position.y + 10 - jump), 5, c)
+	_text(Vector2(s.position.x, s.position.y - 8), "HİPODROM", 18, Color("#fde68a"), s.size.x)
+	# gişe
+	var b: Vector2 = Map.HIPPO_BOOTH
+	draw_rect(Rect2(b.x - 40, b.y - 56, 80, 56), Color("#7c2d12"))
+	draw_rect(Rect2(b.x - 30, b.y - 46, 60, 20), Color("#fde68a"))
+	draw_colored_polygon(PackedVector2Array([b + Vector2(-48, -54), b + Vector2(0, -80), b + Vector2(48, -54)]), Color("#b91c1c"))
+	_text(Vector2(b.x - 60, b.y - 30), "BAHİS", 13, Color("#7c2d12"), 120, false)
+	# padok çiti
+	var pd: Rect2 = PADDOCK
+	draw_rect(pd, Color("#86a35f"))
+	draw_rect(pd, Color("#78350f"), false, 3)
+	for x in range(int(pd.position.x), int(pd.end.x), 24):
+		draw_line(Vector2(x, pd.position.y - 6), Vector2(x, pd.position.y + 4), Color("#78350f"), 2)
+
+
+func _draw_forage(s: Dictionary) -> void:
+	var p := Vector2(float(s.x), float(s.y))
+	match str(s.k):
+		"mantar", "kuzugobegi", "sinekmantari":
+			var cap: Color = {"mantar": Color("#f5f5f4"), "kuzugobegi": Color("#a16207"), "sinekmantari": Color("#dc2626")}[str(s.k)]
+			for k in (3 if s.k == "mantar" else 1):
+				var q := p + Vector2(-10 + k * 10, (k % 2) * 4)
+				draw_rect(Rect2(q.x - 2, q.y - 8, 4, 8), Color("#f5f5dc"))
+				if s.k == "kuzugobegi":
+					draw_set_transform(q + Vector2(0, -12), 0, Vector2(0.7, 1.0))
+					draw_circle(Vector2.ZERO, 7, cap)
+					draw_set_transform(Vector2.ZERO)
+					for j in 3:
+						draw_line(q + Vector2(-4, -14 + j * 3), q + Vector2(4, -14 + j * 3), cap.darkened(0.4), 1)
+				else:
+					draw_colored_polygon(PackedVector2Array([q + Vector2(-8, -8), q + Vector2(0, -15), q + Vector2(8, -8)]), cap)
+					if s.k == "sinekmantari":
+						draw_circle(q + Vector2(-2, -10), 1.2, Color.WHITE)
+						draw_circle(q + Vector2(3, -11), 1.2, Color.WHITE)
+		"bogurtlen", "yabanmersini":
+			draw_circle(p + Vector2(0, -8), 13, Color("#166534"))
+			draw_circle(p + Vector2(-8, -4), 9, Color("#15803d"))
+			draw_circle(p + Vector2(8, -4), 9, Color("#15803d"))
+			var bc := Color("#3b0764") if s.k == "bogurtlen" else Color("#1e40af")
+			for j in 6:
+				draw_circle(p + Vector2(-9 + (j % 3) * 9, -12 + int(j / 3) * 8), 2.6, bc)
+		"kozalak":
+			draw_set_transform(p + Vector2(0, -5), 0.3, Vector2(0.7, 1.0))
+			draw_circle(Vector2.ZERO, 6, Color("#92400e"))
+			draw_set_transform(Vector2.ZERO)
+			draw_line(p + Vector2(-4, -8), p + Vector2(4, -2), Color("#78350f"), 1.5)
+		"dal":
+			draw_line(p + Vector2(-18, -2), p + Vector2(16, -6), Color("#78350f"), 4)
+			draw_line(p + Vector2(0, -4), p + Vector2(8, -14), Color("#78350f"), 2.5)
+			draw_line(p + Vector2(-10, -3), p + Vector2(-14, -12), Color("#78350f"), 2)
+
+
+func _draw_tent(owner_name: String, t: Dictionary) -> void:
+	var p := Vector2(float(t.x), float(t.y))
+	var col: Color = [Color("#dc2626"), Color("#2563eb"), Color("#16a34a"), Color("#f59e0b"), Color("#7c3aed")][int(t.get("c", 0)) % 5]
+	draw_set_transform(p + Vector2(0, 2), 0, Vector2(1, 0.3))
+	draw_circle(Vector2.ZERO, 46, Color(0, 0, 0, 0.2))
+	draw_set_transform(Vector2.ZERO)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-44, 0), p + Vector2(0, -56), p + Vector2(44, 0)]), col)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(0, -56), p + Vector2(44, 0), p + Vector2(18, 0)]), col.darkened(0.25))
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-12, 0), p + Vector2(0, -26), p + Vector2(12, 0)]), Color("#1c1917"))
+	draw_line(p + Vector2(0, -56), p + Vector2(0, -64), Color("#78350f"), 2)
+	_text(p + Vector2(-60, -70), "%s'in çadırı" % owner_name, 12, Color.WHITE, 120)
+
+
+func _draw_campfire(i: int) -> void:
+	var p: Vector2 = Map.CAMPFIRES[i]
+	for k in 8:
+		var a := TAU * k / 8.0
+		draw_circle(p + Vector2(cos(a) * 18.0, sin(a) * 8.0), 5, Color("#6b7280"))
+	draw_line(p + Vector2(-14, 2), p + Vector2(14, -4), Color("#5b3a1e"), 5)
+	draw_line(p + Vector2(-14, -4), p + Vector2(14, 2), Color("#78350f"), 5)
+	if Camp.fire_left(i) <= 0.0:
+		return
+	var glow := 0.8 + 0.2 * sin(_t * 9.0)
+	draw_circle(p + Vector2(0, -6), 34.0 * glow, Color(1.0, 0.6, 0.2, 0.12))
+	for k in 5:
+		var fl := 14.0 + 10.0 * sin(_t * (7.0 + k) + k * 1.7)
+		var x := -10.0 + k * 5.0
+		draw_colored_polygon(PackedVector2Array([p + Vector2(x - 6, -2), p + Vector2(x + sin(_t * 5.0 + k) * 3.0, -2 - fl - 8.0), p + Vector2(x + 6, -2)]),
+			Color(1.0, 0.45 + 0.1 * k, 0.1, 0.85))
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-5, -2), p + Vector2(0, -16 - sin(_t * 11.0) * 4.0), p + Vector2(5, -2)]), Color("#fde68a"))
+	for k in 3:
+		var ph := fmod(_t * 0.8 + k * 0.33, 1.0)
+		draw_circle(p + Vector2(sin(_t + k * 2.0) * 8.0, -30 - ph * 50.0), 2.0, Color(1.0, 0.7, 0.2, 1.0 - ph))
+
+
+func _draw_telescope(p: Vector2) -> void:
+	draw_line(p, p + Vector2(-12, 20), Color("#374151"), 3)
+	draw_line(p, p + Vector2(12, 20), Color("#374151"), 3)
+	draw_line(p, p + Vector2(0, 22), Color("#374151"), 3)
+	draw_line(p + Vector2(-16, 6), p + Vector2(20, -18), Color("#1e3a8a"), 9)
+	draw_line(p + Vector2(16, -16), p + Vector2(22, -20), Color("#93c5fd"), 9)
+	_text(p + Vector2(-60, -40), "TELESKOP", 12, Color("#bfdbfe"), 120)
+
+
+func _draw_roast_stick(p: Vector2) -> void:
+	var best: Vector2 = Map.CAMPFIRES[0]
+	for f in Map.CAMPFIRES:
+		if p.distance_to(f) < p.distance_to(best):
+			best = f
+	var dir := (best - p).normalized()
+	var hand := p + Vector2(8 * signf(dir.x if dir.x != 0.0 else 1.0), -24)
+	var tip := hand + dir * 48.0 + Vector2(0, 10)
+	draw_line(hand, tip, Color("#92400e"), 2.5)
+	var browned := clampf(fmod(_t, 3.0) / 3.0, 0.0, 1.0)
+	draw_circle(tip, 5.0, Color(1.0, 1.0 - browned * 0.35, 1.0 - browned * 0.7))
+
+
+# --- fotoğraf modu
+
+var photo_mode := false
+var photo_filter := 0
+var _photo_layer: CanvasLayer
+var _photo_rect: ColorRect
+var _photo_hint: Label
+var _photo_flash: ColorRect
+var _photo_zoom := Vector2.ONE
+
+const PHOTO_SHADER := """
+shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
+uniform int mode = 0;
+void fragment() {
+	vec3 c = texture(screen_tex, SCREEN_UV).rgb;
+	float g = dot(c, vec3(0.299, 0.587, 0.114));
+	if (mode == 1) { c = vec3(g); }
+	else if (mode == 2) { c = vec3(g * 1.07 + 0.08, g * 0.95 + 0.03, g * 0.75); }
+	else if (mode == 3) { c = c * vec3(1.1, 1.0, 0.86) + vec3(0.03, 0.01, 0.0); }
+	else if (mode == 4) { c = c * vec3(0.88, 1.0, 1.12); }
+	else if (mode == 5) { c = mix(c, vec3(g), 0.35) * vec3(1.06, 0.98, 0.84); float v = distance(SCREEN_UV, vec2(0.5)); c *= 1.0 - v * v * 1.3; }
+	else if (mode == 6) { c = floor(c * 4.0 + 0.5) / 4.0; }
+	COLOR = vec4(c, 1.0);
+}
+"""
+
+
+func _build_photo_layer() -> void:
+	_photo_layer = CanvasLayer.new()
+	_photo_layer.layer = 4
+	_photo_layer.visible = false
+	add_child(_photo_layer)
+	_photo_rect = ColorRect.new()
+	_photo_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_photo_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = PHOTO_SHADER
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+	_photo_rect.material = mat
+	_photo_layer.add_child(_photo_rect)
+	_photo_hint = Label.new()
+	_photo_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_photo_hint.position = Vector2(0, -60)
+	_photo_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_photo_hint.add_theme_font_size_override("font_size", 16)
+	_photo_hint.add_theme_color_override("font_outline_color", Color.BLACK)
+	_photo_hint.add_theme_constant_override("outline_size", 6)
+	_photo_layer.add_child(_photo_hint)
+	_photo_flash = ColorRect.new()
+	_photo_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_photo_flash.color = Color(1, 1, 1, 0)
+	_photo_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_photo_layer.add_child(_photo_flash)
+
+
+func set_photo_mode(on: bool) -> void:
+	if on == photo_mode:
+		return
+	if on and panel != null:
+		_close_panel()
+	photo_mode = on
+	ui_layer.visible = not on
+	_photo_layer.visible = on
+	if on:
+		_photo_zoom = camera.zoom
+		_update_photo_hint()
+	else:
+		camera.zoom = _photo_zoom
+
+
+func _update_photo_hint() -> void:
+	(_photo_rect.material as ShaderMaterial).set_shader_parameter("mode", photo_filter)
+	_photo_rect.visible = photo_filter != 0
+	var w := get_viewport_rect().size.x
+	_photo_hint.size = Vector2(w, 30)
+	_photo_hint.position = Vector2(0, get_viewport_rect().size.y - 46)
+	_photo_hint.text = "FOTOĞRAF MODU  ·  Boşluk: çek  ·  1-7: filtre (%s)  ·  tekerlek: yakınlaş  ·  N: isimler  ·  Esc: çık" % PHOTO_FILTERS[photo_filter]
+
+
+func _photo_input(k: InputEventKey) -> void:
+	match k.physical_keycode:
+		KEY_ESCAPE:
+			set_photo_mode(false)
+		KEY_SPACE, KEY_ENTER:
+			_take_photo()
+		KEY_N:
+			labels.visible = not labels.visible
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7:
+			photo_filter = k.physical_keycode - KEY_1
+			_update_photo_hint()
+		_:
+			if Settings.is_key(k, "photo"):
+				set_photo_mode(false)
+	get_viewport().set_input_as_handled()
+
+
+func _take_photo() -> void:
+	_photo_hint.visible = false
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	_photo_hint.visible = true
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://album"))
+	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
+	var path := "user://album/foto_%s_%d.png" % [stamp, Time.get_ticks_msec() % 1000]
+	img.save_png(path)
+	Phone.photo_taken()
+	Sfx.play("click", 0.0, 0.6)
+	_photo_flash.color = Color(1, 1, 1, 0.8)
+	create_tween().tween_property(_photo_flash, "color:a", 0.0, 0.35)
+	hud.show_toast("Fotoğraf albüme kaydedildi (Telefon → Albüm).")

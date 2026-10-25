@@ -14,6 +14,7 @@ signal achievements_requested
 signal map_requested
 signal settings_requested
 signal league_requested
+signal phone_requested
 
 var money_label: Label
 var name_label: Label
@@ -93,6 +94,8 @@ func _ready() -> void:
 	_small_button(btns, "Karakter", func(): character_requested.emit())
 	_small_button(btns, "Evcil", func(): pet_requested.emit())
 	_small_button(btns, "Aile", func(): family_requested.emit())
+	phone_btn = _small_button(btns, "Telefon", func(): phone_requested.emit())
+	Phone.changed.connect(_update_phone_btn)
 	var btns2 := HBoxContainer.new()
 	tv.add_child(btns2)
 	_small_button(btns2, "Klan", func(): clan_requested.emit())
@@ -200,6 +203,14 @@ func _ready() -> void:
 	Net.toast.connect(_on_toast)
 	_refresh()
 	add_chat_line("[color=#94a3b8]Şehre hoş geldin! Binalara yürü ve E'ye bas.[/color]")
+
+
+var phone_btn: Button
+
+
+func _update_phone_btn() -> void:
+	phone_btn.text = "Telefon (%d)" % Phone.unread if Phone.unread > 0 else "Telefon"
+	phone_btn.modulate = Color("#93c5fd") if Phone.unread > 0 else Color.WHITE
 
 
 func _small_button(parent: Node, text: String, cb: Callable) -> Button:

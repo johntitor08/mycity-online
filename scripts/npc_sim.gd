@@ -63,18 +63,34 @@ func update(delta: float, roster: Dictionary, positions: Dictionary, my_id: int,
 		var pt := _route_point(w.route, w.d)
 		w.pos = pt[0]
 		w.facing = _facing(pt[1] * w.dir)
+	var bus := Map.bus_at(Land.server_now())
+	var bus_pos: Vector2 = bus[0]
 	for c in cars:
 		var lane: Array = Map.TRAFFIC_LANES[c.lane]
-		# önünde yaya ya da oyuncu aracı varsa dur
+		# önünde yaya, oyuncu, başka araba ya da otobüs varsa dur
 		var blocked := false
 		for pp in [my_pos] + positions.values():
 			var ahead: float = (pp.x - float(c.x)) * float(lane[1])
 			if absf(pp.y - float(lane[0])) < 36.0 and ahead > 0.0 and ahead < 105.0:
 				blocked = true
 				break
+		if not blocked:
+			for o in cars:
+				if o != c and o.lane == c.lane:
+					var ahead2: float = (float(o.x) - float(c.x)) * float(lane[1])
+					if ahead2 > 0.0 and ahead2 < 110.0:
+						blocked = true
+						break
+		var speed: float = c.speed
+		if absf(bus_pos.y - float(lane[0])) < 30.0:
+			var bus_ahead: float = (bus_pos.x - float(c.x)) * float(lane[1])
+			if bus_ahead > 0.0 and bus_ahead < 150.0:
+				blocked = true                       # otobüsün arkasında bekle
+			elif bus_ahead < 0.0 and bus_ahead > -170.0 and not blocked:
+				speed = maxf(speed, Map.BUS_SPEED + 10.0)  # otobüs arkadan geliyor: yol ver
 		if blocked:
 			continue
-		c.x += c.speed * float(lane[1]) * delta
+		c.x += speed * float(lane[1]) * delta
 		var x0 := 0.0 if c.lane < 2 else 1060.0       # alttaki yol 1050'den başlar
 		var x1 := Map.WORLD.size.x
 		if c.x > x1 + 60:

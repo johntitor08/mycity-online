@@ -54,6 +54,10 @@ Dive="*res://scripts/dive.gd"
 Mountain="*res://scripts/mountain.gd"
 Museum="*res://scripts/museum.gd"
 Band="*res://scripts/band.gd"
+Phone="*res://scripts/phone.gd"
+Trade="*res://scripts/trade.gd"
+Horses="*res://scripts/horses.gd"
+Camp="*res://scripts/camp.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

@@ -25,6 +25,12 @@ func _ready() -> void:
 			_shot(part[1])
 		get_tree().quit()
 		return
+	if "--sadece13" in OS.get_cmdline_user_args():
+		Net.add_money(1, 300000)
+		Rpg.add_xp(1, "", 20000)
+		await _shots_13(w)
+		get_tree().quit()
+		return
 	if "--sadece12" in OS.get_cmdline_user_args():
 		Net.add_money(1, 300000)
 		Rpg.add_xp(1, "", 20000)
@@ -53,6 +59,73 @@ func _ready() -> void:
 		Net.add_money(1, 200000)
 		Rpg.add_xp(1, "", 15000)
 		await _shots_08(w)
+		get_tree().quit()
+		return
+	if "--fx" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		w.hud.visible = false
+		w.my_pos = Vector2(1500, 1000)
+		w.camera.zoom = Vector2(1.6, 1.6)
+		await _wait(1.0)
+		var c: Vector2 = w.my_pos
+		var kinds := [["dirt", 0.7, {}], ["water", 0.9, {}], ["harvest", 1.0, {"col": Color("#ef4444")}], ["chips", 0.9, {"big": true}],
+			["pick", 0.35, {"side": 1.0}], ["money", 1.4, {"v": 250}], ["level", 1.6, {}], ["steam", 1.6, {}], ["smoke", 0.7, {}], ["wake", 1.2, {}]]
+		for i in kinds.size():
+			w.add_fx(kinds[i][0], c + Vector2(-300 + (i % 5) * 150, -60 + int(i / 5) * 160), kinds[i][1], kinds[i][2])
+		await _wait(0.22)
+		_shot("fx")
+		get_tree().quit()
+		return
+	if "--olta3" in OS.get_cmdline_user_args():
+		Rpg.add_xp(1, "", 2000)
+		Tutorial.finish()
+		w.hud.visible = false
+		var Map = preload("res://scripts/map.gd")
+		w.my_pos = Map.PIER_END.get_center() + Vector2(-20, 0)
+		w.my_facing = "left"
+		w.camera.zoom = Vector2(2.2, 2.2)
+		await _wait(1.0)
+		Jobs._set_fishing(1, "cast")
+		for t in [0.15, 0.3, 0.5, 0.75, 1.4]:
+			await _wait(t - (0.0 if t == 0.15 else 0.0))
+			_shot("o3_cast_%d" % int(t * 100))
+		Jobs._set_fishing(1, "bite")
+		await _wait(0.4)
+		_shot("o3_bite")
+		Jobs._set_fishing(1, "caught")
+		await _wait(0.35)
+		_shot("o3_caught_a")
+		await _wait(0.8)
+		_shot("o3_caught_b")
+		Jobs._set_fishing(1, "")
+		await _wait(0.2)
+		Jobs._set_fishing(1, "cast")
+		await _wait(1.0)
+		Jobs._set_fishing(1, "escaped")
+		await _wait(0.4)
+		_shot("o3_escaped")
+		get_tree().quit()
+		return
+	if "--olta2" in OS.get_cmdline_user_args():
+		Rpg.add_xp(1, "", 2000)
+		Tutorial.finish()
+		var Map = preload("res://scripts/map.gd")
+		var spots := {"deniz_ucu": Map.PIER_END.get_center(), "deniz_orta": Map.PIER_END.get_center() + Vector2(0, -40),
+			"deniz_kenar": Vector2(Map.PIER_END.position.x + 12, Map.PIER_END.get_center().y)}
+		for k in spots:
+			w.my_pos = spots[k]
+			w.my_facing = "down"
+			await _wait(0.6)
+			w._open_panel()
+			await _wait(0.4)
+			w.panel._on_action()
+			await _wait(1.2)
+			_shot("o2_" + k)
+			print("O2 ", k, " zone=", w.zone, " fishing=", Net.roster[1].get("fishing", "-"), " pos=", w.my_pos)
+			w._close_panel()
+			Jobs._fish.clear()
+			Jobs._set_fishing(1, "")
+			await _wait(0.3)
 		get_tree().quit()
 		return
 	if "--olta" in OS.get_cmdline_user_args():
@@ -172,6 +245,182 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_13(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.hour = 13.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Tutorial.finish()
+	w.camera.zoom = Vector2(1, 1)
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0},
+		{"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]
+	# olta (deniz iskelesi)
+	w.my_pos = Map.PIER_END.get_center() + Vector2(-20, 0)
+	w.my_facing = "left"
+	w.camera.zoom = Vector2(1.8, 1.8)
+	await _wait(1.0)
+	Jobs._set_fishing(1, "cast")
+	await _wait(0.45)
+	await _clear_toasts(w)
+	_shot("olta_atis")
+	Jobs._set_fishing(1, "bite")
+	await _wait(0.35)
+	_shot("olta_vurdu")
+	Jobs._set_fishing(1, "caught")
+	await _wait(1.0)
+	_shot("olta_cekis")
+	Jobs._set_fishing(1, "")
+	w.camera.zoom = Vector2(1, 1)
+	# telefon
+	Net.save_data.players["Ayşe"] = {"money": 100}
+	Net.save_data.players["Kerem"] = {"money": 100}
+	Phone.send("Ayşe", "Akşam dağa çıkıp kamp ateşi yakalım mı?")
+	var box := Phone._box("Eren")
+	box.append({"w": "Ayşe", "o": false, "x": "Olur! Marshmallow getiriyorum 🙂", "d": Time.get_unix_time_from_system() - 30, "r": false})
+	box.append({"w": "Kerem", "o": false, "x": "Hipodromda yarış var, gel bahse girelim!", "d": Time.get_unix_time_from_system() - 600, "r": false})
+	Phone.add_friend("Ayşe")
+	Phone.add_friend("Kerem")
+	Net.announce("Kerem hipodromda Rüzgâr ile birinci oldu!")
+	await _wait(0.3)
+	Phone.send_state(1)
+	await _wait(0.3)
+	w.my_pos = Vector2(1300, 1000)
+	await _wait(0.6)
+	w.open_phone()
+	await _wait(0.4)
+	w.panel._open_chat("Ayşe")
+	await _wait(0.5)
+	_shot("telefon")
+	w._close_panel()
+	# fotoğraf modu (vintage)
+	w.my_pos = Map.FOUNTAIN + Vector2(80, 60)
+	Env.hour = 18.2
+	await _wait(1.0)
+	w.set_photo_mode(true)
+	w.photo_filter = 5
+	w._update_photo_hint()
+	await _wait(0.5)
+	_shot("foto_modu")
+	w.set_photo_mode(false)
+	Env.hour = 13.0
+	# takas (örnek görünüm)
+	Trade.view = {"tid": 1, "me": "a", "other": "Ayşe", "ok": {"a": false, "b": true},
+		"offers": {"a": {"money": 500, "fish": [], "barn": {"domates": 6}, "items": {}}, "b": {"money": 0, "fish": [], "barn": {"elmas": 1, "kuzugobegi": 2}, "items": {"menemen": 1}}},
+		"fish_names": {"a": [], "b": []}}
+	var st := Farm.barn(Net.save_data.players["Eren"])
+	st["domates"] = 10
+	Farm.send_state(1)
+	await _wait(0.2)
+	w._on_trade_open(Trade.view)
+	await _wait(0.6)
+	_shot("takas")
+	Trade.view = {}
+	w._close_panel()
+	# hara: ata binmiş oyuncu ve padok
+	w.my_pos = Map.building("hara").rect.get_center() + Vector2(0, 88)
+	await _wait(0.3)
+	Horses.buy()
+	Horses.buy()
+	await _wait(0.4)
+	w.my_pos = Map.building("hara").rect.get_center() + Vector2(-150, 150)
+	await _wait(0.2)
+	Garage.ride("horse")
+	w.my_facing = "right"
+	await _wait(0.2)
+	Net.players[9901] = {"name": "Ayşe", "money": 5000, "color": Avatar.shirt_color(apps[0]), "appearance": apps[0], "level": 9, "ride": "horse", "hc": 2}
+	Net.positions[9901] = Map.building("hara").rect.get_center() + Vector2(160, 170)
+	Net._broadcast_roster()
+	w.camera.zoom = Vector2(1.4, 1.4)
+	for k in 40:
+		w.my_pos += Vector2(3, 0)
+		w.my_moving = true
+		await get_tree().process_frame
+	await _clear_toasts(w)
+	_shot("hara")
+	w.camera.zoom = Vector2(1, 1)
+	Garage.ride("")
+	# hipodrom yarışı
+	w.my_pos = Map.HIPPO_BOOTH + Vector2(40, 0)
+	await _wait(0.4)
+	Horses.join_race()
+	await _wait(0.3)
+	Horses.bet(0, 300)
+	Horses._race.t = 0.0
+	await _wait(4.5)
+	Horses.whip()
+	w.my_pos = Vector2(Horses._race.lanes[0].x + 120, Map.HIPPODROME.position.y - 30)
+	await _wait(0.5)
+	w.camera.zoom = Vector2(1.2, 1.2)
+	await _wait(0.6)
+	await _clear_toasts(w)
+	_shot("hipodrom")
+	w.camera.zoom = Vector2(1, 1)
+	w.zone = {"type": "hipodrom", "label": "x"}
+	w._open_panel()
+	await _wait(0.6)
+	_shot("hipodrom_panel")
+	w._close_panel()
+	await _wait(12.0)
+	# kamp (gece)
+	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(0, 70)
+	await _wait(0.3)
+	Mountain.go_up()
+	await _wait(0.5)
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[0].rect.get_center() + Vector2(0, 110)
+	await _wait(0.3)
+	for k in ["tent", "marshmallow", "marshmallow", "odun", "odun"]:
+		Camp.buy(k)
+	await _wait(0.4)
+	w.my_pos = Vector2(8020, 2280)
+	await _wait(0.3)
+	Camp.pitch()
+	Camp._data().tents["Ayşe"] = {"x": 8380, "y": 2540, "c": 2}
+	Camp._data().tents["Kerem"] = {"x": 8000, "y": 2520, "c": 1}
+	Camp.send_state(1)
+	for i in 2:
+		w.my_pos = Map.CAMPFIRES[i] + Vector2(0, 50)
+		await _wait(0.25)
+		Camp.light(i)
+		await _wait(0.2)
+	for _k in 8:
+		Camp._spawn_spot()
+	Camp._broadcast({"spots": Camp._spots})
+	Env.hour = 21.8
+	w.my_pos = Map.CAMPFIRES[0] + Vector2(40, 46)
+	await _wait(0.4)
+	Camp.roast(0)
+	for k in 2:
+		Net.players[9911 + k] = {"name": ["Ayşe", "Kerem"][k], "money": 5000, "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 9, "roast": k == 0}
+		Net.positions[9911 + k] = Map.CAMPFIRES[0] + [Vector2(-56, 30), Vector2(-10, -50)][k]
+	Net._broadcast_roster()
+	w.camera.zoom = Vector2(1.5, 1.5)
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("kamp")
+	w.camera.zoom = Vector2(1, 1)
+	# teleskop
+	w.my_pos = Map.TELESCOPE + Vector2(0, 40)
+	await _wait(0.4)
+	w._open_panel()
+	await _wait(0.3)
+	Camp.on_star({"a": 0.15, "b": 0.12})
+	await _wait(0.5)
+	_shot("teleskop")
+	w._close_panel()
+	# orman ürünleri (gündüz)
+	Env.hour = 11.0
+	var sp: Dictionary = Camp.spots[0]
+	w.my_pos = Vector2(float(sp.x) + 60, float(sp.y) + 30)
+	w.camera.zoom = Vector2(1.6, 1.6)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("orman")
+	w.camera.zoom = Vector2(1, 1)
 
 
 func _shots_12(w) -> void:

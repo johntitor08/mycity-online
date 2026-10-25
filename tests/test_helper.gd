@@ -12,6 +12,15 @@ func _ready() -> void:
 	Net.connection_failed.connect(_retry)
 	Net.disconnected.connect(func(_r): get_tree().quit(0))
 	Family.proposal.connect(func(from): print("[yardımcı] teklif geldi: ", from); Family.answer(true))
+	# 1.3 takas: daveti kabul et, 40 TL koy; karşı taraf onaylayınca sen de onayla
+	Trade.invited.connect(func(fid, fname): print("[yardımcı] takas daveti: ", fname); Trade.respond(fid, true))
+	Trade.opened.connect(func(_d):
+		await get_tree().create_timer(0.3).timeout
+		Trade.offer({"money": 40, "fish": [], "barn": {}, "items": {}}))
+	Trade.updated.connect(func(d):
+		var other := "a" if d.me == "b" else "b"
+		if d.ok[other] and not d.ok[d.me]:
+			Trade.confirm())
 	_join()
 	get_tree().create_timer(900.0).timeout.connect(func(): get_tree().quit(0))
 

@@ -11,6 +11,7 @@ const U = preload("res://scripts/util.gd")
 const JobsS = preload("res://scripts/jobs.gd")
 const FarmS = preload("res://scripts/farm.gd")
 const MountainS = preload("res://scripts/mountain.gd")
+const CampS = preload("res://scripts/camp.gd")
 
 const DONATE_MONEY := 200
 const DONATE_XP := 30
@@ -38,8 +39,12 @@ static func sets() -> Array:
 		farm.append(["barn:" + k, FarmS.CROPS[k].name])
 	for k in FarmS.PRODUCTS:
 		farm.append(["barn:" + k, FarmS.PRODUCTS[k].name])
+	var forest: Array = []
+	for k in CampS.FORAGE:
+		if k != "odun":
+			forest.append(["barn:" + k, CampS.FORAGE[k].name])
 	return [["balik", "Balıklar", fish], ["deniz", "Deniz Hazineleri", sea], ["fosil", "Fosiller", fossils],
-		["mineral", "Mineraller", minerals], ["ciftlik", "Çiftlik Ürünleri", farm]]
+		["mineral", "Mineraller", minerals], ["orman", "Orman", forest], ["ciftlik", "Çiftlik Ürünleri", farm]]
 
 
 static func all_keys() -> Array:

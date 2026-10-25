@@ -45,7 +45,18 @@ func _process(delta: float) -> void:
 	var e := k * k * (3.0 - 2.0 * k) if _g.get("ease", true) else k
 	var from: Vector2 = _g.from
 	var to: Vector2 = _g.to
-	w.my_pos = from.lerp(to, e)
+	# oyundaki gibi çarpışmaya uy: engel varsa eksen boyunca kay, olmazsa dur
+	var cur: Vector2 = w.my_pos
+	var step: Vector2 = from.lerp(to, e) - cur
+	var ride: String = w.my_ride()
+	var np := cur + step
+	if not w._can_stand(np, ride):
+		np = cur
+		for s2 in [Vector2(step.x, 0), Vector2(0, step.y)]:
+			if w._can_stand(cur + s2, ride):
+				np = cur + s2
+				break
+	w.my_pos = np
 	if from != to:
 		w.my_moving = true
 		w.my_facing = w._facing_of(to - from)
@@ -83,6 +94,16 @@ func _fade(to_black: bool, dur := 0.35) -> void:
 func _fake(id: int, n: String, app: Dictionary, pos: Vector2, ride := "", level := 8) -> void:
 	Net.players[id] = {"name": n, "money": 5000, "color": Avatar.shirt_color(app), "appearance": app, "level": level, "ride": ride}
 	Net.positions[id] = pos
+
+
+## Sahnede NPC arabaları yolumuza çıkmasın: bu x aralığındakileri gidiş yönlerinde ileri al.
+func _clear_traffic(x0: float, x1: float) -> void:
+	var k := 0
+	for c in w.npc.cars:
+		var dir := float(Map.TRAFFIC_LANES[c.lane][1])
+		if float(c.x) > x0 - 200.0 and float(c.x) < x1 + 200.0:
+			c.x = (x1 + 260.0 + k * 140.0) if dir > 0 else (x0 - 260.0 - k * 140.0)
+			k += 1
 
 
 func _clear_fakes() -> void:
@@ -259,38 +280,45 @@ func _prepare() -> void:
 func _run() -> void:
 	# 1. açılış: şehrin üstünde isim
 	Env.hour = 9.5
-	var a := Vector2(980, 640)
+	var a := Vector2(640, 515)          # üst caddenin güney kaldırımı (hastane/market karşısı)
+	_clear_traffic(200, 1800)
+	# [kimlik sırası, başlangıç, bitiş, araç]: kaldırımda yürüyenler, yolda bisiklet ve araba
+	var opening := [[Vector2(560, 512), Vector2(820, 512), ""], [Vector2(900, 465), Vector2(500, 465), "bike"],
+		[Vector2(780, 530), Vector2(620, 530), ""], [Vector2(500, 392), Vector2(760, 392), ""],
+		[Vector2(380, 425), Vector2(980, 425), "car"], [Vector2(720, 590), Vector2(770, 590), ""]]
 	for k in 6:
-		_fake(9001 + k, NAMES[k], APPS[k], a + Vector2(80 + k * 70, 30 + (k % 3) * 40), "car" if k == 4 else ("bike" if k == 1 else ""))
+		_fake(9001 + k, NAMES[k], APPS[k], opening[k][0], opening[k][2])
 	Net._broadcast_roster()
 	await _cut_to(a, 1.0)
 	_title([["MyCity Online", 92, Color.WHITE], ["arkadaşlarınla kendi şehrini kur", 30, Color("#facc15")]])
 	var walkers := []
 	for k in 6:
-		var p: Vector2 = Net.positions[9001 + k]
-		walkers.append([9001 + k, p, p + Vector2(260 if k % 2 == 0 else -180, 0 if k != 2 else 120) * (2.2 if k in [1, 4] else 1.0)])
+		walkers.append([9001 + k, opening[k][0], opening[k][1]])
 	create_tween().tween_property(black, "color:a", 0.45, 1.2)
-	await _glide(a, a + Vector2(260, 0), 4.0, walkers)
+	await _glide(a, Vector2(900, 515), 4.0, walkers)
 	create_tween().tween_property(black, "color:a", 0.0, 0.6)
 	await _title_off(0.6)
 
 	# 2. şehir hayatı
 	_caption("Çok oyunculu, yaşayan bir şehir")
-	var b := Vector2(1450, 360)
-	await _glide(w.my_pos, b, 3.2, [[9001, Net.positions[9001], b + Vector2(-60, 40)], [9003, Net.positions[9003], b + Vector2(90, 60)]])
+	var b := Vector2(1420, 515)
+	await _glide(w.my_pos, b, 3.2, [[9001, Net.positions[9001], b + Vector2(-70, -4)], [9004, Net.positions[9004], Vector2(1300, 392)]])
 	_caption_off()
 	await _fade(true)
 	_clear_fakes()
 
 	# 3. araba
+	_clear_traffic(600, 2100)
+	w.my_pos = Vector2(900, 425)
+	await _wait(0.05)
 	Garage.ride("car")
-	_fake(9101, "Derya", APPS[4], Vector2(820, 470), "car")
-	_fake(9102, "Kerem", APPS[1], Vector2(760, 640), "bike")
+	_fake(9101, "Derya", APPS[4], Vector2(1090, 425), "car")
+	_fake(9102, "Kerem", APPS[1], Vector2(1700, 465), "bike")
 	Net._broadcast_roster()
-	await _cut_to(Vector2(900, 470), 1.25)
+	await _cut_to(Vector2(900, 425), 1.25)
 	_fade(false)
 	_caption("Arabanı al, boya, yarış", "YENİ: ARAÇ ÖZELLEŞTİRME")
-	await _glide(Vector2(900, 470), Vector2(1650, 470), 3.4, [[9101, Vector2(780, 470), Vector2(1560, 470)], [9102, Vector2(760, 640), Vector2(1150, 640)]], false)
+	await _glide(Vector2(900, 425), Vector2(1650, 425), 3.4, [[9101, Vector2(1090, 425), Vector2(1840, 425)], [9102, Vector2(1700, 465), Vector2(1050, 465)]], false)
 	_caption_off()
 	await _fade(true)
 	Garage.ride("")
@@ -298,11 +326,11 @@ func _run() -> void:
 
 	# 4. deniz ve ada (gün batımı)
 	Env.hour = 18.6
-	w.my_pos = Map.PIER_END.get_center()
+	var s0: Vector2 = Map.PIER_END.get_center() + Vector2(0, 160)
+	w.my_pos = s0
 	await _wait(0.1)
 	Garage.ride("boat")
 	await _wait(0.2)
-	var s0: Vector2 = Map.PIER_END.get_center() + Vector2(0, 160)
 	var s1: Vector2 = Map.ISLAND_PIER.get_center() + Vector2(-180, -40)
 	_fake(9201, "Zeynep", APPS[2], Map.ISLAND_SPOT.get_center())
 	Net.players[9201]["fishing"] = "cast"
@@ -435,16 +463,17 @@ func _run() -> void:
 	Events.start_event("festival")
 	Env.hour = 22.0
 	for k in 5:
-		_fake(9601 + k, NAMES[k], APPS[k], Map.SPAWN + Vector2(-200 + k * 100, 20 + (k % 2) * 60))
+		_fake(9601 + k, NAMES[k], APPS[k], Map.SPAWN + Vector2(-200 + k * 100, -52 + (k % 2) * 10))
 	Net._broadcast_roster()
+	_clear_traffic(600, 1800)
 	await _cut_to(Map.SPAWN + Vector2(0, 40), 1.0)
 	_fade(false)
 	_caption("Festivaller, etkinlikler, ligler")
 	var party := []
 	for k in 5:
 		var p: Vector2 = Net.positions[9601 + k]
-		party.append([9601 + k, p, p + Vector2(40 if k % 2 == 0 else -40, -30)])
-	await _glide(Map.SPAWN + Vector2(0, 40), Map.SPAWN + Vector2(0, -60), 3.6, party)
+		party.append([9601 + k, p, p + Vector2(40 if k % 2 == 0 else -40, 0)])
+	await _glide(Map.SPAWN + Vector2(0, 40), Map.SPAWN + Vector2(0, -40), 3.6, party)
 	_caption_off()
 
 	# 11. kapanış

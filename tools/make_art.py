@@ -911,6 +911,23 @@ def dagevi():
     save("buildings/dagevi.svg", svg(W, H, p, WARM + GLASS))
 
 
+# ---------------------------------------------------------------- 1.3: hara
+
+def hara():
+    W, H = 196, 150
+    p = [rect(8, 48, W - 16, 98, "#b45309", 4)]
+    for y in range(58, 140, 12):
+        p.append(path(f"M12 {y}H{W - 12}", "none", 1.5, "#92400e"))
+    p += [poly([(0, 54), (98, 4), (196, 54)], "#7f1d1d"), path("M98 4V54", "none", 2, "#450a0a"),
+          rect(70, 86, 56, 60, "#451a03", 3), path("M70 86L126 146M126 86L70 146", "none", 3, "#b45309"),
+          rect(20, 76, 36, 30, "#1c1917", 3), rect(140, 76, 36, 30, "#1c1917", 3),
+          # pencereden bakan at başları
+          ellipse(38, 96, 9, 12, "#8b5a2b", 2), ellipse(158, 96, 9, 12, "#f3f4f6", 2),
+          circle(35, 92, 1.5, "#111827", 0), circle(155, 92, 1.5, "#111827", 0)]
+    p.append(rect(W / 2 - 60, 12, 120, 26, "#292524", 6, 2.5, "#fbbf24"))
+    save("buildings/hara.svg", svg(W, H, p))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -939,3 +956,4 @@ if __name__ == "__main__":
     muze()
     teleferik()
     dagevi()
+    hara()

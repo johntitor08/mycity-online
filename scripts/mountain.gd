@@ -208,6 +208,7 @@ func req_cable(d: Dictionary) -> void:
 		Garage.set_ride(id, "")
 		Homes._teleport(id, Map.MOUNTAIN_SPAWN)
 		Net.tell(self, id, "on_rocks", {"rocks": _rocks})
+		Camp.send_state(id)
 		Ach.event(id, "mountain")
 		Net.notify(id, "Dağa hoş geldin! Maden ocağı solda, kayak pisti ve telesiyej sağda, Dağ Evi hemen yanında.")
 	else:

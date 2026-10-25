@@ -11,6 +11,7 @@ const ACTIONS := {
 	"interact": [KEY_E, "Gir / konuş / kullan"], "vehicle": [KEY_F, "Araca bin / in"], "action": [KEY_G, "Eylem (G)"],
 	"map": [KEY_M, "Harita"], "throw": [KEY_T, "Kartopu at"], "profile": [KEY_C, "Profil"],
 	"dive": [KEY_V, "Dal / yüzeye çık"],
+	"phone": [KEY_P, "Telefon"], "photo": [KEY_O, "Fotoğraf modu"], "horse": [KEY_H, "Ata bin / in"],
 }
 
 var keys := {}

@@ -8,10 +8,16 @@ func _ready() -> void:
 	build("Dağ Evi", Vector2(640, 0))
 	add_label(body, "Kazmayla maden ocağındaki kayaları kır (E basılı tut). Telesiyejle zirveye çıkıp kayak pistinden in: 12 kapıdan geç, kaçan kapı +3 sn.", 14, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	money_hint(body)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 470)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(scroll)
 	box = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
-	body.add_child(box)
+	box.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	Mountain.changed.connect(_refresh)
+	Camp.changed.connect(_refresh)
 	Farm.crops_changed.connect(_refresh)
 	Net.roster_changed.connect(_refresh)
 	_refresh()
@@ -49,6 +55,23 @@ func _refresh() -> void:
 		var f: Dictionary = Mountain.LODGE_FOODS[k]
 		r = _row(f.name, "+%d enerji (çantaya girer)" % int(f.energy))
 		buy_button(r, int(f.price), Mountain.buy.bind(k))
+	add_label(box, "Kamp malzemeleri", 18, Color("#facc15"))
+	r = _row("Çadır", "Kamp alanına kur (köyün kuzeybatısı); içinde dinlenince enerjin dolar.")
+	if Camp.has_tent:
+		add_label(r, "Sende ✓", 15, Settings.ok_text())
+	else:
+		buy_button(r, Camp.TENT_PRICE, Camp.buy.bind("tent"))
+	r = _row("Marshmallow", "Kamp ateşinde kızart (3 sn): +18 enerji.")
+	buy_button(r, Camp.MARSHMALLOW_PRICE, Camp.buy.bind("marshmallow"))
+	r = _row("Odun (2 adet)", "Ateş yakmak için 2 odun. Ormandaki kuru dallardan bedava da toplanır.")
+	buy_button(r, 10, Camp.buy.bind("odun"))
+	var forage := 0
+	var fval := 0
+	for k in Farm.my_crops:
+		if Camp.FORAGE.has(k) and k != "odun":
+			forage += int(Farm.my_crops[k])
+			fval += int(Farm.my_crops[k]) * int(Camp.FORAGE[k].price)
+	add_button(box, "Orman ürünlerini sat (%d, ~%s)" % [forage, U.money(fval)], Camp.sell_all).disabled = forage == 0
 	add_label(box, "Maden alımı", 18, Color("#facc15"))
 	var ores := 0
 	var ore_val := 0

@@ -34,6 +34,8 @@ var _rentals := {}           # sunucu: oyuncu adı -> bitiş (unix)
 static func speed_of(ride: String) -> float:
 	if ride == "ski":
 		return 1.7
+	if ride == "horse":
+		return 2.0
 	return float(VEHICLES[ride].speed) if VEHICLES.has(ride) else 1.0
 
 
@@ -219,6 +221,18 @@ func req_ride(d: Dictionary) -> void:
 	if not Net.players.has(id):
 		return
 	var kind := str(d.get("kind", ""))
+	if kind == "horse":
+		var why := Horses.can_ride(id)
+		if why != "":
+			Net.notify(id, why, false)
+			return
+		if not usable_at("horse", Net.positions.get(id, Vector2(-9999, -9999))):
+			Net.notify(id, "Ata sadece karada binilir.", false)
+			return
+		Net.players[id]["hc"] = Horses.ride_color(id)
+		Ach.event(id, "ride_horse")
+		set_ride(id, kind)
+		return
 	if kind != "":
 		if not _list(id).has(kind) and not (kind == "boat" and _rent_left(id) > 0.0):
 			if kind == "boat":

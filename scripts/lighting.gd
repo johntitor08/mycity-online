@@ -8,6 +8,8 @@ var canvas_mod: CanvasModulate
 var street: Array = []              # sabit ışıklar (lamba + bina)
 var rooms: Array = []               # ev içi ışıkları (arsalar değişince yeniden kurulur)
 var player_light: PointLight2D
+var fire_lights: Array = []         # 1.3: kamp ateşleri (yanınca)
+var mountain_lights: Array = []     # dağ evi ve teleferik istasyonu
 var _tex: Texture2D
 
 
@@ -22,6 +24,10 @@ func _ready() -> void:
 	for p in [Map.DOCK.get_center(), Map.PIER_END.get_center()]:
 		street.append(_light(p, Color("#ffe2a8"), 0.9, 0.7))
 	player_light = _light(Vector2.ZERO, Color("#fff4dc"), 0.7, 0.45)
+	for f in Map.CAMPFIRES:
+		fire_lights.append(_light(f + Vector2(0, -10), Color("#ff9a3c"), 1.6, 1.2))
+	for b in Map.MOUNTAIN_BUILDINGS:
+		mountain_lights.append(_light(Vector2(b.rect.get_center().x, b.rect.end.y - 6), Color("#ffcf8a"), 1.1, 0.7))
 	Land.plots_changed.connect(_rebuild_rooms)
 	_rebuild_rooms()
 
@@ -106,3 +112,12 @@ func update(player_pos: Vector2) -> void:
 		l.energy = float(l.get_meta("base")) * strength
 	player_light.position = player_pos
 	player_light.visible = d > 0.5 and not inside
+	var t := Time.get_ticks_msec() / 1000.0
+	for i in fire_lights.size():
+		var fl: PointLight2D = fire_lights[i]
+		fl.visible = Camp.fire_left(i) > 0.0
+		fl.energy = (0.6 + d * 0.9) * (0.9 + 0.1 * sin(t * 11.0 + i))     # titreşen ateş ışığı
+		fl.texture_scale = 1.5 + 0.08 * sin(t * 7.0 + i * 2.0)
+	for ml in mountain_lights:
+		ml.visible = lit
+		ml.energy = float(ml.get_meta("base")) * strength

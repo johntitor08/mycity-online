@@ -18,6 +18,11 @@ const RECIPES := {
 	"kabak_tatlisi": {"name": "Kabak Tatlısı", "needs": {"kabak": 1}, "energy": 60},
 	"borek": {"name": "Su Böreği", "needs": {"bugday": 3, "yumurta": 1, "sut": 1}, "energy": 80, "buff": ["work", 900]},
 	"pasta": {"name": "Çilekli Pasta", "needs": {"cilek": 3, "yumurta": 2, "sut": 1, "bugday": 2}, "energy": 100, "buff": ["xp", 900]},
+	# 1.3: orman tarifleri
+	"mantar_sote": {"name": "Mantar Sote", "needs": {"mantar": 2, "domates": 1}, "energy": 55, "buff": ["luck", 600]},
+	"kuzugobegi": {"name": "Tereyağlı Kuzugöbeği", "needs": {"kuzugobegi": 1, "sut": 1}, "energy": 75, "buff": ["work", 900]},
+	"orman_turtasi": {"name": "Orman Meyveli Turta", "needs": {"yabanmersini": 2, "bugday": 2, "yumurta": 1}, "energy": 85, "buff": ["xp", 900]},
+	"bogurtlen_receli": {"name": "Böğürtlen Reçeli", "needs": {"bogurtlen": 4}, "energy": 40},
 }
 const BUFF_NAMES := {"work": "İş maaşı +%15", "luck": "Nadir balık +%25", "xp": "XP +%10"}
 

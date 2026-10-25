@@ -92,6 +92,24 @@ const LIST := {
 	"band": ["band", 1, "Grup Ruhu", "Sahnede başka bir oyuncuyla birlikte çal.", 1500, "Grup Üyesi"],
 	"fullcombo": ["fullcombo", 1, "Ritim Ustası", "Bir şarkıyı hiç kaçırmadan çal.", 2000, "Ritim Ustası"],
 	"tips10": ["tips", 10, "Sokak Sanatçısı", "Sahnede 10 bahşiş al.", 1000, ""],
+	# 1.3
+	"photo1": ["photos", 1, "Fotoğrafçı", "Fotoğraf modunda ilk fotoğrafını çek.", 200, ""],
+	"photo25": ["photos", 25, "Objektif Ustası", "25 fotoğraf çek.", 1500, "Fotoğrafçı"],
+	"friends5": ["friends", 5, "Sosyal Kelebek", "Arkadaş listene 5 kişi ekle.", 500, ""],
+	"messages20": ["messages", 20, "Mesajlaşan", "Telefondan 20 mesaj gönder.", 500, ""],
+	"trade1": ["trades", 1, "İlk Takas", "Bir oyuncuyla takas yap.", 300, ""],
+	"trade10": ["trades", 10, "Tüccar", "10 takas yap.", 2000, "Tüccar"],
+	"horse1": ["horse", 1, "At Sahibi", "Hara'dan bir at al.", 500, ""],
+	"ride_horse": ["ride_horse", 1, "Süvari", "Atına bin.", 200, ""],
+	"horse_win": ["horse_win", 1, "Jokey", "Hipodromda bir yarış kazan.", 2500, "Jokey"],
+	"horse_win5": ["horse_win", 5, "Şampiyon Jokey", "Hipodromda 5 yarış kazan.", 5000, "Şampiyon Jokey"],
+	"bet_horse": ["bet_horse", 1, "Şanslı Bahisçi", "Hipodromda bahis kazan.", 500, ""],
+	"campfire": ["campfire", 1, "Ateşin Başında", "Bir kamp ateşi yak.", 300, ""],
+	"marshmallow10": ["marshmallow", 10, "Kampçı", "10 marshmallow kızart.", 1000, "Kampçı"],
+	"forage50": ["forage", 50, "Toplayıcı", "Ormandan 50 ürün topla.", 1500, "Toplayıcı"],
+	"tent": ["tent", 1, "Doğa İnsanı", "Kamp alanına çadır kur.", 400, ""],
+	"astronom": ["astronom", 1, "Astronom", "Gece teleskoptan yıldızları izle.", 500, "Astronom"],
+	"wish_star": ["wish_star", 1, "Dilek Tutan", "Kayan yıldıza dilek tut.", 800, "Dilek Tutan"],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

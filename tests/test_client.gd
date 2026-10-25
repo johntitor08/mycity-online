@@ -99,6 +99,15 @@ func _on_ok() -> void:
 		_finish()
 		return
 	print("== Bağlandı: %s, para %d" % [Net.my_name, Net.my_money()])
+	# hızlı deneme: --bolum=11,13 sadece o bölümleri çalıştırır
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--bolum="):
+			await _wait(0.5)
+			Rpg.add_xp(Net.my_id(), "", 20000)
+			for b in arg.trim_prefix("--bolum=").split(","):
+				await call("_test_" + b.pad_zeros(2), get_parent().world)
+			_finish()
+			return
 	check(Net.my_name != "", "isim atandı")
 	await _wait(0.6)
 	check(Net.my_money() > 0, "başlangıç parası geldi")
@@ -272,6 +281,7 @@ func _on_ok() -> void:
 		await _test_10(get_parent().world)
 		await _test_11(get_parent().world)
 		await _test_12(get_parent().world)
+		await _test_13(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -553,10 +563,21 @@ func _test_05(w) -> void:
 
 	print("== 0.5: NPC'ler")
 	var p0: Vector2 = w.npc.walkers[0].pos
-	var c0: float = w.npc.cars[0].x
+	var xs: Array = w.npc.cars.map(func(c): return float(c.x))
 	await _wait(0.6)
 	check(w.npc.walkers.size() >= 20 and w.npc.walkers[0].pos != p0, "%d vatandaş kaldırımda yürüyor" % w.npc.walkers.size())
-	check(w.npc.cars[0].x != c0, "NPC arabalar yolda ilerliyor")
+	var moved := 0
+	for i in w.npc.cars.size():
+		if float(w.npc.cars[i].x) != float(xs[i]):
+			moved += 1
+	check(moved * 2 >= w.npc.cars.size(), "NPC arabalar yolda ilerliyor (%d/%d)" % [moved, w.npc.cars.size()])
+	# arabalar birbirinin içinden geçmiyor
+	var overlap := false
+	for ca in w.npc.cars:
+		for cb2 in w.npc.cars:
+			if ca != cb2 and ca.lane == cb2.lane and absf(float(ca.x) - float(cb2.x)) < 60.0:
+				overlap = true
+	check(not overlap, "NPC arabalar birbirinin içine girmiyor")
 	Land.sell(plot)
 	await _wait(0.3)
 	check(not Biz.is_biz(Land.view[plot]) and Land.view[plot].owner == "", "işletmeli arsa satıldı, arsa sıfırlandı")
@@ -1525,10 +1546,12 @@ func _test_11(w) -> void:
 	await _wait(0.3)
 	check(int(Garage.vstyle.get("car", -1)) == 5 and int(Garage.vstyle.get("rims", 0)) == 1, "araba maviye boyandı, altın jant takıldı")
 	check(int(Net.roster[me].get("vstyle", {}).get("car", -1)) == 5, "araç görünümü herkese yayınlandı")
-	w.my_pos = Map.SPAWN
+	w.my_pos = Vector2(1500, 1000)      # yoldan uzak (otobüs itmesin)
 	await _wait(0.3)
 	Garage.set_style("car", 2)
 	await _wait(0.3)
+	if int(Garage.vstyle.car) != 5:
+		print("  [debug] konum=", Net.positions[me], " my_pos=", w.my_pos, " galeri=", Map.building("galeri").rect)
 	check(int(Garage.vstyle.car) == 5, "Galeri dışında boyanamıyor")
 
 	print("== 1.1: Ahır")
@@ -1877,6 +1900,243 @@ func _test_12(w) -> void:
 	check(str(Net.roster[me].get("playing", "")) == "", "çalma bitti, kadro güncellendi")
 	w._close_panel()
 	await _wait(0.2)
+
+
+## 1.3: telefon, takas, at ve hipodrom, kamp, animasyon efektleri.
+func _test_13(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 50000)
+	Env.force_weather("clear")
+	await _wait(0.3)
+
+	print("== 1.3: Telefon")
+	Net.save_data.players["Uzakta"] = {"money": 100}
+	Phone.send("Uzakta", "Merhaba, çevrimdışıyken de gelsin!")
+	await _wait(0.3)
+	var box: Array = Net.save_data.inbox.get("Uzakta", [])
+	check(box.size() == 1 and str(box[0].w) == Net.my_name and not box[0].r, "çevrimdışı oyuncuya mesaj kutusuna düştü")
+	check(Phone.inbox.size() >= 1 and Phone.inbox[-1].get("o", false), "giden mesaj telefonda görünüyor")
+	Phone.add_friend("Uzakta")
+	await _wait(0.3)
+	check(Phone.friends.size() == 1 and not Phone.friends[0].mutual and not Phone.friends[0].has("pos"), "arkadaş eklendi; karşılıklı değilken konum gizli")
+	Net.announce("Test haberi: şehre yeni teleferik!")
+	Phone.refresh()
+	await _wait(0.3)
+	check(not Phone.news.is_empty() and str(Phone.news[-1].x).contains("teleferik"), "şehir haberleri telefonda")
+	var helper := Net.id_by_name("Yardimci")
+	if helper != 0:
+		Phone.send("Yardimci", "Selam yardımcı")
+		await _wait(0.4)
+		var hb: Array = Net.save_data.inbox.get("Yardimci", [])
+		check(not hb.is_empty() and str(hb[-1].x) == "Selam yardımcı", "çevrimiçi oyuncuya mesaj iletildi")
+	w.set_photo_mode(true)
+	await get_tree().process_frame
+	check(w.photo_mode and not w.ui_layer.visible, "fotoğraf modu: arayüz gizlendi")
+	w.set_photo_mode(false)
+	await get_tree().process_frame
+	check(not w.photo_mode and w.ui_layer.visible, "fotoğraf modundan çıkıldı")
+	w.open_phone()
+	await _wait(0.3)
+	for t in ["friends", "news", "album", "msg"]:
+		w.panel._show(t)
+		await get_tree().process_frame
+	w._close_panel()
+
+	print("== 1.3: Takas")
+	if helper == 0:
+		print("  (yardımcı yok, takas testi atlandı)")
+	else:
+		w.my_pos = Net.positions[helper] + Vector2(40, 0)
+		await _wait(0.4)
+		var bag: Array = rec.get("fish", [])
+		bag.append({"name": "Takas Levreği", "price": 77})
+		Jobs.send_inventory(me)
+		var store := Farm.barn(rec)
+		store["domates"] = int(store.get("domates", 0)) + 3
+		Farm.send_state(me)
+		await _wait(0.2)
+		var hrec: Dictionary = Net.save_data.players["Yardimci"]
+		var hfish0: int = hrec.get("fish", []).size()
+		var hdom0 := int(Farm.barn(hrec).get("domates", 0))
+		var m0 := Net.my_money()
+		Trade.invite("Yardimci")
+		await _wait(1.2)
+		check(Trade.active(), "takas penceresi açıldı (yardımcı kabul etti)")
+		if Trade.active():
+			check(w.panel != null and w.panel.has_method("_push"), "takas paneli ekranda")
+			Trade.offer({"money": 999999999, "fish": [], "barn": {}, "items": {}})
+			await _wait(0.3)
+			check(int(Trade.view.offers[Trade.view.me].money) == 0, "sahip olunmayan para teklif edilemiyor")
+			var fi := Jobs.my_fish.size() - 1
+			Trade.offer({"money": 0, "fish": [fi], "barn": {"domates": 2}, "items": {}})
+			await _wait(0.6)
+			var other := "a" if Trade.view.me == "b" else "b"
+			check(int(Trade.view.offers[other].money) == 40, "yardımcı 40 TL koydu")
+			Trade.confirm()
+			await _wait(1.0)
+			check(not Trade.active() and Net.my_money() - m0 in [40, 340], "takas tamamlandı: +40 TL")
+			check(hrec.fish.size() == hfish0 + 1 and str(hrec.fish[-1].name) == "Takas Levreği" and int(Farm.barn(hrec).get("domates", 0)) == hdom0 + 2, "balık ve 2 domates yardımcıya geçti")
+		if w.panel != null:
+			w._close_panel()
+
+	print("== 1.3: At ve hipodrom")
+	w.my_pos = Map.building("hara").rect.get_center() + Vector2(0, 88)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "hara", "hara kapısında")
+	Horses.buy()
+	await _wait(0.4)
+	check(Horses.my_horses.size() == 1 and rec.horses.size() == 1, "at alındı: %s" % (Horses.my_horses[0].n if Horses.has_horse() else "-"))
+	var h0: Dictionary = rec.horses[0]
+	var spd0 := int(h0.spd) + int(h0.sta)
+	Horses.train(0, "spd")
+	await _wait(0.3)
+	var tot1 := int(rec.horses[0].spd) + int(rec.horses[0].sta)
+	check(tot1 > spd0, "antrenmanla at gelişti")
+	Horses.train(0, "sta")
+	await _wait(0.3)
+	check(int(rec.horses[0].spd) + int(rec.horses[0].sta) == tot1, "antrenman bekleme süresi (5 dk)")
+	w.my_pos = Map.building("hara").rect.get_center() + Vector2(0, 200)
+	await _wait(0.3)
+	w._toggle_horse()
+	await _wait(0.4)
+	check(w.my_ride() == "horse" and int(Net.roster[me].get("hc", -1)) == int(rec.horses[0].c), "ata binildi")
+	w._toggle_horse()
+	await _wait(0.3)
+	check(w.my_ride() == "", "attan inildi")
+	rec.horses[0]["fed"] = 0.0
+	Horses.send_state(me)
+	w._toggle_horse()
+	await _wait(0.4)
+	check(w.my_ride() == "", "aç ata binilmiyor")
+	w.my_pos = Map.building("hara").rect.get_center() + Vector2(0, 110)
+	await _wait(0.3)
+	Horses.feed(0, false)
+	await _wait(0.3)
+	check(float(rec.horses[0].fed) > Time.get_unix_time_from_system(), "at beslendi")
+	w.my_pos = Map.HIPPO_BOOTH + Vector2(40, 0)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "hipodrom", "hipodrom gişesi")
+	w._open_panel()
+	await _wait(0.3)
+	Horses.join_race()
+	await _wait(0.4)
+	check(str(Horses.race.get("state", "")) == "lobby" and Horses.race.lanes.size() == 1, "yarışa katılındı (bekleme)")
+	var m1 := Net.my_money()
+	Horses.bet(0, 200)
+	await _wait(0.3)
+	check(Net.my_money() == m1 - 200, "kendi atına bahis")
+	Horses._race.t = 0.0
+	await _wait(0.4)
+	check(str(Horses._race.state) == "run" and Horses._race.lanes.size() == 4, "yarış başladı, NPC atlar katıldı")
+	var odds := float(Horses._race.lanes[0].odds)
+	await _wait(3.2)
+	Horses.whip()
+	await _wait(0.2)
+	check(float(Horses._race.lanes[0].st) < float(Horses._race.lanes[0].stmax), "kamçı dayanıklılık harcadı")
+	Horses._race.lanes[0].x = Map.HIPPO_FINISH_X - 10.0
+	for li in range(1, 4):
+		Horses._race.lanes[li].x = Map.HIPPO_START_X
+	var m2 := Net.my_money()
+	await _wait(0.5)
+	for li in range(1, 4):
+		Horses._race.lanes[li].x = Map.HIPPO_FINISH_X + 1.0
+	await _wait(0.6)
+	check(int(Horses._race.lanes[0].get("place", 0)) == 1, "atımız birinci geldi")
+	check(Net.my_money() >= m2 + Horses.PRIZES[0] + int(round(200 * odds)) and int(rec.horses[0].wins) == 1, "ödül ve bahis kazancı alındı")
+	w._close_panel()
+
+	print("== 1.3: Kamp ve orman")
+	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(0, 70)
+	await _wait(0.3)
+	Mountain.go_up()
+	await _wait(0.5)
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[0].rect.get_center() + Vector2(0, 110)
+	await _wait(0.3)
+	Camp.buy("tent")
+	Camp.buy("marshmallow")
+	Camp.buy("marshmallow")
+	Camp.buy("odun")
+	await _wait(0.4)
+	check(Camp.has_tent and int(Rpg.sheet.items.get("marshmallow", 0)) == 2 and int(Farm.my_crops.get("odun", 0)) >= 2, "çadır, marshmallow ve odun alındı")
+	w.my_pos = Vector2(8020, 2280)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "tent_pitch", "kamp alanında çadır kurma bölgesi")
+	w._open_panel()
+	await _wait(0.4)
+	check(Camp.tents.has(Net.my_name), "çadır kuruldu")
+	Rpg.use_energy(me, 40)
+	rec["tent_rest"] = 0.0
+	await _wait(0.2)
+	w._open_panel()
+	await _wait(0.4)
+	check(float(Rpg.sheet.energy) >= float(Rpg.sheet.max_energy) - 1.0, "çadırda dinlenince enerji doldu")
+	w.my_pos = Map.CAMPFIRES[0] + Vector2(0, 60)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "fire_light", "ateş yakma bölgesi")
+	w._open_panel()
+	await _wait(0.4)
+	if Camp.fire_left(0) <= 200.0:
+		print("  [debug] fires=", Camp.fires, " srv=", Camp._fire_until, " left=", Camp.fire_left(0))
+	check(Camp.fire_left(0) > 200.0, "kamp ateşi yandı")
+	w._update_zone()
+	check(w.zone.get("type", "") == "roast", "yanan ateşte marshmallow bölgesi")
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.roster[me].get("roast", false), "marshmallow kızarıyor")
+	await _wait(3.2)
+	var it: Dictionary = Rpg.sheet.items
+	check(int(it.get("kizarmis_marshmallow", 0)) + int(it.get("yanik_marshmallow", 0)) == 1 and not Net.roster[me].get("roast", false), "marshmallow kızardı")
+	Camp._spawn_spot()
+	Camp._spawn_spot()
+	Camp._broadcast({"spots": Camp._spots})
+	await _wait(0.3)
+	var sp: Dictionary = Camp.spots[0]
+	w.my_pos = Vector2(float(sp.x), float(sp.y) + 20)
+	await _wait(0.3)
+	var before := 0
+	for k in Farm.my_crops:
+		before += int(Farm.my_crops[k])
+	w._open_panel()
+	await _wait(0.4)
+	var after := 0
+	for k in Farm.my_crops:
+		after += int(Farm.my_crops[k])
+	check(after > before, "ormandan ürün toplandı")
+	var m3 := Net.my_money()
+	Camp._star_until = Time.get_ticks_msec() / 1000.0 + 5.0
+	Camp._wished.clear()
+	w.my_pos = Map.CAMP.get_center()
+	await _wait(0.2)
+	Camp.wish()
+	await _wait(0.3)
+	var m4 := Net.my_money()
+	Camp.wish()
+	await _wait(0.3)
+	check(m4 >= m3 + Camp.STAR_REWARD and Net.my_money() == m4, "kayan yıldıza dilek tutuldu (bir kez)")
+	check(Kitchen.RECIPES.has("mantar_sote") and Kitchen.dish_value("orman_turtasi") > 0, "orman tarifleri")
+	check(Museum.all_keys().has("barn:kuzugobegi"), "müzede Orman koleksiyonu")
+	w.my_pos = Map.TELESCOPE + Vector2(0, 40)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "teleskop paneli açıldı")
+	w._close_panel()
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[1].rect.get_center() + Vector2(0, 80)
+	await _wait(0.3)
+	Mountain.go_down()
+	await _wait(0.5)
+
+	print("== 1.3: Animasyon efektleri")
+	w.fx.clear()
+	Net.add_money(me, 5)
+	await _wait(0.3)
+	var kinds: Array = w.fx.map(func(f): return f.k)
+	check("money" in kinds, "para değişince yüzen tutar efekti")
+	w.add_fx("chips", w.my_pos, 0.1)
+	await _wait(0.3)
+	check(not w.fx.any(func(f): return f.k == "chips"), "süresi dolan efekt silindi")
 
 
 func _finish() -> void:
