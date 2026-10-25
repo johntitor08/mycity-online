@@ -304,7 +304,7 @@ func _finish(id: int, aborted: bool) -> void:
 	var acc := float(s.hits) / maxf(1.0, float(total))
 	var band_mult := 1.5 if band.size() >= 2 and id in band else 1.0
 	var crowd := _audience(band)
-	var mult := band_mult * (1.0 + 0.15 * mini(crowd, 6)) * Events.pay_mult() * (1.15 if Rpg.buff(id, "work") else 1.0)
+	var mult := band_mult * (1.0 + 0.15 * mini(crowd, 6)) * Events.pay_mult() * (1.15 if Rpg.buff(id, "work") else 1.0) * (1.2 if School.has_by_id(id, "muzik") else 1.0)
 	var pay := int(round(float(s.score) / 22.0 * mult))
 	Net.add_money(id, pay)
 	Rpg.add_xp(id, "music", int(s.hits) * 2 + (40 if acc >= 0.9 else 0))

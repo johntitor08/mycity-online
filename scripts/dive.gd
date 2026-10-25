@@ -125,6 +125,8 @@ func req_dive(_d: Dictionary) -> void:
 		Net.notify(id, "Fırtınada dalış yapılmaz!", false)
 		return
 	var oxy := GEAR_OXY if bool(_rec(id).get("dive_gear", false)) else BASE_OXY
+	if School.has_by_id(id, "dalgic"):
+		oxy += 20.0
 	_divers[id] = {"until": Time.get_unix_time_from_system() + oxy, "surface": p}
 	Garage.set_ride(id, "")
 	Homes._teleport(id, Vector2(Map.SEA_BED.position.x + clampf(p.x, 60.0, Map.SEA_BED.size.x - 60.0), Map.SEA_BED.position.y + 160))

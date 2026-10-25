@@ -130,6 +130,8 @@ static func level_of_rec(rec: Dictionary) -> int:
 func food_info(k: String) -> Dictionary:
 	if FOODS.has(k):
 		return FOODS[k]
+	if Fair.FAIR_FOODS.has(k):
+		return Fair.FAIR_FOODS[k]
 	if Camp.CAMP_FOODS.has(k):
 		return Camp.CAMP_FOODS[k]
 	if Mountain.LODGE_FOODS.has(k):
@@ -172,13 +174,14 @@ func perk(id: int, kind: String) -> float:
 static func _perk_rec(r: Dictionary, kind: String) -> float:
 	var sk := func(k: String) -> int: return skill_level_of(int(r.skills.get(k, 0))) - 1
 	var tools: Array = r.tools
+	var dip: Array = r.get("diplomas", [])
 	match kind:
 		"fish_rare":
 			return 1.0 + 0.08 * sk.call("fishing") + (0.25 if tools.has("rod") else 0.0)
 		"fish_window":
 			return 0.1 * sk.call("fishing")
 		"medicine_pay":
-			return 1.0 + 0.05 * sk.call("medicine") + (0.2 if tools.has("stetho") else 0.0)
+			return 1.0 + 0.05 * sk.call("medicine") + (0.2 if tools.has("stetho") else 0.0) + (0.15 if "ilkyardim" in dip else 0.0)
 		"medicine_time":
 			return 0.5 * sk.call("medicine")
 		"cashier_pay":
@@ -186,7 +189,7 @@ static func _perk_rec(r: Dictionary, kind: String) -> float:
 		"cashier_time":
 			return 1.0 * sk.call("cashier") + (5.0 if tools.has("calc") else 0.0)
 		"rent":
-			return 1.0 + 0.05 * sk.call("realestate") + (0.15 if tools.has("card") else 0.0)
+			return 1.0 + 0.05 * sk.call("realestate") + (0.15 if tools.has("card") else 0.0) + (0.1 if "finans" in dip else 0.0)
 		"farm_yield":
 			return 1.0 + 0.05 * sk.call("farming")
 		"police_pay":

@@ -282,6 +282,7 @@ func _on_ok() -> void:
 		await _test_11(get_parent().world)
 		await _test_12(get_parent().world)
 		await _test_13(get_parent().world)
+		await _test_14(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -2137,6 +2138,185 @@ func _test_13(w) -> void:
 	w.add_fx("chips", w.my_pos, 0.1)
 	await _wait(0.3)
 	check(not w.fx.any(func(f): return f.k == "chips"), "süresi dolan efekt silindi")
+
+
+## 1.4: okul, dedektif, lunapark, havalimanı ve balon.
+func _test_14(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 50000)
+	Env.force_weather("clear")
+	await _wait(0.3)
+
+	print("== 1.4: Okul")
+	w.my_pos = Map.building("okul").rect.get_center() + Vector2(0, 118)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "okul", "okul kapısında")
+	var med0 := Rpg.perk(me, "medicine_pay")
+	School.start_exam("ilkyardim")
+	await _wait(0.4)
+	check(School.current.get("qs", []).size() == 5 and not School.current.qs[0].has("answer"), "sınav geldi (5 soru, cevaplar gizli)")
+	var ex: Dictionary = School._exams.get(me, {})
+	var ans: Array = []
+	for pk in ex.get("picks", []):
+		ans.append((pk[1] as Array).find(int(School.COURSES.ilkyardim.qs[int(pk[0])][2])))
+	var res := {}
+	School.result.connect(func(d): res.merge(d, true), CONNECT_ONE_SHOT)
+	School.answer(ans)
+	await _wait(0.4)
+	check(res.get("ok", false) and School.has("ilkyardim"), "ilk yardım diploması alındı: %s" % res.get("text", "-"))
+	check(absf(Rpg.perk(me, "medicine_pay") - med0 - 0.15) < 0.001, "diploma hastane maaşına +%15 ekledi")
+	School.start_exam("finans")
+	await _wait(0.4)
+	var res2 := {}
+	School.result.connect(func(d): res2.merge(d, true), CONNECT_ONE_SHOT)
+	School.answer([-1, -1, -1, -1, -1])
+	await _wait(0.4)
+	check(not res2.get("ok", true) and not School.has("finans"), "boş sınav kaldı")
+	var m0 := Net.my_money()
+	School.start_exam("finans")
+	await _wait(0.3)
+	check(Net.my_money() == m0 and School._exams.get(me, {}).is_empty(), "kalınca 2 dk tekrar girilemiyor")
+
+	print("== 1.4: Dedektif")
+	w.my_pos = Map.DETECTIVE + Vector2(0, 40)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "dedektif", "dedektif bürosu")
+	w._open_panel()
+	await _wait(0.3)
+	Detective.take_case()
+	await _wait(0.4)
+	check(not Detective.active_case().is_empty() and Detective.active_case().id == "altin_balik", "ilk vaka alındı")
+	w.panel._refresh()
+	w._close_panel()
+	var cs := Detective.active_case()
+	Detective.accuse("s1")
+	await _wait(0.3)
+	check(int(Detective.state.get("case", -1)) == 0, "delil toplamadan suçlanamıyor")
+	for cl in cs.clues:
+		w.my_pos = cl.pos + Vector2(0, 30)
+		await _wait(0.35)
+		w._open_panel()
+		await _wait(0.3)
+	check(Detective.state.clues.size() == 3, "3 ipucu bulundu")
+	for sp in cs.suspects:
+		w.my_pos = sp.pos + Vector2(0, 40)
+		await _wait(0.35)
+		w._open_panel()
+		await _wait(0.3)
+	check(Detective.state.talked.size() == 3 and Detective.state.says.has("s1"), "3 şüpheli sorgulandı")
+	Detective.accuse("s2")
+	await _wait(0.3)
+	check(float(Detective.state.get("wrong_left", 0.0)) > 0.0, "yanlış suçlama: bekleme")
+	rec.detective["wrong_until"] = 0.0
+	var m1 := Net.my_money()
+	Detective.accuse("s1")
+	await _wait(0.4)
+	check(Detective.state.get("solved", []).has("altin_balik") and Net.my_money() >= m1 + int(1500 * 0.7), "vaka çözüldü, ödül (bir yanlışla %70)")
+
+	print("== 1.4: Lunapark")
+	w.my_pos = Map.SHUTTLE_CITY + Vector2(0, 20)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "shuttle", "servis durağı")
+	var m2 := Net.my_money()
+	w._open_panel()
+	await _wait(0.5)
+	check(w._fair and Map.FAIR.has_point(w.my_pos) and Net.my_money() <= m2 - Fair.SHUTTLE_PRICE + 200, "servisle fuara gelindi")
+	w.my_pos = Map.TICKET_BOOTH + Vector2(0, 50)
+	await _wait(0.3)
+	Fair.buy_jeton()
+	Fair.buy_jeton()
+	await _wait(0.4)
+	check(Fair.jeton == 10, "10 jeton alındı")
+	w.my_pos = Map.FERRIS + Vector2(0, Map.FERRIS_R + 60)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.5)
+	check(w.my_ride() == "ferris" and w.my_pos.distance_to(Map.FERRIS) < Map.FERRIS_R + 5 and Fair.jeton == 8, "dönme dolaba binildi")
+	await _wait(0.5)
+	var seatp: Vector2 = w.my_pos
+	await _wait(0.6)
+	check(w.my_pos.distance_to(seatp) > 3.0, "dolap dönüyor")
+	Fair._ferris[me] = 0.0
+	await _wait(0.4)
+	check(w.my_ride() == "" and w.my_pos.distance_to(Map.FERRIS) > Map.FERRIS_R, "dolaptan inildi")
+	w.my_pos = Vector2(Map.BUMPER.get_center().x, Map.BUMPER.end.y + 40)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.5)
+	check(w.my_ride() == "bumper" and Map.BUMPER.has_point(w.my_pos) and Fair.npcs.size() == Fair.BUMPER_NPCS, "çarpışan arabaya binildi, NPC arabalar var")
+	var npc0: Vector2 = Fair._npcs[0].p
+	w.my_pos = npc0 + Vector2(30, 0)
+	Net.positions[me] = w.my_pos
+	Fair.bump("npc:0")
+	await _wait(0.3)
+	check(Fair.bumper_pts == 1, "NPC arabaya çarpınca puan")
+	Fair.bump("npc:0")
+	await _wait(0.3)
+	check(Fair.bumper_pts == 1, "aynı arabaya hemen tekrar sayılmaz")
+	var b0 := Fair.bilet
+	Fair._bumper[me].end = 0.0
+	await _wait(0.4)
+	check(w.my_ride() == "" and Fair.bilet == b0 + 2, "tur bitti, 2 bilet")
+	w.my_pos = Map.GALLERY + Vector2(0, 50)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.3)
+	Fair.start_gallery()
+	await _wait(0.3)
+	check(not Fair.gallery.is_empty() and Fair.gallery.targets.size() > 10, "atış poligonu başladı")
+	var tg: Dictionary = Fair.gallery.targets[0]
+	var wt: float = float(Fair.gallery.t0) + float(tg.t) + 0.3 - Time.get_ticks_msec() / 1000.0
+	if wt > 0.0:
+		await _wait(wt)
+	Fair.shoot(0)
+	Fair.shoot(Fair.gallery.targets.size() - 1)
+	await _wait(0.3)
+	check(int(Fair.gallery.get("pts", 0)) == Fair.target_points(tg), "ekrandaki ördek vuruldu, henüz çıkmayan sayılmadı")
+	var b1 := Fair.bilet
+	Fair._gallery[me].t0 = -1000.0
+	await _wait(0.4)
+	if Fair.bilet != b1 + Fair.target_points(tg):
+		print("  [debug] bilet=", Fair.bilet, " b1=", b1, " g=", Fair._gallery.get(me, "yok"), " cl=", Fair.gallery.get("pts", "-"))
+	check(Fair.bilet == b1 + Fair.target_points(tg), "atış bitti, puan kadar bilet")
+	w._close_panel()
+	w.my_pos = Map.TICKET_BOOTH + Vector2(0, 50)
+	await _wait(0.3)
+	Fair._data(rec)["bilet"] = 30
+	Fair.send_state(me)
+	Fair.prize("pelus_ayi")
+	await _wait(0.4)
+	check(int(Homes.depot.get("pelus_ayi", 0)) == 1 and Fair.bilet == 5, "peluş ayı kazanıldı (depoda)")
+	w.my_pos = Map.CANDY + Vector2(0, 40)
+	await _wait(0.3)
+	Fair.buy_candy()
+	await _wait(0.3)
+	check(int(Rpg.sheet.items.get("pamuk_seker", 0)) == 1, "pamuk şeker alındı")
+
+	print("== 1.4: Balon ve uçuş")
+	w.my_pos = Map.BALLOON_FIELD + Vector2(0, 60)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "balloon", "balon alanı")
+	w._open_panel()
+	await _wait(0.5)
+	check(w.my_ride() == "balloon" and Airport.in_balloon() and Map.WORLD.has_point(w.my_pos), "balon şehrin üstünde")
+	var bp0: Vector2 = w.my_pos
+	await _wait(0.6)
+	check(w.my_pos.distance_to(bp0) > 20.0, "balon güzergâhta ilerliyor")
+	Airport._balloon[me] = 0.0
+	await _wait(0.5)
+	check(w.my_ride() == "" and w._fair and not Airport.in_balloon(), "balon indi, fuara dönüldü")
+	w.my_pos = Map.FAIR_BUILDINGS[0].rect.get_center() + Vector2(0, 130)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "terminal", "havalimanı terminali")
+	var flights := []
+	Airport.flight.connect(func(d): flights.append(d), CONNECT_ONE_SHOT)
+	Airport.fly("sehir")
+	await _wait(0.4)
+	check(flights.size() == 1 and w._fair, "uçuş başladı (animasyon)")
+	await _wait(3.3)
+	check(not w._fair and Map.WORLD.has_point(w.my_pos) and w.my_pos.distance_to(Map.SPAWN) < 150, "şehre inildi")
 
 
 func _finish() -> void:

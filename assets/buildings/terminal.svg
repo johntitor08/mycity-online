@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="460" viewBox="0 0 420 230">
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <rect x="6" y="70" width="408" height="156" rx="6" fill="#e2e8f0" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="6" y="206" width="408" height="20" rx="0" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M6 70Q210 6 414 70" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="20" y="100" width="380" height="70" rx="6" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M40 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M80 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M120 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M160 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M200 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M240 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M280 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M320 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M360 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="180" y="160" width="60" height="66" rx="4" fill="#334155" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M210 160v66" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="330" y="10" width="30" height="64" rx="3" fill="#475569" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="318" y="2" width="54" height="16" rx="4" fill="#93c5fd" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="118.0" y="40" width="184" height="30" rx="7" fill="#0f172a" stroke="#38bdf8" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

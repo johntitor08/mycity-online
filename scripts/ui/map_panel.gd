@@ -43,7 +43,8 @@ func _ready() -> void:
 			["Yarış Pisti", Map.RACE_FLAG + Vector2(0, 40)], ["Martı Adası (tekneyle)", Map.ISLAND_PIER.get_center()],
 			["Feribot İskelesi (şehir)", Map.FERRY_STOPS.sehir[1]], ["Fabrika (Sanayi, feribotla)", Map.building("fabrika").rect.get_center() + Vector2(0, 160)],
 			["Park Sahnesi (konser)", Map.STAGE.get_center() + Vector2(0, 70)],
-			["Hipodrom (Sanayi, feribotla)", Map.HIPPO_BOOTH + Vector2(40, 30)]]:
+			["Hipodrom (Sanayi, feribotla)", Map.HIPPO_BOOTH + Vector2(40, 30)],
+			["Lunapark & Havalimanı servisi", Map.SHUTTLE_CITY + Vector2(0, 30)], ["Dedektif Ferhat", Map.DETECTIVE + Vector2(0, 40)]]:
 		add_button(list, t[0], _go.bind(t[1]))
 	add_button(v, "Hedefi temizle", func(): world.nav_target = null; close())
 

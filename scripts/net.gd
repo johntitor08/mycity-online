@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "1.3"
+const VERSION := "1.4"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -255,6 +255,10 @@ func _reset_peer() -> void:
 	Trade.reset()
 	Horses.reset()
 	Camp.reset()
+	Fair.reset()
+	Airport.reset()
+	Detective.reset()
+	School.reset()
 
 
 func _on_connected() -> void:
@@ -438,6 +442,9 @@ func _on_peer_disconnected(id: int) -> void:
 	Trade.on_player_left(id)
 	Horses.on_player_left(id)
 	Camp.on_player_left(id)
+	Fair.on_player_left(id)
+	Airport.on_player_left(id)
+	School.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -580,6 +587,9 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Phone.send_state(id)
 	Horses.send_state(id)
 	Camp.send_state(id)
+	Fair.send_state(id)
+	Detective.send_state(id)
+	School.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -705,12 +715,15 @@ func send_pos(p: Vector2) -> void:
 		return
 	if Map.JAIL.has_point(p):
 		return
-	# dağa ve dağdan ancak teleferikle (sunucu ışınlar) geçilir
+	# bölgeler arasında (şehir / dağ / fuar) ancak sunucu ışınlamasıyla geçilir (teleferik, servis, uçak)
 	var last: Vector2 = positions.get(id, p)
-	if Map.MOUNTAIN.has_point(p) != Map.MOUNTAIN.has_point(last):
+	if Map.region_of(p) != Map.region_of(last):
 		return
 	if Map.MOUNTAIN.has_point(p):
 		positions[id] = p.clamp(Map.MOUNTAIN.position, Map.MOUNTAIN.end)
+		return
+	if Map.FAIR.has_point(p):
+		positions[id] = p.clamp(Map.FAIR.position, Map.FAIR.end)
 		return
 	var room := Map.interior_at(p)
 	if Map.INTERIOR_AREA.has_point(p):

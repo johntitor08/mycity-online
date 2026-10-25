@@ -15,7 +15,7 @@ func _ready() -> void:
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 6)
 	body.add_child(grid)
-	for k in Homes.FURNITURE:
+	for k in Homes.FURNITURE.keys().filter(func(x): return not Homes.FURNITURE[x].get("prize", false)):
 		var f: Dictionary = Homes.FURNITURE[k]
 		var icon := TextureRect.new()
 		icon.texture = load("res://assets/furniture/%s.svg" % k)

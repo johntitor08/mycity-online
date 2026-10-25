@@ -427,7 +427,7 @@ func _tick_run(delta: float) -> void:
 		l["whip"] = whip
 		var binicilik := 1.0
 		if int(l.pid) != 0:
-			binicilik += 0.01 * (Rpg.skill(int(l.pid), "riding") - 1)
+			binicilik += 0.01 * (Rpg.skill(int(l.pid), "riding") - 1) + (0.03 if School.has_by_id(int(l.pid), "binicilik") else 0.0)
 		l["x"] = x + v * binicilik * delta
 		if float(l.x) >= Map.HIPPO_FINISH_X:
 			_race.finish.append(l)

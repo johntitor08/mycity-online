@@ -58,6 +58,10 @@ Phone="*res://scripts/phone.gd"
 Trade="*res://scripts/trade.gd"
 Horses="*res://scripts/horses.gd"
 Camp="*res://scripts/camp.gd"
+Fair="*res://scripts/fair.gd"
+Airport="*res://scripts/airport.gd"
+Detective="*res://scripts/detective.gd"
+School="*res://scripts/school.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

@@ -36,12 +36,14 @@ static func speed_of(ride: String) -> float:
 		return 1.7
 	if ride == "horse":
 		return 2.0
+	if ride == "bumper":
+		return 1.4
 	return float(VEHICLES[ride].speed) if VEHICLES.has(ride) else 1.0
 
 
 ## Bu araç bu noktada kullanılabilir mi?
 static func usable_at(ride: String, p: Vector2) -> bool:
-	if Map.interior_at(p) >= 0 or Map.MOUNTAIN.has_point(p):
+	if Map.interior_at(p) >= 0 or Map.MOUNTAIN.has_point(p) or Map.FAIR.has_point(p):
 		return false
 	if ride == "boat":
 		return Map.in_sea(p)

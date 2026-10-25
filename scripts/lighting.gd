@@ -26,6 +26,10 @@ func _ready() -> void:
 	player_light = _light(Vector2.ZERO, Color("#fff4dc"), 0.7, 0.45)
 	for f in Map.CAMPFIRES:
 		fire_lights.append(_light(f + Vector2(0, -10), Color("#ff9a3c"), 1.6, 1.2))
+	for p in [Map.FERRIS, Map.GALLERY, Map.TICKET_BOOTH, Map.CANDY, Map.BUMPER.get_center(), Map.SHUTTLE_FAIR, Map.BALLOON_FIELD]:
+		mountain_lights.append(_light(p, Color("#ffd1f0"), 1.6, 0.8))
+	for b in Map.FAIR_BUILDINGS:
+		mountain_lights.append(_light(Vector2(b.rect.get_center().x, b.rect.end.y - 6), Color("#ffcf8a"), 1.3, 0.7))
 	for b in Map.MOUNTAIN_BUILDINGS:
 		mountain_lights.append(_light(Vector2(b.rect.get_center().x, b.rect.end.y - 6), Color("#ffcf8a"), 1.1, 0.7))
 	Land.plots_changed.connect(_rebuild_rooms)

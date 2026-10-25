@@ -110,6 +110,20 @@ const LIST := {
 	"tent": ["tent", 1, "Doğa İnsanı", "Kamp alanına çadır kur.", 400, ""],
 	"astronom": ["astronom", 1, "Astronom", "Gece teleskoptan yıldızları izle.", 500, "Astronom"],
 	"wish_star": ["wish_star", 1, "Dilek Tutan", "Kayan yıldıza dilek tut.", 800, "Dilek Tutan"],
+	# 1.4
+	"fair": ["fair", 1, "Lunaparkta", "Fuar ve Havalimanı'na git.", 200, ""],
+	"ferris": ["ferris", 1, "Dönme Dolap", "Dönme dolaba bin.", 300, ""],
+	"bumper_king": ["bumper_king", 1, "Çarpışma Kralı", "Çarpışan arabalarda bir turda 15 çarpışma yap.", 1000, "Çarpışma Kralı"],
+	"sharpshooter": ["sharpshooter", 1, "Keskin Nişancı", "Atış poligonunda 30 puan yap.", 1000, "Keskin Nişancı"],
+	"bilet200": ["bilet", 200, "Bilet Avcısı", "Lunaparkta toplam 200 bilet kazan.", 1500, "Bilet Avcısı"],
+	"prize": ["prize", 1, "Ödül Sahibi", "Ödül standından bir ödül al.", 300, ""],
+	"flights": ["flights", 1, "İlk Uçuş", "Havalimanından uçağa bin.", 300, ""],
+	"flights10": ["flights", 10, "Sık Uçan", "10 uçuş yap.", 1500, "Pilot"],
+	"balloon": ["balloon", 1, "Gökyüzü Gezgini", "Sıcak hava balonuyla şehri turla.", 800, "Gökyüzü Gezgini"],
+	"case1": ["cases", 1, "Dedektif", "İlk vakanı çöz.", 1000, "Dedektif"],
+	"case4": ["cases", 4, "Baş Dedektif", "Bütün vakaları çöz.", 5000, "Baş Dedektif"],
+	"diploma1": ["diplomas", 1, "Mezun", "İlk diplomanı al.", 500, ""],
+	"diploma7": ["diplomas", 7, "Profesör", "Bütün kursların diplomasını al.", 5000, "Profesör"],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

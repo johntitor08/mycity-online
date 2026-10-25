@@ -31,6 +31,10 @@ const PANELS := {
 	"hara": preload("res://scripts/ui/hara_panel.gd"),
 	"hipodrom": preload("res://scripts/ui/hippo_panel.gd"),
 	"teleskop": preload("res://scripts/ui/sky_panel.gd"),
+	"okul": preload("res://scripts/ui/school_panel.gd"),
+	"terminal": preload("res://scripts/ui/flight_panel.gd"),
+	"fair_gise": preload("res://scripts/ui/fair_panel.gd"),
+	"gallery": preload("res://scripts/ui/gallery_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -60,6 +64,8 @@ const BUILDING_TEX := {
 	"teleferik_dag": preload("res://assets/buildings/teleferik.svg"),
 	"dagevi": preload("res://assets/buildings/dagevi.svg"),
 	"hara": preload("res://assets/buildings/hara.svg"),
+	"okul": preload("res://assets/buildings/okul.svg"),
+	"terminal": preload("res://assets/buildings/terminal.svg"),
 	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
 	"karakol": preload("res://assets/buildings/karakol.svg"),
 	"banka": preload("res://assets/buildings/banka.svg"),
@@ -129,6 +135,11 @@ var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
 var _jail := false          # hapishanede miyim
 var _dive := false          # deniz tabanında mıyım (dalış)
 var _mount := false         # dağda mıyım (1.2)
+var _fair := false          # fuar ve havalimanında mıyım (1.4)
+var _bump_vel := Vector2.ZERO
+var _bump_t := {}
+var _takeoff_t := -99.0
+var _balloon_zoom := Vector2.ONE
 var _rock_acc := 0.0
 var mountain_nature: Array = []   # dağdaki çamlar [konum, ölçek]
 var _g_action := {}         # G tuşunun şu anki eylemi (yankesicilik/soygun/tutuklama)
@@ -242,6 +253,14 @@ func _ready() -> void:
 		Sfx.play("splash_small", -6.0, 1.4))
 	Family.wedding.connect(func(_d): Sfx.play("success"))
 	hud.phone_requested.connect(open_phone)
+	Airport.flight.connect(_on_flight)
+	Airport.takeoff.connect(func(): _takeoff_t = _t)
+	Airport.balloon_changed.connect(func():
+		if Airport.in_balloon():
+			_balloon_zoom = camera.zoom
+			camera.zoom = Vector2(0.6, 0.6)
+		else:
+			camera.zoom = _balloon_zoom)
 	Trade.invited.connect(_on_trade_invite)
 	Trade.opened.connect(_on_trade_open)
 	Trade.closed.connect(func(t): hud.show_toast(t, t.contains("tamam")))
@@ -263,6 +282,15 @@ func _process(delta: float) -> void:
 	my_moving = false
 	if my_ride() == "ski":
 		_ski_move(delta)
+	elif my_ride() == "ferris":
+		var seat := int(Net.roster.get(Net.my_id(), {}).get("seat", 0))
+		my_pos = Fair.seat_pos(seat, Land.server_now())
+	elif my_ride() == "bumper":
+		_bumper_move(delta)
+	elif my_ride() == "balloon":
+		if Airport.in_balloon():
+			my_pos = Map.balloon_at(Airport.balloon_elapsed())
+			my_moving = true
 	elif panel == null and not hud.is_typing():
 		var dir := Vector2.ZERO
 		if Settings.held("up"):
@@ -277,6 +305,8 @@ func _process(delta: float) -> void:
 			my_facing = _facing_of(dir)
 			var ride := my_ride()
 			var mult := Garage.speed_of(ride)
+			if (ride == "car" or ride == "bike") and School.has("surucu"):
+				mult *= 1.1                            # sürücü diploması
 			if ride == "" and Map.in_sea(my_pos):
 				mult = 0.55
 			if _dive:
@@ -314,7 +344,7 @@ func _process(delta: float) -> void:
 	if swimming and not _was_swimming:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
-	var outside := _room < 0 and not _jail and not _dive and not _mount
+	var outside := _room < 0 and not _jail and not _dive and not _mount and not _fair
 	Sfx.set_ambience(clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0) if outside else 0.0)
 	Sfx.set_environment((1.0 if Env.weather == "storm" else 0.6) if Env.is_rainy() and outside else 0.0,
 		Env.darkness() * 0.8 if outside and not Env.is_rainy() else 0.0,
@@ -352,6 +382,11 @@ func my_ride() -> String:
 
 ## Bulunduğum alan: ev içiysem oda, değilsem şehir.
 func _clamp_to_area(p: Vector2) -> Vector2:
+	if _fair:
+		var fr := Map.FAIR.grow(-20)
+		if my_ride() == "bumper":
+			fr = Map.BUMPER.grow(-24)
+		return p.clamp(fr.position, fr.end)
 	if _mount:
 		var m := Map.MOUNTAIN.grow(-20)
 		var lo := Vector2(m.position.x, Map.MOUNTAIN_TOP_Y)
@@ -376,7 +411,7 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 func _can_stand(p: Vector2, ride: String) -> bool:
 	if _room >= 0 or _jail or _dive:
 		return true
-	if _mount:
+	if _mount or _fair:
 		return not (_blocked(p) and not _blocked(my_pos))
 	if _blocked(p) and not _blocked(my_pos):
 		return false              # bina, ev ya da araba (içindeysen çıkabilirsin)
@@ -397,8 +432,10 @@ func _update_area() -> void:
 	var jail := Map.JAIL.has_point(my_pos)
 	var dive := Map.SEA_BED.has_point(my_pos)
 	var mount := Map.MOUNTAIN.has_point(my_pos)
-	if room == _room and jail == _jail and dive == _dive and mount == _mount:
+	var fair := Map.FAIR.has_point(my_pos)
+	if room == _room and jail == _jail and dive == _dive and mount == _mount and fair == _fair:
 		return
+	_fair = fair
 	_room = room
 	_jail = jail
 	_dive = dive
@@ -408,6 +445,8 @@ func _update_area() -> void:
 		r = Map.SEA_BED
 	elif mount:
 		r = Map.MOUNTAIN
+	elif fair:
+		r = Map.FAIR
 	elif jail:
 		r = Map.JAIL.grow(160)
 	elif room >= 0:
@@ -439,6 +478,8 @@ func _toggle_vehicle() -> void:
 		return
 	if _mount:
 		hud.show_toast("Dağda araç kullanılmaz. Kayak için telesiyeje git.", false)
+		return
+	if _fair or ride in ["ferris", "bumper", "balloon"]:
 		return
 	if ride != "":
 		if ride == "boat" and not _near_shore():
@@ -615,6 +656,13 @@ func _update_zone() -> void:
 	if _mount:
 		_update_mountain_zone()
 		return
+	if _fair:
+		_update_fair_zone()
+		return
+	if my_ride() == "balloon":
+		zone = {}
+		hud.set_hint("" if panel != null else "BALON TURU  ·  %d sn  ·  [%s] fotoğraf modu" % [int(maxf(0.0, Map.BALLOON_TIME - Airport.balloon_elapsed())), Settings.key_name("photo")])
+		return
 	if _room >= 0:
 		var lvl := int(Land.view[_room].level) if _room < Land.view.size() else 1
 		if Map.interior_door(_room, lvl).grow(10).has_point(my_pos):
@@ -639,6 +687,9 @@ func _update_zone() -> void:
 	for k in Map.NPCS:
 		if my_pos.distance_to(Map.NPCS[k].pos) < Map.NPC_TALK_RANGE:
 			z = {"type": "npc", "npc": k, "label": "Konuş: %s" % Map.NPCS[k].name}
+	var dz := _detective_zone({})
+	if not dz.is_empty():
+		z = dz                                 # ipucu/şüpheli NPC konuşmasından da önce gelir
 	if z.get("type", "") == "npc":
 		zone = z
 		hud.set_hint("" if panel != null else "[%s]  %s" % [Settings.key_name("interact"), z.label])
@@ -666,6 +717,12 @@ func _update_zone() -> void:
 		z = {"type": "firestation", "label": "İtfaiye — %s" % ("görevi bırak" if Work.on_duty_fire() else "göreve başla")}
 	if my_pos.distance_to(Map.RECYCLE) < 90.0:
 		z = {"type": "recycle", "label": "Geri dönüşüm (%d torba elinde)" % Work.carrying}
+	if my_pos.distance_to(Map.SHUTTLE_CITY) < 90.0:
+		z = {"type": "shuttle", "fair": true, "label": "Lunapark & Havalimanı servisi (%s)" % U.money(Fair.SHUTTLE_PRICE)}
+	if my_pos.distance_to(Map.DETECTIVE) < 80.0:
+		z = {"type": "dedektif", "label": "Dedektif Ferhat — vaka dosyası"}
+	if not _detective_zone({}).is_empty():
+		z = _detective_zone({})               # açık vakanın ipucu/şüphelisi her şeyden önce gelir
 	if my_pos.distance_to(Map.HIPPO_BOOTH) < 120.0 or Map.HIPPO_STANDS.grow(70).has_point(my_pos):
 		z = {"type": "hipodrom", "label": "Hipodrom — yarış ve bahis"}
 	if Map.STAGE.grow(50).has_point(my_pos):
@@ -691,6 +748,8 @@ func _update_zone() -> void:
 		z = {"type": "boatrent", "label": "Tekne kirala (%s / %d dk) — F: bin" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
 	if my_pos.distance_to(Map.RACE_FLAG) < 80.0 or my_pos.distance_to(Map.RACE_START) < 60.0:
 		z = {"type": "race", "label": "Yarış Pisti — tur başlat"}
+	if not dz.is_empty():
+		z = dz
 	zone = z
 	_g_action = _find_g_action()
 	var hint := "" if z.is_empty() else "[%s]  %s" % [Settings.key_name("interact"), z.label]
@@ -777,6 +836,38 @@ func _open_panel() -> void:
 			return
 		"roast":
 			Camp.roast(int(zone.i))
+			return
+		"shuttle":
+			Fair.shuttle(bool(zone.fair))
+			Sfx.play("door", -4.0, 0.9)
+			return
+		"ferris":
+			Fair.ride_ferris()
+			return
+		"bumper":
+			Fair.ride_bumper()
+			return
+		"candy":
+			Fair.buy_candy()
+			return
+		"balloon":
+			Airport.ride_balloon()
+			return
+		"clue":
+			Detective.inspect(str(zone.id))
+			Sfx.play("open", -6.0, 1.5)
+			return
+		"suspect":
+			Detective.question(str(zone.id))
+			return
+		"dedektif":
+			if panel == null:
+				panel = preload("res://scripts/ui/detective_panel.gd").new()
+				panel.nav_requested.connect(func(pos):
+					_close_panel()
+					set_nav(pos))
+				panel.closed.connect(_close_panel)
+				ui_layer.add_child(panel)
 			return
 		"fire_light":
 			Camp.light(int(zone.i))
@@ -916,6 +1007,9 @@ func _rebuild_blockers() -> void:
 		var mr: Rect2 = b.rect
 		_blockers.append(Rect2(mr.position.x + 6, mr.position.y + 16, mr.size.x - 12, mr.size.y - 26))
 	_blockers.append(Rect2(Map.LIGHTHOUSE.x - 22, Map.LIGHTHOUSE.y - 30, 44, 34))
+	for b in Map.FAIR_BUILDINGS:
+		var fr: Rect2 = b.rect
+		_blockers.append(Rect2(fr.position.x + 6, fr.position.y + 16, fr.size.x - 12, fr.size.y - 26))
 	var fs: Rect2 = Map.FIRE_STATION
 	_blockers.append(Rect2(fs.position.x + 4, fs.position.y + 20, fs.size.x - 8, fs.size.y - 34))
 	for i in mini(Land.view.size(), Map.PLOT_COUNT):
@@ -1696,6 +1790,8 @@ func _draw() -> void:
 	_draw_seabed()
 	_draw_mountain()
 	_draw_hippodrome()
+	_draw_fair()
+	_draw_city_extras()
 	for lp in Map.lamp_positions():
 		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
 		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
@@ -1756,6 +1852,14 @@ func _draw() -> void:
 	elif _room < 0 and not Band.performers_seen().is_empty():
 		for k in AUDIENCE.size():
 			items.append([AUDIENCE[k][0].y, "aud", k])
+	if _room < 0:
+		var cs := Detective.active_case()
+		if not cs.is_empty():
+			for s in cs.suspects:
+				items.append([s.pos.y, "susp", s])
+	if _fair:
+		for b in Map.FAIR_BUILDINGS:
+			_draw_building(b)
 	if _room < 0 and Map.in_south(my_pos):
 		for li in Horses.race.get("lanes", []).size():
 			var l: Dictionary = Horses.race.lanes[li]
@@ -1815,6 +1919,8 @@ func _draw() -> void:
 			_draw_mpine(it[2])
 		elif it[1] == "spot":
 			_draw_forage(it[2])
+		elif it[1] == "susp":
+			_draw_suspect(it[2])
 		elif it[1] == "tent":
 			_draw_tent(it[2][0], it[2][1])
 		elif it[1] == "cfire":
@@ -1844,6 +1950,7 @@ func _draw() -> void:
 		else:
 			var a: Array = it[2]
 			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
+	_draw_sky()
 	_draw_fx()
 	_draw_placement_ghost()
 	_draw_snow_fx()
@@ -2645,6 +2752,19 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 			_draw_skier(p, app, moving)
 			_name(p, -56, pname, name_col, extra)
 			return
+		"ferris":
+			_draw_gondola(p, app, pname, name_col, extra)
+			return
+		"bumper":
+			_draw_bumper_car(p, Color.from_hsv(fmod(absf(float(hash(pname))) * 0.0001, 1.0), 0.7, 0.95), app, facing)
+			_name(p, -52, pname, name_col, extra)
+			return
+		"balloon":
+			# gölge yerde; balonun kendisi en üstte çizilir (_draw_sky)
+			draw_set_transform(p + Vector2(40, 30), 0, Vector2(1, 0.4))
+			draw_circle(Vector2.ZERO, 46, Color(0, 0, 0, 0.18))
+			draw_set_transform(Vector2.ZERO)
+			return
 		"horse":
 			_draw_horse(p, facing, moving, Horses.COLORS[int(extra.get("hc", 0)) % Horses.COLORS.size()])
 			Avatar.draw(self, p + Vector2(0, -20), app, facing, 0)
@@ -2737,6 +2857,7 @@ func _update_mountain_zone() -> void:
 			best_d = d
 			mz = {"type": "rock", "id": int(r.id), "label": "Kayayı kır (basılı tut)" if Mountain.has_pickaxe else "Kaya — kazma Dağ Evi'nde"}
 	mz = _camp_zone(mz)
+	mz = _detective_zone(mz)
 	zone = mz
 	var hint := ""
 	if my_ride() == "ski":
@@ -3344,7 +3465,7 @@ func _toggle_horse() -> void:
 ## Kamp alanı ve orman etkileşimleri (dağ bölgesinde).
 func _camp_zone(mz: Dictionary) -> Dictionary:
 	for s in Camp.spots:
-		if my_pos.distance_to(Vector2(float(s.x), float(s.y))) < Camp.PICK_RANGE:
+		if mz.is_empty() and my_pos.distance_to(Vector2(float(s.x), float(s.y))) < Camp.PICK_RANGE:
 			var names := {"mantar": "Mantar topla", "kuzugobegi": "Kuzugöbeği topla!", "sinekmantari": "Mantar topla (kırmızı... zehirli olabilir)",
 				"bogurtlen": "Böğürtlen topla", "yabanmersini": "Yaban mersini topla", "kozalak": "Kozalak topla", "dal": "Kuru dal topla (odun)"}
 			mz = {"type": "forage", "id": int(s.id), "label": names.get(str(s.k), "Topla")}
@@ -3698,3 +3819,344 @@ func _take_photo() -> void:
 	_photo_flash.color = Color(1, 1, 1, 0.8)
 	create_tween().tween_property(_photo_flash, "color:a", 0.0, 0.35)
 	hud.show_toast("Fotoğraf albüme kaydedildi (Telefon → Albüm).")
+
+
+
+# ================================================================== 1.4: fuar, havalimanı, dedektif, okul
+
+## Çarpışan araba: ataletli sürüş, duvardan ve diğer arabalardan seker; çarptığını sunucuya bildirir.
+func _bumper_move(delta: float) -> void:
+	var dir := Vector2.ZERO
+	if panel == null and not hud.is_typing():
+		if Settings.held("up"):
+			dir.y -= 1
+		if Settings.held("down"):
+			dir.y += 1
+		if Settings.held("left"):
+			dir.x -= 1
+		if Settings.held("right"):
+			dir.x += 1
+	_bump_vel += dir.normalized() * 700.0 * delta
+	_bump_vel *= 1.0 - 1.6 * delta
+	_bump_vel = _bump_vel.limit_length(330.0)
+	var np := my_pos + _bump_vel * delta
+	var r := Map.BUMPER.grow(-24)
+	if np.x < r.position.x or np.x > r.end.x:
+		_bump_vel.x = -_bump_vel.x * 0.8
+	if np.y < r.position.y or np.y > r.end.y:
+		_bump_vel.y = -_bump_vel.y * 0.8
+	my_pos = np.clamp(r.position, r.end)
+	if _bump_vel.length() > 20.0:
+		my_moving = true
+		my_facing = _facing_of(_bump_vel)
+	var others: Array = []
+	for id in shown:
+		var info = Net.roster.get(id)
+		if info and str(info.get("ride", "")) == "bumper":
+			others.append([str(id), shown[id]])
+	for k in Fair.npcs.size():
+		others.append(["npc:%d" % k, Vector2(float(Fair.npcs[k].x), float(Fair.npcs[k].y))])
+	for o in others:
+		var op: Vector2 = o[1]
+		if my_pos.distance_to(op) < 48.0:
+			var away := (my_pos - op).normalized()
+			if _bump_vel.dot(-away) > 30.0 and _t - float(_bump_t.get(o[0], -9.0)) > 0.8:
+				_bump_t[o[0]] = _t
+				Fair.bump(o[0])
+				Sfx.play("chip", -2.0, 0.6)
+				add_fx("chips", (my_pos + op) / 2.0, 0.4)
+			_bump_vel = away * maxf(160.0, _bump_vel.length())
+			my_pos = op + away * 49.0
+
+
+func _update_fair_zone() -> void:
+	var z := {}
+	var ride := my_ride()
+	if ride == "ferris":
+		zone = {}
+		hud.set_hint("" if panel != null else "Dönme dolaptasın — manzaranın tadını çıkar! (%s: fotoğraf)" % Settings.key_name("photo"))
+		return
+	if ride == "bumper":
+		zone = {}
+		var left := maxf(0.0, Fair.bumper_end - Time.get_ticks_msec() / 1000.0)
+		hud.set_hint("" if panel != null else "ÇARPIŞAN ARABA  ·  %d sn  ·  %d çarpışma  ·  yön tuşlarıyla sür, başkalarına çarp!" % [int(left), Fair.bumper_pts])
+		return
+	for b in Map.FAIR_BUILDINGS:
+		if b.rect.grow(26).has_point(my_pos):
+			z = {"type": b.type, "label": "Havalimanı — uçuşlar"}
+	if my_pos.distance_to(Map.SHUTTLE_FAIR) < 100.0:
+		z = {"type": "shuttle", "fair": false, "label": "Şehre dönüş servisi (%s)" % U.money(Fair.SHUTTLE_PRICE)}
+	if my_pos.distance_to(Map.TICKET_BOOTH) < 110.0:
+		z = {"type": "fair_gise", "label": "Jeton gişesi ve ödül standı (jeton %d, bilet %d)" % [Fair.jeton, Fair.bilet]}
+	if my_pos.distance_to(Map.GALLERY) < 120.0:
+		z = {"type": "gallery", "label": "Atış poligonu (%d jeton)" % Fair.RIDE_COST}
+	if my_pos.distance_to(Map.CANDY) < 100.0:
+		z = {"type": "candy", "label": "Pamuk şeker al (%s)" % U.money(int(Fair.FAIR_FOODS.pamuk_seker.price))}
+	if my_pos.distance_to(Map.FERRIS + Vector2(0, Map.FERRIS_R + 60)) < 110.0:
+		z = {"type": "ferris", "label": "Dönme dolaba bin (%d jeton)" % Fair.RIDE_COST}
+	if my_pos.distance_to(Vector2(Map.BUMPER.get_center().x, Map.BUMPER.end.y + 40)) < 110.0:
+		z = {"type": "bumper", "label": "Çarpışan arabalar (%d jeton, 60 sn)" % Fair.RIDE_COST}
+	if my_pos.distance_to(Map.BALLOON_FIELD) < 140.0:
+		z = {"type": "balloon", "label": "Sıcak hava balonu turu (%s, 45 sn)" % U.money(Airport.BALLOON_PRICE)}
+	zone = z
+	hud.set_hint("" if panel != null or z.is_empty() else "[%s]  %s" % [Settings.key_name("interact"), z.label])
+
+
+## Açık vakanın ipuçları ve şüphelileri (her bölgede).
+func _detective_zone(z: Dictionary) -> Dictionary:
+	var cs := Detective.active_case()
+	if cs.is_empty():
+		return z
+	for cl in cs.clues:
+		if not Detective.has_clue(cl.id) and my_pos.distance_to(cl.pos) < Detective.RANGE:
+			z = {"type": "clue", "id": cl.id, "label": "İpucunu incele"}
+	for s in cs.suspects:
+		if my_pos.distance_to(s.pos) < Detective.RANGE:
+			z = {"type": "suspect", "id": s.id, "label": "Sorgula: %s" % s.name}
+	return z
+
+
+func _on_flight(d: Dictionary) -> void:
+	if panel != null:
+		_close_panel()
+	var layer := CanvasLayer.new()
+	layer.layer = 6
+	add_child(layer)
+	var sky := ColorRect.new()
+	sky.color = Color("#7dd3fc")
+	sky.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(sky)
+	var art := FlightArt.new()
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.dest = str(d.get("name", ""))
+	layer.add_child(art)
+	Sfx.play("door", -4.0, 0.6)
+	var tw := create_tween()
+	tw.tween_interval(float(d.get("time", 3.0)) + 0.2)
+	tw.tween_property(sky, "modulate:a", 0.0, 0.5)
+	tw.parallel().tween_property(art, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(layer.queue_free)
+
+
+class FlightArt extends Control:
+	var dest := ""
+	var t0 := Time.get_ticks_msec() / 1000.0
+	func _process(_d: float) -> void:
+		queue_redraw()
+	func _draw() -> void:
+		var t := Time.get_ticks_msec() / 1000.0 - t0
+		for i in 9:
+			var cx := fposmod(size.x - (t * (180.0 + i * 30.0) + i * 230.0), size.x + 300.0) - 150.0
+			var cy := 80.0 + fmod(i * 97.0, size.y - 160.0)
+			for j in 3:
+				draw_circle(Vector2(cx + j * 34.0, cy + (j % 2) * 10.0), 26.0 + j * 4.0, Color(1, 1, 1, 0.85))
+		var p := Vector2(size.x * 0.45, size.y * 0.5 + sin(t * 2.0) * 10.0)
+		draw_colored_polygon(PackedVector2Array([p + Vector2(-120, -14), p + Vector2(110, -14), p + Vector2(140, 0), p + Vector2(110, 14), p + Vector2(-120, 14)]), Color.WHITE)
+		draw_colored_polygon(PackedVector2Array([p + Vector2(-20, 0), p + Vector2(30, 0), p + Vector2(-40, 90), p + Vector2(-70, 90)]), Color("#cbd5e1"))
+		draw_colored_polygon(PackedVector2Array([p + Vector2(-20, 0), p + Vector2(30, 0), p + Vector2(-40, -90), p + Vector2(-70, -90)]), Color("#e2e8f0"))
+		draw_colored_polygon(PackedVector2Array([p + Vector2(-120, -14), p + Vector2(-100, -14), p + Vector2(-130, -60), p + Vector2(-145, -60)]), Color("#dc2626"))
+		for k in 7:
+			draw_circle(p + Vector2(-70 + k * 24, -4), 4, Color("#38bdf8"))
+		draw_line(p + Vector2(-120, 8), p + Vector2(110, 8), Color("#dc2626"), 3)
+		draw_string(ThemeDB.fallback_font, Vector2(0, size.y - 60), "✈  %s'na uçuluyor..." % dest, HORIZONTAL_ALIGNMENT_CENTER, size.x, 28, Color("#0f172a"))
+
+
+func _draw_gondola(p: Vector2, app: Dictionary, pname: String, name_col: Color, extra: Dictionary) -> void:
+	draw_line(p + Vector2(0, -48), p + Vector2(0, -30), Color("#475569"), 3)
+	Avatar.draw(self, p + Vector2(0, -4), app, "down", 0, 0.9)
+	draw_rect(Rect2(p.x - 22, p.y - 14, 44, 26), Color("#ef4444"))
+	draw_rect(Rect2(p.x - 22, p.y - 14, 44, 26), Color("#7f1d1d"), false, 2)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-26, -34), p + Vector2(26, -34), p + Vector2(18, -44), p + Vector2(-18, -44)]), Color("#facc15"))
+	_name(p, -70, pname, name_col, extra)
+
+
+func _draw_bumper_car(p: Vector2, col: Color, app: Dictionary, facing: String) -> void:
+	draw_set_transform(p + Vector2(0, 6), 0, Vector2(1, 0.7))
+	draw_circle(Vector2.ZERO, 26, Color("#111827"))
+	draw_circle(Vector2.ZERO, 22, col)
+	draw_set_transform(Vector2.ZERO)
+	draw_line(p + Vector2(-12, -6), p + Vector2(-12, -60), Color("#9ca3af"), 2)
+	draw_circle(p + Vector2(-12, -62), 3, Color("#fde68a") if fmod(_t * 8.0, 1.0) < 0.5 else Color("#f59e0b"))
+	Avatar.draw(self, p + Vector2(0, -8), app, facing, 0, 0.85)
+
+
+func _draw_sky() -> void:
+	# balondakiler (her şeyin üstünde)
+	var riders: Array = []
+	for id in shown:
+		var info = Net.roster.get(id)
+		if info and str(info.get("ride", "")) == "balloon":
+			riders.append([shown[id], info.get("appearance", {}), _name_of(info)])
+	var me = Net.roster.get(Net.my_id())
+	if me and str(me.get("ride", "")) == "balloon":
+		riders.append([my_pos, me.get("appearance", {}), _name_of(me)])
+	for r in riders:
+		var p: Vector2 = r[0] + Vector2(0, -170 + sin(_t * 1.2) * 6.0)
+		var cols := [Color("#ef4444"), Color("#facc15"), Color("#3b82f6"), Color("#22c55e")]
+		draw_set_transform(p + Vector2(0, -80), 0, Vector2(1.0, 1.15))
+		draw_circle(Vector2.ZERO, 66, cols[0])
+		for k in 4:
+			draw_colored_polygon(PackedVector2Array([Vector2(-66 + k * 33, -10), Vector2(-50 + k * 33, -60), Vector2(-34 + k * 33, -10), Vector2(-50 + k * 33, 50)]), cols[(k + 1) % 4])
+		draw_set_transform(Vector2.ZERO)
+		for dx in [-20.0, 20.0]:
+			draw_line(p + Vector2(dx * 1.6, -14), p + Vector2(dx * 0.8, 10), Color("#78350f"), 2)
+		Avatar.draw(self, p + Vector2(0, 14), r[1], "down", 0, 0.85)
+		draw_rect(Rect2(p.x - 22, p.y + 8, 44, 26), Color("#a16207"))
+		draw_rect(Rect2(p.x - 22, p.y + 8, 44, 26), Color("#78350f"), false, 2)
+		if fmod(_t, 2.0) < 0.3:
+			draw_colored_polygon(PackedVector2Array([p + Vector2(-6, -10), p + Vector2(0, -30), p + Vector2(6, -10)]), Color("#f97316"))
+		_text(p + Vector2(-100, 44), r[2], 13, Color.WHITE, 200)
+
+
+func _draw_suspect(s: Dictionary) -> void:
+	var p: Vector2 = s.pos
+	draw_set_transform(p + Vector2(0, 10), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 15, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	Avatar.draw(self, p, s.app, _facing_of(my_pos - p) if my_pos.distance_to(p) < 160 else "down", 0)
+	_text(p + Vector2(-100, -56), s.name, 14, Color("#fca5a5"), 200)
+	if not Detective.talked(s.id):
+		draw_circle(p + Vector2(0, -72), 10, Color("#f97316"))
+		_text(p + Vector2(-10, -64), "?", 14, Color.WHITE, 20, false)
+
+
+## Şehirdeki 1.4 eklentileri: servis durağı, dedektif ve açık vakanın ipuçları.
+func _draw_city_extras() -> void:
+	var sp: Vector2 = Map.SHUTTLE_CITY
+	draw_rect(Rect2(sp.x - 3, sp.y - 64, 6, 64), Color("#374151"))
+	draw_rect(Rect2(sp.x - 34, sp.y - 92, 68, 30), Color("#7c3aed"))
+	_text(Vector2(sp.x - 70, sp.y - 72), "LUNAPARK ✈", 12, Color.WHITE, 140, false)
+	var d: Vector2 = Map.DETECTIVE
+	draw_set_transform(d + Vector2(0, 10), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 15, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	Avatar.draw(self, d, {"skin": 2, "hair": 4, "hair_color": 0, "shirt": 11, "pants": 0}, _facing_of(my_pos - d) if my_pos.distance_to(d) < 160 else "down", 0)
+	draw_rect(Rect2(d.x - 15, d.y - 52, 30, 6), Color("#78350f"))       # şapka
+	draw_rect(Rect2(d.x - 9, d.y - 62, 18, 11), Color("#78350f"))
+	_text(d + Vector2(-100, -76), "Dedektif Ferhat", 15, Color("#fde68a"), 200)
+	if Detective.active_case().is_empty() and Detective.state.get("solved", []).size() < Detective.CASES.size():
+		draw_circle(d + Vector2(0, -94), 11, Color("#facc15"))
+		_text(d + Vector2(-10, -86), "!", 15, Color("#111827"), 20, false)
+	var cs := Detective.active_case()
+	for cl in cs.get("clues", []):
+		if Detective.has_clue(cl.id):
+			continue
+		var cp: Vector2 = cl.pos
+		for k in 4:
+			var a := _t * 2.0 + k * TAU / 4.0
+			draw_circle(cp + Vector2(cos(a), sin(a) * 0.5) * 16.0, 2.5, Color(1.0, 0.9, 0.3, 0.9))
+		draw_circle(cp, 9, Color(1.0, 0.85, 0.2, 0.35 + 0.25 * sin(_t * 4.0)))
+		_text(cp + Vector2(-10, -26), "?", 16, Color("#fde68a"), 20)
+
+
+func _draw_fair() -> void:
+	var b: Rect2 = Map.FAIR
+	var vsize := get_viewport_rect().size / camera.zoom
+	var view := Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(200)
+	if not view.intersects(b):
+		return
+	draw_rect(b, GRASS.get(Env.season, GRASS.spring))
+	# lunapark zemini ve yollar
+	draw_rect(Rect2(10620, 180, 1240, 1400), Color("#d6c7a1"))
+	draw_rect(Rect2(10620, 1480, 2560, 120), Color("#9ca3af"))
+	draw_rect(Rect2(11270, 1500, 60, 120), Color("#6b7280"))
+	_text(Vector2(10620, 210), "LUNAPARK", 30, Color("#f472b6"), 1240)
+	# ışık zincirleri
+	for i in 40:
+		var x := 10640.0 + i * 30.0
+		var col := Color.from_hsv(fmod(i * 0.11 + _t * 0.2, 1.0), 0.7, 1.0)
+		draw_circle(Vector2(x, 240 + sin(i * 0.8) * 8.0), 4, col)
+	# dönme dolap
+	var f: Vector2 = Map.FERRIS
+	var R := Map.FERRIS_R
+	draw_line(f, f + Vector2(-120, R + 60), Color("#475569"), 10)
+	draw_line(f, f + Vector2(120, R + 60), Color("#475569"), 10)
+	var ang := Fair.ferris_angle(Land.server_now())
+	draw_arc(f, R, 0, TAU, 64, Color("#e5e7eb"), 6)
+	draw_arc(f, R - 30, 0, TAU, 64, Color("#cbd5e1"), 3)
+	for k in Fair.FERRIS_SEATS:
+		var a := ang + k * TAU / Fair.FERRIS_SEATS
+		var sp := f + Vector2(cos(a), sin(a)) * R
+		draw_line(f, sp, Color("#94a3b8"), 3)
+		draw_circle(sp, 6, Color("#fde68a") if Env.darkness() > 0.3 else Color("#94a3b8"))
+	draw_circle(f, 18, Color("#64748b"))
+	# boş koltuklar (biniciler kendi çizilir)
+	var taken := {}
+	for id in Net.roster:
+		if str(Net.roster[id].get("ride", "")) == "ferris":
+			taken[int(Net.roster[id].get("seat", -1))] = true
+	for k in Fair.FERRIS_SEATS:
+		if taken.has(k):
+			continue
+		var gp := Fair.seat_pos(k, Land.server_now())
+		draw_line(gp + Vector2(0, -48), gp + Vector2(0, -30), Color("#475569"), 3)
+		draw_rect(Rect2(gp.x - 22, gp.y - 30, 44, 42), [Color("#ef4444"), Color("#3b82f6"), Color("#22c55e"), Color("#f59e0b")][k % 4])
+		draw_colored_polygon(PackedVector2Array([gp + Vector2(-26, -34), gp + Vector2(26, -34), gp + Vector2(18, -44), gp + Vector2(-18, -44)]), Color("#facc15"))
+	_text(f + Vector2(-100, R + 96), "DÖNME DOLAP", 16, Color("#fde68a"), 200)
+	# çarpışan araba pisti
+	var a2: Rect2 = Map.BUMPER
+	draw_rect(a2, Color("#334155"))
+	for x in range(int(a2.position.x), int(a2.end.x), 40):
+		draw_line(Vector2(x, a2.position.y), Vector2(x, a2.end.y), Color(1, 1, 1, 0.05), 1)
+	draw_rect(a2, Color("#facc15"), false, 8)
+	draw_rect(a2.grow(-8), Color("#111827"), false, 4)
+	_text(Vector2(a2.position.x, a2.position.y - 14), "ÇARPIŞAN ARABALAR", 18, Color("#fde68a"), a2.size.x)
+	for k in Fair.npcs.size():
+		var np := Vector2(float(Fair.npcs[k].x), float(Fair.npcs[k].y))
+		_draw_bumper_car(np, [Color("#22c55e"), Color("#f97316"), Color("#a855f7")][k % 3], {"skin": k, "hair": k, "hair_color": k, "shirt": 3 + k, "pants": k}, "down")
+	# tezgâhlar
+	for st in [[Map.GALLERY, "ATIŞ POLİGONU", Color("#dc2626")], [Map.TICKET_BOOTH, "JETON • ÖDÜL", Color("#7c3aed")], [Map.CANDY, "PAMUK ŞEKER", Color("#ec4899")]]:
+		var c: Vector2 = st[0]
+		draw_rect(Rect2(c.x - 80, c.y - 70, 160, 70), Color("#fef3c7"))
+		for k in 8:
+			draw_rect(Rect2(c.x - 84 + k * 21, c.y - 92, 21, 24), st[2] if k % 2 == 0 else Color.WHITE)
+		draw_rect(Rect2(c.x - 80, c.y - 70, 160, 70), Color("#78350f"), false, 3)
+		_text(Vector2(c.x - 90, c.y - 40), st[1], 14, Color("#7c2d12"), 180, false)
+	# havalimanı: pist, kule, uçaklar
+	var rw: Rect2 = Map.RUNWAY
+	draw_rect(rw, Color("#374151"))
+	for x in range(int(rw.position.x) + 20, int(rw.end.x) - 20, 80):
+		draw_rect(Rect2(x, rw.get_center().y - 3, 44, 6), Color("#f8fafc"))
+	for k in 8:
+		draw_rect(Rect2(rw.position.x + 8, rw.position.y + 8 + k * 12, 30, 6), Color("#f8fafc"))
+	_text(Vector2(rw.position.x, rw.position.y - 10), "PİST 09", 14, Color("#e5e7eb"), 200, false)
+	var tk := _t - _takeoff_t
+	var cyc := fmod(_t, 40.0)
+	var plane_u := -1.0
+	if tk < 5.0:
+		plane_u = tk / 5.0
+	elif cyc < 5.0:
+		plane_u = cyc / 5.0
+	if plane_u >= 0.0:
+		var pp := Vector2(lerpf(rw.position.x + 60, rw.end.x + 300, plane_u * plane_u), rw.get_center().y - maxf(0.0, plane_u - 0.55) * 500.0)
+		var sc := 1.0 + maxf(0.0, plane_u - 0.55) * 0.8
+		draw_set_transform(pp, -maxf(0.0, plane_u - 0.55) * 0.5, Vector2(sc, sc))
+		draw_colored_polygon(PackedVector2Array([Vector2(-60, -8), Vector2(56, -8), Vector2(70, 0), Vector2(56, 8), Vector2(-60, 8)]), Color.WHITE)
+		draw_colored_polygon(PackedVector2Array([Vector2(-10, 0), Vector2(14, 0), Vector2(-20, 46), Vector2(-34, 46)]), Color("#cbd5e1"))
+		draw_colored_polygon(PackedVector2Array([Vector2(-10, 0), Vector2(14, 0), Vector2(-20, -46), Vector2(-34, -46)]), Color("#e2e8f0"))
+		draw_colored_polygon(PackedVector2Array([Vector2(-60, -8), Vector2(-48, -8), Vector2(-64, -30), Vector2(-72, -30)]), Color("#dc2626"))
+		draw_set_transform(Vector2.ZERO)
+	# balon alanı
+	var bf: Vector2 = Map.BALLOON_FIELD
+	draw_circle(bf, 70, Color("#a3e635"))
+	for k in 3:
+		var bp := bf + Vector2(-150 + k * 150, -40 + (k % 2) * 30)
+		if k == 1:
+			bp = bf
+		var cols := [Color("#ef4444"), Color("#3b82f6"), Color("#a855f7")]
+		draw_set_transform(bp + Vector2(0, -110 + sin(_t * 1.5 + k) * 5.0), 0, Vector2(1.0, 1.15))
+		draw_circle(Vector2.ZERO, 48, cols[k])
+		draw_colored_polygon(PackedVector2Array([Vector2(-16, -46), Vector2(16, -46), Vector2(10, 46), Vector2(-10, 46)]), Color("#facc15"))
+		draw_set_transform(Vector2.ZERO)
+		draw_line(bp + Vector2(-16, -50), bp + Vector2(-12, -12), Color("#78350f"), 2)
+		draw_line(bp + Vector2(16, -50), bp + Vector2(12, -12), Color("#78350f"), 2)
+		draw_rect(Rect2(bp.x - 16, bp.y - 14, 32, 20), Color("#a16207"))
+	_text(bf + Vector2(-100, 70), "BALON TURU", 16, Color("#fde68a"), 200)
+	# servis otobüsü
+	var sh: Vector2 = Map.SHUTTLE_FAIR
+	draw_rect(Rect2(sh.x - 90, sh.y - 36, 180, 56), Color("#7c3aed"))
+	for k in 5:
+		draw_rect(Rect2(sh.x - 80 + k * 32, sh.y - 28, 24, 18), Color("#bae6fd"))
+	draw_circle(sh + Vector2(-55, 22), 10, Color("#111827"))
+	draw_circle(sh + Vector2(55, 22), 10, Color("#111827"))
+	_text(sh + Vector2(-100, -50), "ŞEHİR SERVİSİ", 14, Color("#fde68a"), 200)

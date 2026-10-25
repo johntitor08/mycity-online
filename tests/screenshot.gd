@@ -25,6 +25,12 @@ func _ready() -> void:
 			_shot(part[1])
 		get_tree().quit()
 		return
+	if "--sadece14" in OS.get_cmdline_user_args():
+		Net.add_money(1, 300000)
+		Rpg.add_xp(1, "", 20000)
+		await _shots_14(w)
+		get_tree().quit()
+		return
 	if "--sadece13" in OS.get_cmdline_user_args():
 		Net.add_money(1, 300000)
 		Rpg.add_xp(1, "", 20000)
@@ -245,6 +251,157 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_14(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.hour = 17.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Tutorial.finish()
+	w.camera.zoom = Vector2(1, 1)
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0},
+		{"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]
+	var names := ["Ayşe", "Kerem", "Zeynep"]
+	# okul
+	w.my_pos = Map.building("okul").rect.get_center() + Vector2(0, 118)
+	await _wait(0.5)
+	w._open_panel()
+	await _wait(0.3)
+	School.start_exam("surucu")
+	await _wait(0.6)
+	_shot("okul_sinav")
+	w._close_panel()
+	# dedektif: vaka, ipucu ve şüpheli
+	w.my_pos = Map.DETECTIVE + Vector2(0, 40)
+	await _wait(0.4)
+	Detective.take_case()
+	await _wait(0.3)
+	var cs := Detective.active_case()
+	w.my_pos = cs.clues[0].pos + Vector2(0, 30)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.3)
+	for sp in [cs.suspects[0], cs.suspects[2]]:
+		w.my_pos = sp.pos + Vector2(0, 40)
+		await _wait(0.3)
+		w._open_panel()
+		await _wait(0.3)
+	w.my_pos = cs.suspects[1].pos + Vector2(60, 40)
+	w.camera.zoom = Vector2(1.4, 1.4)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("dedektif_supheli")
+	w.camera.zoom = Vector2(1, 1)
+	w.my_pos = Map.DETECTIVE + Vector2(0, 40)
+	await _wait(0.4)
+	w._open_panel()
+	await _wait(0.6)
+	_shot("dedektif_dosya")
+	w._close_panel()
+	# fuar
+	w.my_pos = Map.SHUTTLE_CITY + Vector2(0, 20)
+	await _wait(0.3)
+	Fair.shuttle(true)
+	await _wait(0.5)
+	w.my_pos = Map.TICKET_BOOTH + Vector2(0, 50)
+	await _wait(0.3)
+	for _k in 4:
+		Fair.buy_jeton()
+	await _wait(0.3)
+	# sahte oyuncular: dolapta ve çarpışan arabada
+	for k in 3:
+		Net.players[9951 + k] = {"name": names[k], "money": 5000, "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 9}
+	Net.players[9951]["ride"] = "ferris"
+	Net.players[9951]["seat"] = 2
+	Net.positions[9951] = Fair.seat_pos(2, Land.server_now())
+	Net.players[9952]["ride"] = "bumper"
+	Net.positions[9952] = Map.BUMPER.get_center() + Vector2(-120, 40)
+	Net.positions[9953] = Map.GALLERY + Vector2(40, 60)
+	Net._broadcast_roster()
+	w.my_pos = Vector2(Map.BUMPER.get_center().x, Map.BUMPER.end.y + 40)
+	await _wait(0.3)
+	Fair.ride_bumper()
+	await _wait(0.6)
+	w.my_pos = Map.BUMPER.get_center() + Vector2(60, -20)
+	w.camera.zoom = Vector2(0.8, 0.8)
+	for _k in 40:
+		Net.positions[9951] = Fair.seat_pos(2, Land.server_now())
+		await get_tree().process_frame
+	w.my_pos = Map.BUMPER.get_center() + Vector2(-200, 120)
+	await _wait(0.8)
+	await _clear_toasts(w)
+	_shot("lunapark")
+	w.camera.zoom = Vector2(1.4, 1.4)
+	w.my_pos = Map.BUMPER.get_center() + Vector2(40, 30)
+	await _wait(0.8)
+	_shot("carpisan")
+	Fair._bumper[1].end = 0.0
+	await _wait(0.4)
+	w.camera.zoom = Vector2(1, 1)
+	w.my_pos = Map.FERRIS + Vector2(0, Map.FERRIS_R + 60)
+	await _wait(0.3)
+	Fair.ride_ferris()
+	await _wait(6.0)
+	w.camera.zoom = Vector2(1.2, 1.2)
+	await _wait(0.8)
+	await _clear_toasts(w)
+	_shot("donme_dolap")
+	Fair._ferris[1] = 0.0
+	await _wait(0.4)
+	w.camera.zoom = Vector2(1, 1)
+	w.my_pos = Map.GALLERY + Vector2(0, 50)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.3)
+	Fair.start_gallery()
+	await _wait(4.0)
+	var g: Dictionary = Fair.gallery
+	var tt: float = Time.get_ticks_msec() / 1000.0 - float(g.t0)
+	for tg in g.targets:
+		if tt > float(tg.t) and tt < float(tg.t) + float(tg.dur) * 0.6:
+			w.panel._shot[int(tg.id)] = true
+			Fair.shoot(int(tg.id))
+			break
+	await _wait(0.3)
+	_shot("atis_poligonu")
+	w._close_panel()
+	Fair._data(Net.save_data.players["Eren"])["bilet"] = 64
+	Fair.send_state(1)
+	w.my_pos = Map.TICKET_BOOTH + Vector2(0, 50)
+	await _wait(0.4)
+	w._open_panel()
+	await _wait(0.5)
+	_shot("odul_standi")
+	w._close_panel()
+	# havalimanı
+	w.my_pos = Map.FAIR_BUILDINGS[0].rect.get_center() + Vector2(220, 240)
+	Airport.on_takeoff({})
+	await _wait(3.0)
+	await _clear_toasts(w)
+	w.camera.zoom = Vector2(0.75, 0.75)
+	await _wait(0.6)
+	_shot("havalimani")
+	w.camera.zoom = Vector2(1, 1)
+	# balon turu
+	w.my_pos = Map.BALLOON_FIELD + Vector2(0, 60)
+	await _wait(0.3)
+	Airport.ride_balloon()
+	await _wait(14.0)
+	await _clear_toasts(w)
+	_shot("balon")
+	Airport._balloon[1] = 0.0
+	await _wait(0.6)
+	# uçuş
+	w.my_pos = Map.FAIR_BUILDINGS[0].rect.get_center() + Vector2(0, 130)
+	await _wait(0.3)
+	Airport.fly("ada")
+	await _wait(1.4)
+	_shot("ucus")
+	await _wait(2.5)
 
 
 func _shots_13(w) -> void:

@@ -189,9 +189,9 @@ func _free_spot() -> Variant:
 	for _try in 30:
 		var p := Vector2(randf_range(m.position.x + 60, m.end.x - 60), randf_range(Map.SNOW_LINE + 80.0, m.end.y - 60))
 		var bad := Map.QUARRY.grow(40).has_point(p) or Map.SLOPE.grow(60).has_point(p) or Map.CAMP.grow(20).has_point(p) \
-			or absf(p.x - Map.LIFT.x) < 60.0
+			or absf(p.x - Map.LIFT.x) < 60.0 or p.distance_to(Map.LIFT) < 200.0 or p.distance_to(Map.MOUNTAIN_SPAWN) < 160.0
 		for b in Map.MOUNTAIN_BUILDINGS:
-			if b.rect.grow(50).has_point(p):
+			if b.rect.grow(150).has_point(p):
 				bad = true
 		for s in _spots:
 			if Vector2(float(s.x), float(s.y)).distance_to(p) < 70.0:

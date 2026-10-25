@@ -664,6 +664,23 @@ def furniture():
                              circle(w / 4, 18, 6, "#111827", 1.5), circle(w / 4, 32, 6, "#111827", 1.5),
                              circle(w / 4, 18, 3, "#ef4444", 0), rect(w / 2 + 4, 10, w / 2 - 12, h - 20, "#a16207", 3, 2),
                              ellipse(w * 0.75, h / 2, 9, 6, "#94a3b8", 1.5)])
+    # 1.4: lunapark ödülleri
+    w = h = T
+    items["pelus_ayi"] = (w, h, [circle(w / 2, h * 0.62, 15, "#b45309", 2.5), circle(w / 2, h * 0.32, 11, "#b45309", 2.5),
+                                 circle(w / 2 - 9, h * 0.18, 5, "#b45309", 2), circle(w / 2 + 9, h * 0.18, 5, "#b45309", 2),
+                                 ellipse(w / 2, h * 0.37, 5, 4, "#fde68a", 1.5), circle(w / 2 - 4, h * 0.29, 1.6, "#111827", 0),
+                                 circle(w / 2 + 4, h * 0.29, 1.6, "#111827", 0), ellipse(w / 2, h * 0.65, 8, 9, "#fde68a", 1.5),
+                                 path(f"M{w / 2 - 6} {h * 0.47}l6 4l6 -4", "#ef4444", 1.5)])
+    w, h = T, 2 * T
+    items["pelus_zurafa"] = (w, h, [rect(w / 2 - 5, 14, 10, h * 0.55, "#fbbf24", 4, 2), ellipse(w / 2, h * 0.75, 17, 13, "#fbbf24", 2.5),
+                                    ellipse(w / 2 + 4, 12, 10, 7, "#fbbf24", 2), circle(w / 2 + 7, 10, 1.6, "#111827", 0),
+                                    circle(w / 2 - 6, h * 0.72, 3, "#b45309", 0), circle(w / 2 + 7, h * 0.78, 3, "#b45309", 0),
+                                    circle(w / 2, h * 0.4, 2.5, "#b45309", 0), circle(w / 2, h * 0.25, 2.5, "#b45309", 0),
+                                    path(f"M{w / 2 - 2} 5v-4M{w / 2 + 6} 5v-4", "none", 2)])
+    w = h = T
+    items["lunapark_feneri"] = (w, h, [rect(w / 2 - 3, 18, 6, h - 22, "#374151", 1, 1.5), ellipse(w / 2, h - 5, 12, 4, "#374151", 1.5),
+                                       circle(w / 2, 14, 11, "#f472b6", 2), circle(w / 2 - 4, 11, 3, "#fde68a", 0),
+                                       circle(w / 2 + 5, 16, 3, "#a5f3fc", 0), circle(w / 2 + 2, 7, 2.5, "#bbf7d0", 0)])
     for name, (w, h, parts) in items.items():
         save(f"furniture/{name}.svg", svg(w, h, parts))
 
@@ -928,6 +945,34 @@ def hara():
     save("buildings/hara.svg", svg(W, H, p))
 
 
+# ---------------------------------------------------------------- 1.4: okul ve havalimanı terminali
+
+def okul():
+    W, H = 168, 200
+    p = [rect(6, 60, W - 12, 136, "#fde68a", 4), rect(6, 176, W - 12, 20, "#d6b98a"),
+         poly([(0, 64), (84, 22), (168, 64)], "#b91c1c"), rect(72, 8, 24, 40, "#e5e7eb", 2, 2),
+         path("M84 8v-6", "none", 2), poly([(84, 2), (100, 6), (84, 10)], "#dc2626", 1.5),
+         circle(84, 34, 8, "#f8fafc", 2), path("M84 29v5l4 2", "none", 1.5),
+         rect(64, 128, 40, 68, "#7c2d12", 3), path("M84 128v68", "none", 2, "#fdba74")]
+    for x in (18, 116):
+        for y in (78, 128):
+            p += [rect(x, y, 34, 30, "url(#glass)", 3, 2), path(f"M{x + 17} {y}v30M{x} {y + 15}h34", "none", 1.5)]
+    p.append(rect(W / 2 - 56, 22, 112, 26, "#1e3a8a", 6, 2.5, "#fde68a"))
+    save("buildings/okul.svg", svg(W, H, p, GLASS))
+
+
+def terminal():
+    W, H = 420, 230
+    p = [rect(6, 70, W - 12, 156, "#e2e8f0", 6), rect(6, 206, W - 12, 20, "#94a3b8"),
+         path("M6 70Q210 6 414 70", "#94a3b8", 3), rect(20, 100, W - 40, 70, "url(#glass)", 6, 2.5)]
+    for x in range(40, W - 30, 40):
+        p.append(path(f"M{x} 100v70", "none", 2, "#64748b"))
+    p += [rect(180, 160, 60, 66, "#334155", 4), path("M210 160v66", "none", 2, "#94a3b8"),
+          rect(330, 10, 30, 64, "#475569", 3), rect(318, 2, 54, 16, "#93c5fd", 4, 2)]
+    p.append(rect(W / 2 - 92, 40, 184, 30, "#0f172a", 7, 3, "#38bdf8"))
+    save("buildings/terminal.svg", svg(W, H, p, GLASS))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -957,3 +1002,5 @@ if __name__ == "__main__":
     teleferik()
     dagevi()
     hara()
+    okul()
+    terminal()

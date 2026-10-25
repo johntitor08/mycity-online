@@ -35,6 +35,42 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.4: Lunapark, havalimanı ve balon, dedektiflik, okul
+
+| | |
+|---|---|
+| ![Lunapark](docs/ekran/lunapark.png) | ![Çarpışan arabalar](docs/ekran/carpisan.png) |
+| ![Atış poligonu](docs/ekran/atis_poligonu.png) | ![Havalimanı](docs/ekran/havalimani.png) |
+| ![Balon turu](docs/ekran/balon.png) | ![Dedektif](docs/ekran/dedektif_dosya.png) |
+| ![Şüpheli](docs/ekran/dedektif_supheli.png) | ![Okul](docs/ekran/okul_sinav.png) |
+
+- **Fuar ve Havalimanı:** Merkez taksi durağının doğusundaki **servisle** (20 TL) gidilen yeni bölge.
+- **Lunapark:** Gişeden jeton al (5 jeton 40 TL).
+  - **Dönme dolap:** 30 saniyelik tur, herkes görür.
+  - **Çarpışan arabalar:** 60 sn; oyunculara ve NPC arabalara çarptıkça puan. Çarpışmayı sunucu denetler.
+  - **Atış poligonu:** Ördekleri vur; üç sıra, altın ördek 5 puan. Hedefleri sunucu üretir.
+  - **Pamuk şeker.** Biletleri ödül standında Dev Lolipop, Peluş Ayı, Dev Peluş Zürafa ve
+    Lunapark Feneri'ne çevir (eşyalar evine konur).
+- **Havalimanı:** Terminalden şehre, Martı Adası'na, dağ köyüne ya da Sanayi Limanı'na hızlı uçuş
+  (uçuş animasyonu); pistte kalkan uçaklar.
+- **Sıcak hava balonu:** 45 saniyelik şehir turu. Kamera uzaklaşır; balonu herkes gökyüzünde görür;
+  turda fotoğraf modu kullanılabilir.
+- **Dedektiflik:** Karakolun yanındaki **Dedektif Ferhat**'tan vaka al. Her vakada şehrin, Sanayi'nin ve
+  dağın farklı yerlerinde 3 ipucu ve sorgulanacak 3 şüpheli var ("Haritada göster" ile yol tarifi).
+  Delilleri birleştirip suçluyu seç; yanlış suçlama bekletir ve ödülü azaltır. 4 vaka: Kayıp Altın Balık,
+  Bankada Sahte Para, Dağ Evi'nin Kayıp Erzakı, Müzeden Kaybolan Fosil.
+- **Okul:** Bankanın doğusunda. 7 kurs; her biri sunucuda puanlanan 5 soruluk sınavla bitiyor. Diplomalar
+  kalıcı bonus verir:
+  - Aşçılık: %30 ihtimalle 2 porsiyon
+  - Sürücü: araç %10 daha hızlı
+  - Müzik: sahne kazancı +%20
+  - Dalgıçlık: +20 sn oksijen
+  - Finans: kira +%10
+  - Binicilik: yarışta +%3 hız
+  - İlk Yardım: hastane maaşı +%15
+- Yeni başarımlar ve unvanlar: Çarpışma Kralı, Keskin Nişancı, Bilet Avcısı, Pilot, Gökyüzü Gezgini,
+  Dedektif, Baş Dedektif, Profesör.
+
 ## 1.3: Telefon ve fotoğraf, güvenli takas, at ve hipodrom, kamp, animasyonlar
 
 | | |
@@ -335,8 +371,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.3
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.3
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.4
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.4
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

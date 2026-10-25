@@ -34,7 +34,55 @@ const BUILDINGS := [
 	{"type": "teleferik", "label": "Teleferik", "rect": Rect2(2050, 1506, 180, 116), "sign_y": 30},
 	# 1.3: hara (at çiftliği), Sanayi bölgesinde müzenin yanında
 	{"type": "hara", "label": "Hara", "rect": Rect2(1316, 3806, 196, 150), "sign_y": 26},
+	# 1.4: okul (bankanın doğusu)
+	{"type": "okul", "label": "Okul", "rect": Rect2(2626, 1168, 168, 200), "sign_y": 30},
 ]
+# 1.4: Fuar ve Havalimanı bölgesi (harita dışında; şehirden servisle gidilir)
+const FAIR := Rect2(10600, 0, 2600, 1700)
+const SHUTTLE_CITY := Vector2(1640, 518)          # şehirdeki servis durağı (üst caddenin güney kaldırımı)
+const SHUTTLE_FAIR := Vector2(11300, 1560)        # fuardaki servis durağı (gelince burada)
+const FERRIS := Vector2(10950, 560)               # dönme dolabın merkezi
+const FERRIS_R := 230.0
+const BUMPER := Rect2(11260, 250, 480, 360)       # çarpışan araba pisti
+const GALLERY := Vector2(10860, 1060)             # atış poligonu tezgâhı
+const TICKET_BOOTH := Vector2(11230, 1060)        # jeton gişesi ve ödül standı
+const CANDY := Vector2(11560, 1080)               # pamuk şeker
+const FAIR_BUILDINGS := [
+	{"type": "terminal", "label": "Havalimanı", "rect": Rect2(12160, 860, 420, 230), "sign_y": 40},
+]
+const RUNWAY := Rect2(11900, 1260, 1220, 110)
+const BALLOON_FIELD := Vector2(12880, 520)
+const DETECTIVE := Vector2(2252, 1046)            # Dedektif Ferhat (karakolun batısı)
+
+## Balon turu güzergâhı (şehrin üstünde, 45 sn).
+const BALLOON_ROUTE := [Vector2(320, 1620), Vector2(700, 1000), Vector2(1250, 650), Vector2(1900, 420),
+	Vector2(2450, 760), Vector2(2350, 1350), Vector2(1700, 1900), Vector2(1000, 2050), Vector2(450, 1800)]
+const BALLOON_TIME := 45.0
+
+
+static func balloon_at(t: float) -> Vector2:
+	var pts: Array = BALLOON_ROUTE
+	var total := 0.0
+	for i in pts.size() - 1:
+		total += pts[i].distance_to(pts[i + 1])
+	var d := clampf(t / BALLOON_TIME, 0.0, 1.0) * total
+	for i in pts.size() - 1:
+		var seg: float = pts[i].distance_to(pts[i + 1])
+		if d <= seg:
+			return pts[i].lerp(pts[i + 1], d / seg)
+		d -= seg
+	return pts[-1]
+
+
+## Bölge kimliği: oyuncu bölgeler arasında sadece sunucu ışınlamasıyla geçer.
+static func region_of(p: Vector2) -> String:
+	if MOUNTAIN.has_point(p):
+		return "dag"
+	if FAIR.has_point(p):
+		return "fuar"
+	return "sehir"
+
+
 # 1.3: hipodrom (güney şeridi): 4 kulvar, soldan sağa
 const HIPPODROME := Rect2(260, 4116, 2440, 172)
 const HIPPO_START_X := 330.0

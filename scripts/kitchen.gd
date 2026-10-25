@@ -108,7 +108,10 @@ func req_cook(d: Dictionary) -> void:
 			store[ing] = int(store[ing]) - int(r.needs[ing])
 			if int(store[ing]) <= 0:
 				store.erase(ing)
-	items[k] = int(items.get(k, 0)) + 1
+	var portions := 2 if School.has_by_id(id, "asci") and randf() < 0.3 else 1
+	items[k] = int(items.get(k, 0)) + portions
+	if portions > 1:
+		Net.notify(id, "Aşçılık diplomanın sayesinde 2 porsiyon çıktı!")
 	Net.mark_dirty()
 	Farm.send_state(id)
 	Rpg.send_sheet(id)

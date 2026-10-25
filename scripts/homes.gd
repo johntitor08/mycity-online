@@ -26,6 +26,10 @@ const FURNITURE := {
 	"aquarium": {"name": "Akvaryum", "price": 3000, "size": Vector2i(2, 1)},
 	"desk": {"name": "Bilgisayar Masası", "price": 3500, "size": Vector2i(2, 1)},
 	"stove": {"name": "Ocak ve Tezgâh", "price": 1200, "size": Vector2i(2, 1), "desc": "Evde yemek pişirmeni sağlar"},
+	# 1.4: lunapark ödülleri (satılmaz; ödül standında biletle alınır)
+	"pelus_ayi": {"name": "Peluş Ayı", "price": 250, "size": Vector2i(1, 1), "prize": true},
+	"pelus_zurafa": {"name": "Dev Peluş Zürafa", "price": 500, "size": Vector2i(1, 2), "prize": true},
+	"lunapark_feneri": {"name": "Lunapark Feneri", "price": 800, "size": Vector2i(1, 1), "prize": true, "desc": "Gece renkli ışık saçar"},
 }
 const MAX_PER_ROOM := 40
 const SELL_BACK := 0.5          # Mobilyacı kullanılmayan mobilyayı yarı fiyatına geri alır
@@ -138,7 +142,7 @@ func req_buy_furniture(d: Dictionary) -> void:
 	if not Net.players.has(id):
 		return
 	var k := str(d.get("k", ""))
-	if not FURNITURE.has(k):
+	if not FURNITURE.has(k) or FURNITURE[k].get("prize", false):
 		return
 	if not Map.building("mobilya").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
 		Net.notify(id, "Mobilya almak için Mobilyacı'ya git.", false)
@@ -151,6 +155,16 @@ func req_buy_furniture(d: Dictionary) -> void:
 	Net.mark_dirty()
 	send_state(id)
 	Net.notify(id, "%s deponda. Evine girip yerleştirebilirsin." % FURNITURE[k].name)
+
+
+## Ödül olarak mobilya ver (lunapark ödül standı).
+func give(id: int, k: String) -> void:
+	if not FURNITURE.has(k) or not Net.players.has(id):
+		return
+	var dep := _depot_of(id)
+	dep[k] = int(dep.get(k, 0)) + 1
+	Net.mark_dirty()
+	send_state(id)
 
 
 @rpc("any_peer", "call_remote", "reliable")
