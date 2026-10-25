@@ -270,6 +270,7 @@ func _on_ok() -> void:
 		await _test_08(get_parent().world)
 		await _test_09(get_parent().world)
 		await _test_10(get_parent().world)
+		await _test_11(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -1503,6 +1504,156 @@ func _test_10(w) -> void:
 
 	print("== 1.0: Müzik")
 	check(Sfx.MUSIC.has("night") and Sfx.MUSIC.has("winter") and Sfx.MUSIC.has("summer"), "gece/kış/yaz müzikleri tanımlı")
+
+
+## 1.1: araç/bina özelleştirme, ahır, mutfak ve yemek bonusları, dalış.
+func _test_11(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	Net.add_money(me, 80000)
+	Env.force_weather("clear")
+	await _wait(0.3)
+
+	print("== 1.1: Özelleştirme")
+	w.my_pos = Map.building("galeri").rect.get_center()
+	await _wait(0.3)
+	Garage.set_style("car", 5)
+	await _wait(0.3)
+	Garage.set_style("rims", 1)
+	await _wait(0.3)
+	check(int(Garage.vstyle.get("car", -1)) == 5 and int(Garage.vstyle.get("rims", 0)) == 1, "araba maviye boyandı, altın jant takıldı")
+	check(int(Net.roster[me].get("vstyle", {}).get("car", -1)) == 5, "araç görünümü herkese yayınlandı")
+	w.my_pos = Map.SPAWN
+	await _wait(0.3)
+	Garage.set_style("car", 2)
+	await _wait(0.3)
+	check(int(Garage.vstyle.car) == 5, "Galeri dışında boyanamıyor")
+
+	print("== 1.1: Ahır")
+	var rp := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			rp = i
+			break
+	w.my_pos = Map.plot_rect(rp).get_center()
+	await _wait(0.3)
+	Land.buy(rp)
+	await _wait(0.3)
+	Land.build_up(rp, "ranch")
+	await _wait(0.4)
+	check(Farm.is_ranch(Land.view[rp]), "boş arsaya ahır kuruldu")
+	Farm.buy_animal(rp, "chicken")
+	Farm.buy_animal(rp, "cow")
+	await _wait(0.4)
+	check(Land.view[rp].ranch.animals.size() == 2, "tavuk ve inek alındı")
+	var now := Time.get_unix_time_from_system()
+	for a in Land.plots[rp].ranch.animals:
+		a.last = now - 1000.0
+		a.fed = now + 900.0
+	Land._broadcast()
+	await _wait(0.2)
+	var eggs0 := int(Farm.my_crops.get("yumurta", 0))
+	Farm.collect_animals(rp)
+	await _wait(0.4)
+	check(int(Farm.my_crops.get("yumurta", 0)) > eggs0 and int(Farm.my_crops.get("sut", 0)) >= 2, "yumurta ve süt toplandı")
+	for a in Land.plots[rp].ranch.animals:
+		a.fed = now - 5000.0
+		a.last = now - 5000.0
+	Land._broadcast()
+	await _wait(0.2)
+	check(Farm.animal_ready(Land.view[rp].ranch.animals[0], Land.server_now()) == 0, "aç hayvan üretmiyor")
+	var m0 := Net.my_money()
+	Farm.feed_animals(rp, false)
+	await _wait(0.4)
+	check(float(Land.view[rp].ranch.animals[0].fed) > Land.server_now() and Net.my_money() == m0 - 2 * Farm.FEED_PRICE, "hayvanlar yemle beslendi")
+	w.my_pos = Map.building("pazar").rect.get_center()
+	await _wait(0.3)
+	var m1 := Net.my_money()
+	Farm.sell("yumurta")
+	await _wait(0.3)
+	check(Net.my_money() > m1 and not Farm.my_crops.has("yumurta"), "yumurtalar Hal'de satıldı")
+
+	print("== 1.1: Mutfak")
+	var hp := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			hp = i
+			break
+	w.my_pos = Map.plot_rect(hp).get_center()
+	await _wait(0.3)
+	Land.buy(hp)
+	await _wait(0.3)
+	Land.build_up(hp)
+	await _wait(0.3)
+	w.my_pos = Map.building("mobilya").rect.get_center()
+	await _wait(0.3)
+	Homes.buy("stove")
+	await _wait(0.3)
+	w.my_pos = Map.plot_rect(hp).get_center()
+	await _wait(0.3)
+	Homes.enter(hp)
+	await _wait(0.5)
+	Homes.place(hp, "stove", 4, 1)
+	await _wait(0.3)
+	check(Kitchen.has_stove(Land.view[hp]), "evde ocak var")
+	var store := Farm.barn(Net.save_data.players[Net.my_name])
+	store["domates"] = int(store.get("domates", 0)) + 2
+	store["yumurta"] = int(store.get("yumurta", 0)) + 2
+	Farm.send_state(me)
+	await _wait(0.2)
+	Kitchen.cook("menemen")
+	await _wait(0.4)
+	check(int(Rpg.sheet.items.get("menemen", 0)) == 1, "menemen pişti")
+	Rpg.use_energy(me, 50)
+	await _wait(0.2)
+	var e0 := float(Rpg.sheet.energy)
+	Rpg.use("menemen")
+	await _wait(0.4)
+	check(float(Rpg.sheet.energy) > e0 + 30 and Rpg.buff(me, "work") and Rpg.sheet.get("buffs", {}).has("work"), "menemen yendi: enerji ve iş bonusu")
+	Kitchen.cook("pasta")
+	await _wait(0.3)
+	check(int(Rpg.sheet.items.get("pasta", 0)) == 0, "malzeme yokken pasta pişmedi")
+	w.open_simple_panel("res://scripts/ui/profile_panel.gd")
+	await get_tree().process_frame
+	w._close_panel()
+	Homes.exit_home()
+	await _wait(0.4)
+
+	print("== 1.1: Dalış")
+	w.my_pos = Vector2(1200, 2250)
+	await _wait(0.3)
+	Garage.ride("boat")
+	await _wait(0.3)
+	Dive.dive()
+	await _wait(0.5)
+	check(Dive.state == "down" and w._dive and Map.SEA_BED.has_point(w.my_pos), "tekneden denize dalındı")
+	Dive._acc = 99.0
+	Dive._process(0.1)
+	await _wait(0.3)
+	check(not Dive.items.is_empty(), "deniz tabanında istiridye var")
+	var it: Dictionary = {}
+	for x in Dive.items:
+		if x.k == "oyster":
+			it = x
+	w.my_pos = Vector2(float(it.x), float(it.y))
+	await _wait(0.3)
+	var nb := Jobs.my_fish.size()
+	w._open_panel()
+	await _wait(0.4)
+	check(Jobs.my_fish.size() == nb + 1 and str(Jobs.my_fish[-1].name).contains("İnci"), "inci toplandı: %s" % (Jobs.my_fish[-1].name if Jobs.my_fish.size() > nb else "-"))
+	Dive.surface()
+	await _wait(0.5)
+	check(Dive.state == "" and not w._dive and w.my_ride() == "boat" and Map.in_sea(w.my_pos), "yüzeye çıkıldı, tekneye dönüldü")
+	Dive.dive()
+	await _wait(0.4)
+	Dive._divers[me].until = Time.get_unix_time_from_system() - 1.0
+	await _wait(0.4)
+	check(Dive.state == "", "oksijen bitince otomatik yüzeye çıkıldı")
+	Garage.ride("")
+	await _wait(0.2)
+	Land.sell(rp)
+	Land.sell(hp)
+	await _wait(0.3)
 
 
 func _finish() -> void:

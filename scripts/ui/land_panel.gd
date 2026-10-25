@@ -26,7 +26,11 @@ func _ready() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size = Vector2(0, 96 if focus_plot >= 0 else 430)
+	var h := 430
+	if focus_plot >= 0 and focus_plot < Land.view.size():
+		var fp: Dictionary = Land.view[focus_plot]
+		h = 360 if Farm.is_ranch(fp) and fp.owner == Net.my_name else (150 if fp.owner == Net.my_name else 96)
+	scroll.custom_minimum_size = Vector2(0, h)
 	body.add_child(scroll)
 	list = VBoxContainer.new()
 	list.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -76,6 +80,8 @@ func _row(i: int, p: Dictionary) -> void:
 	add_label(info, "%s  •  %s%s" % [owner_text, Land.building_name(p), guard], 17, Color("#86efac") if mine else Color.WHITE)
 	if Farm.is_farm(p):
 		add_label(info, "Arsa değeri %s  •  6 tarh  •  %s" % [U.money(int(p.price)), _farm_summary(p)], 14, Color("#94a3b8"))
+	elif Farm.is_ranch(p):
+		add_label(info, "Arsa değeri %s  •  %d hayvan" % [U.money(int(p.price)), p.get("ranch", {}).get("animals", []).size()], 14, Color("#94a3b8"))
 	elif is_biz:
 		var b: Dictionary = p.biz
 		add_label(info, "Puan %.1f/5  •  Son dakika %d müşteri  •  Depo %d" % [float(b.rating), int(b.last_customers), int(b.stock)], 14, Color("#94a3b8"))
@@ -93,12 +99,17 @@ func _row(i: int, p: Dictionary) -> void:
 		buy_button(h, Land.BUILD_COST[1], Land.build_up.bind(i, "home"), 0, "Ev kur")
 		buy_button(h, Biz.BUILD_COST[1], Land.build_up.bind(i, "biz"), Biz.LEVEL_GATE[1], "Büfe aç")
 		buy_button(h, Farm.BUILD_COST, Land.build_up.bind(i, "farm"), Farm.LEVEL_GATE, "Tarla kur")
-	elif lvl < 3 and not Farm.is_farm(p):
+		buy_button(h, Farm.RANCH_COST, Land.build_up.bind(i, "ranch"), Farm.RANCH_LEVEL, "Ahır kur")
+	elif lvl < 3 and not Farm.is_farm(p) and not Farm.is_ranch(p):
 		if is_biz:
 			buy_button(h, Biz.BUILD_COST[lvl + 1], Land.build_up.bind(i, "biz"), Biz.LEVEL_GATE[lvl + 1], "%s'ye büyüt" % Biz.NAMES[lvl + 1])
 		else:
 			var gate: int = [0, 1, Rpg.LEVEL_GATES.villa, Rpg.LEVEL_GATES.tower][lvl + 1]
 			buy_button(h, Land.BUILD_COST[lvl + 1], Land.build_up.bind(i, "home"), gate, "%s inşa et" % Land.LEVEL_NAMES[lvl + 1])
+	if focus_plot >= 0 and lvl >= 1 and not Farm.is_farm(p) and not Farm.is_ranch(p):
+		_tint_row(i, p)
+	if focus_plot >= 0 and Farm.is_ranch(p):
+		_ranch_box(i, p)
 	if focus_plot >= 0 and lvl >= 1 and str(p.get("kind", "home")) == "home":
 		add_button(h, "Eve Gir", func(): Homes.enter(i); close())
 	add_button(h, "Sat (%s)" % U.money(Land.sell_value(p)), Land.sell.bind(i))
@@ -163,6 +174,61 @@ func _update_price_label() -> void:
 		return
 	var lvl := int(Land.view[focus_plot].level)
 	price_label.text = "×%.2f = %s/müşteri" % [price_slider.value, U.money(int(round(Biz.UNIT_PRICE[lvl] * price_slider.value)))]
+
+
+## Ahır yönetimi: hayvanlar, besleme, ürün toplama, hayvan alma.
+func _ranch_box(i: int, p: Dictionary) -> void:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	list.add_child(box)
+	var animals: Array = p.get("ranch", {}).get("animals", [])
+	var now := Land.server_now()
+	add_label(box, "Ahır — %d/%d hayvan" % [animals.size(), Farm.MAX_ANIMALS], 18, Color("#facc15"))
+	var ready := 0
+	for a in animals:
+		var info: Dictionary = Farm.ANIMALS[str(a.k)]
+		var n := Farm.animal_ready(a, now)
+		ready += n
+		var left := float(a.fed) - now
+		add_label(box, "%s — %s  •  %s" % [info.name, ("tok (%d dk)" % int(left / 60.0)) if left > 0 else "AÇ! üretmiyor",
+			("%d %s hazır" % [n, Farm.PRODUCTS[info.product].name]) if n > 0 else "ürün bekleniyor"], 14,
+			Settings.ok_text() if left > 0 else Settings.bad_text())
+	var r1 := HBoxContainer.new()
+	r1.add_theme_constant_override("separation", 8)
+	box.add_child(r1)
+	add_button(r1, "Ürünleri topla (%d)" % ready, Farm.collect_animals.bind(i)).disabled = ready <= 0
+	add_button(r1, "Yemle besle (%s/hayvan)" % U.money(Farm.FEED_PRICE), Farm.feed_animals.bind(i, false))
+	add_button(r1, "Buğdayla besle (2/hayvan)", Farm.feed_animals.bind(i, true))
+	var r2 := HBoxContainer.new()
+	r2.add_theme_constant_override("separation", 8)
+	box.add_child(r2)
+	add_label(r2, "Hayvan al:", 14)
+	for k in Farm.ANIMALS:
+		var info: Dictionary = Farm.ANIMALS[k]
+		buy_button(r2, int(info.price), Farm.buy_animal.bind(i, k), 0, info.name).disabled = animals.size() >= Farm.MAX_ANIMALS or Net.my_money() < int(info.price)
+	add_label(box, "Tavuk 4 dk'da yumurta, inek 8 dk'da 2 süt, koyun 10 dk'da 2 yün verir — sadece tokken. Bir besleme 30 dk yeter. Ürünler Hal'de satılır ya da mutfakta yemek olur.", 12, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+## Bina dış rengi seçimi (500 TL).
+func _tint_row(i: int, p: Dictionary) -> void:
+	var r := HBoxContainer.new()
+	r.add_theme_constant_override("separation", 4)
+	list.add_child(r)
+	add_label(r, "Dış boya (%s):" % U.money(Land.TINT_PRICE), 14, Color("#cbd5e1"))
+	for k in Land.TINTS.size():
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(28, 28)
+		b.tooltip_text = Land.TINT_NAMES[k]
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Land.TINTS[k]
+		sb.set_corner_radius_all(6)
+		var cur: bool = int(p.get("tint", 0)) == k
+		sb.border_color = Color("#facc15") if cur else Color(0, 0, 0, 0.6)
+		sb.set_border_width_all(3 if cur else 1)
+		b.add_theme_stylebox_override("normal", sb)
+		b.add_theme_stylebox_override("hover", sb)
+		b.pressed.connect(Land.set_tint.bind(i, k))
+		r.add_child(b)
 
 
 func _farm_summary(p: Dictionary) -> String:

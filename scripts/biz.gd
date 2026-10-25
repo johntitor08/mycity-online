@@ -144,9 +144,9 @@ func req_restock(d: Dictionary) -> void:
 		"crops":
 			var store := Farm.barn(rec)
 			for k in store.keys():
-				if not Farm.CROPS.has(k):
+				if Farm.item_info(k).is_empty():
 					continue
-				var per := maxi(1, int(Farm.CROPS[k].price / 6.0))
+				var per := maxi(1, int(Farm.item_info(k).price / 6.0))
 				while int(store[k]) > 0 and added < room:
 					store[k] = int(store[k]) - 1
 					added += per

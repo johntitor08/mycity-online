@@ -125,6 +125,9 @@ const ISLAND := Rect2(1140, 2780, 720, 340)
 const ISLAND_PIER := Rect2(1470, 2690, 60, 110)
 const ISLAND_SPOT := Rect2(1460, 2690, 80, 40)  # iskele ucu: ada balıkçılığı
 const LIGHTHOUSE := Vector2(1740, 2930)
+# 1.1: dalış — deniz tabanı harita dışında ayrı bir alan (yüzeydeki x konumuna göre inilir)
+const SEA_BED := Rect2(4300, 2900, 2800, 1000)
+const WRECK := Vector2(6300, 3600)
 const BOAT_RENT_SPOT := Vector2(1530, 1680)    # deniz iskelesinin başı (Kaptan Rüstem'in solunda)
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
 const PIER_END := Rect2(1550, 1960, 100, 140)   # deniz balıkçılığı alanı

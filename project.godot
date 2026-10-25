@@ -49,6 +49,8 @@ Party="*res://scripts/party.gd"
 Tutorial="*res://scripts/tutorial.gd"
 League="*res://scripts/league.gd"
 Factory="*res://scripts/factory.gd"
+Kitchen="*res://scripts/kitchen.gd"
+Dive="*res://scripts/dive.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

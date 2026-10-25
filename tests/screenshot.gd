@@ -10,6 +10,12 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--sadece11" in OS.get_cmdline_user_args():
+		Net.add_money(1, 200000)
+		Rpg.add_xp(1, "", 15000)
+		await _shots_11(w)
+		get_tree().quit()
+		return
 	if "--sadece10" in OS.get_cmdline_user_args():
 		Net.add_money(1, 200000)
 		Rpg.add_xp(1, "", 15000)
@@ -145,6 +151,138 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_11(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0
+	Env.hour = 13.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Tutorial.finish()
+	w.camera.zoom = Vector2(1, 1)
+	# ahır
+	var rp := 6
+	w.my_pos = Map.plot_rect(rp).get_center()
+	await _wait(0.2)
+	Land.buy(rp)
+	await _wait(0.2)
+	Land.build_up(rp, "ranch")
+	await _wait(0.3)
+	for k in ["chicken", "chicken", "cow", "sheep", "cow"]:
+		Farm.buy_animal(rp, k)
+	await _wait(0.4)
+	var now := Time.get_unix_time_from_system()
+	for a in Land.plots[rp].ranch.animals:
+		a.last = now - 1300.0
+	Land._broadcast()
+	w.my_pos = Map.plot_rect(rp).get_center() + Vector2(0, 40)
+	w.camera.zoom = Vector2(1.6, 1.6)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("ahir")
+	w.camera.zoom = Vector2(1, 1)
+	w.my_pos = Map.plot_rect(rp).get_center()
+	await _wait(0.3)
+	w.zone = {"type": "realestate", "label": "x", "plot": rp}
+	w._open_panel()
+	await _wait(0.8)
+	_shot("ahir_panel")
+	w._close_panel()
+	# boyalı ev ve araba
+	var hp := 7
+	w.my_pos = Map.plot_rect(hp).get_center()
+	await _wait(0.2)
+	Land.buy(hp)
+	await _wait(0.2)
+	Land.build_up(hp)
+	Land.build_up(hp)
+	await _wait(0.3)
+	Land.set_tint(hp, 3)
+	await _wait(0.3)
+	w.my_pos = Map.building("galeri").rect.get_center()
+	await _wait(0.3)
+	Garage.buy("car")
+	Garage.buy("bike")
+	Garage.buy("boat")
+	await _wait(0.3)
+	Garage.set_style("car", 6)
+	Garage.set_style("rims", 1)
+	await _wait(0.3)
+	w.zone = {"type": "galeri", "label": "Galeri"}
+	w._open_panel()
+	await _wait(0.8)
+	_shot("galeri_ozellestir")
+	w._close_panel()
+	w.my_pos = Map.plot_rect(hp).get_center() + Vector2(0, 95)
+	await _wait(0.3)
+	Garage.ride("car")
+	w.camera.zoom = Vector2(1.5, 1.5)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("boyali_ev_araba")
+	w.camera.zoom = Vector2(1, 1)
+	Garage.ride("")
+	await _wait(0.3)
+	# mutfak
+	w.my_pos = Map.building("mobilya").rect.get_center()
+	await _wait(0.2)
+	for k in ["stove", "table", "chair", "rug", "plant"]:
+		Homes.buy(k)
+	await _wait(0.5)
+	w.my_pos = Map.plot_rect(hp).get_center()
+	await _wait(0.3)
+	Homes.enter(hp)
+	await _wait(0.5)
+	for fdef in [["stove", 1, 1], ["table", 6, 4], ["chair", 5, 4], ["rug", 5, 6], ["plant", 0, 8]]:
+		Homes.place(hp, fdef[0], fdef[1], fdef[2])
+		await _wait(0.1)
+	var store := Farm.barn(Net.save_data.players["Eren"])
+	for k in ["domates", "yumurta", "sut", "bugday", "misir", "kabak", "lahana", "cilek"]:
+		store[k] = 6
+	Farm.send_state(1)
+	Kitchen.cook("menemen")
+	await _wait(0.4)
+	w.zone = {"type": "home", "label": "x", "plot": hp}
+	w.panel = null
+	w._open_panel()
+	await _wait(0.8)
+	_shot("mutfak")
+	w._close_panel()
+	Rpg.use("menemen")
+	await _wait(0.3)
+	Homes.exit_home()
+	await _wait(0.4)
+	# dalış
+	w.my_pos = Vector2(1200, 2250)
+	await _wait(0.3)
+	Garage.ride("boat")
+	await _wait(0.3)
+	Dive.dive()
+	await _wait(0.4)
+	for _k in 10:
+		Dive._acc = 99.0
+		Dive._process(0.1)
+	Dive._wreck_at = 0.0
+	Dive._process(0.1)
+	await _wait(0.3)
+	w.my_pos = Vector2(Map.SEA_BED.position.x + 1100, Map.SEA_BED.end.y - 180)
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("deniz_alti")
+	w.my_pos = Map.WRECK + Vector2(-120, -60)
+	await _wait(1.4)
+	await _clear_toasts(w)
+	_shot("batik_gemi")
+	Dive.surface()
+	await _wait(0.4)
+
+
+func _clear_toasts(w) -> void:
+	for c in w.hud.toast_box.get_children():
+		c.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 
 func _shots_10(w) -> void:

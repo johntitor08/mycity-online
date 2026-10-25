@@ -110,7 +110,7 @@ func _refresh_shop() -> void:
 	var items: Dictionary = Rpg.sheet.get("items", {})
 	var bag := []
 	for k in items:
-		bag.append("%s ×%d" % [Rpg.FOODS[k].name, items[k]])
+		bag.append("%s ×%d" % [Rpg.food_info(k).get("name", k), items[k]])
 	shop_money.text = "Enerji: %d / %d    Çanta: %s" % [int(Rpg.sheet.get("energy", 0)),
 		int(Rpg.sheet.get("max_energy", 100)), ", ".join(bag) if bag else "boş"]
 

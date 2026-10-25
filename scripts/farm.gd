@@ -33,6 +33,24 @@ const CROPS := {
 	"karpuz": {"name": "Karpuz", "seed": 40, "grow": 1200, "yield": [1, 2], "price": 280, "season": "summer", "level": 6, "color": "#16a34a"},
 }
 
+# 1.1: hayvan çiftliği (ahır). Ürünler ambara (rec["crops"]) gider, Hal'de satılır, yemekte kullanılır.
+const PRODUCTS := {
+	"yumurta": {"name": "Yumurta", "price": 14, "color": "#fef3c7"},
+	"sut": {"name": "Süt", "price": 30, "color": "#f8fafc"},
+	"yun": {"name": "Yün", "price": 45, "color": "#e7e5e4"},
+}
+const ANIMALS := {
+	"chicken": {"name": "Tavuk", "price": 600, "product": "yumurta", "every": 240.0, "per": 1},
+	"cow": {"name": "İnek", "price": 2500, "product": "sut", "every": 480.0, "per": 2},
+	"sheep": {"name": "Koyun", "price": 1800, "product": "yun", "every": 600.0, "per": 2},
+}
+const RANCH_COST := 3000
+const RANCH_LEVEL := 3
+const MAX_ANIMALS := 6
+const FEED_PRICE := 10
+const FEED_TIME := 1800.0          # bir besleme 30 dk tok tutar
+const ANIMAL_STORE := 6            # toplanmayan ürün birikme sınırı (hayvan başına)
+
 var my_crops: Dictionary = {}   # istemci: kendi ambarım
 
 
@@ -75,7 +93,30 @@ static func bed_state(b: Dictionary, now: float) -> Array:
 	return ["ready", 1.0]
 
 
+static func is_ranch(p: Dictionary) -> bool:
+	return str(p.get("kind", "home")) == "ranch"
+
+
+## Ekin ya da hayvan ürünü bilgisi (ad, fiyat, renk).
+static func item_info(k: String) -> Dictionary:
+	if CROPS.has(k):
+		return CROPS[k]
+	return PRODUCTS.get(k, {})
+
+
+## Hayvanın biriken ürünü (tok olduğu süre boyunca).
+static func animal_ready(a: Dictionary, now: float) -> int:
+	var info: Dictionary = ANIMALS.get(str(a.get("k", "")), {})
+	if info.is_empty():
+		return 0
+	var end := minf(now, float(a.get("fed", 0.0)))
+	var n := int(floor(maxf(0.0, end - float(a.get("last", now))) / float(info.every))) * int(info.per)
+	return mini(n, ANIMAL_STORE)
+
+
 static func sell_price(crop: String, season: String) -> int:
+	if PRODUCTS.has(crop):
+		return int(PRODUCTS[crop].price)
 	var c: Dictionary = CROPS[crop]
 	return int(round(float(c.price) * (1.0 if c.season == season else OUT_OF_SEASON_PRICE)))
 
@@ -104,6 +145,18 @@ func fertilize(plot: int) -> void:
 
 func harvest(plot: int) -> void:
 	Net.ask(self, "req_harvest", {"plot": plot})
+
+
+func buy_animal(plot: int, kind: String) -> void:
+	Net.ask(self, "req_animal", {"plot": plot, "kind": kind})
+
+
+func feed_animals(plot: int, with_wheat: bool) -> void:
+	Net.ask(self, "req_feed", {"plot": plot, "wheat": with_wheat})
+
+
+func collect_animals(plot: int) -> void:
+	Net.ask(self, "req_collect", {"plot": plot})
 
 
 ## Hal'de sat (crop "" ise hepsi).
@@ -148,6 +201,136 @@ func _owned(id: int, i: int) -> Dictionary:
 
 func _near(id: int, i: int) -> bool:
 	return Map.plot_rect(i).grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999)))
+
+
+## Boş arsaya ahır kur (Land.req_build çağırır).
+func build_ranch(id: int, i: int) -> void:
+	var p: Dictionary = Land.plots[i]
+	if int(p.level) > 0 or str(p.get("kind", "home")) != "home":
+		Net.notify(id, "Ahır için boş arsa gerekir.", false)
+		return
+	if Rpg.level(id) < RANCH_LEVEL:
+		Net.notify(id, "Ahır için seviye %d gerekli." % RANCH_LEVEL, false)
+		return
+	if not Net.try_spend(id, RANCH_COST):
+		Net.notify(id, "Ahır için %s gerekli." % U.money(RANCH_COST), false)
+		return
+	p["kind"] = "ranch"
+	p.level = 1
+	p["ranch"] = {"animals": []}
+	Net.mark_dirty()
+	Land._broadcast()
+	Rpg.add_xp(id, "farming", 100)
+	Rpg.quest_event(id, "build")
+	Net.notify(id, "Ahır kuruldu! Tavuk, inek ya da koyun al, besle, ürünlerini topla.")
+
+
+func _ranch(id: int, i: int) -> Dictionary:
+	if not Net.players.has(id) or i < 0 or i >= Land.plots.size():
+		return {}
+	var p: Dictionary = Land.plots[i]
+	if p.owner != Net.players[id].name or not is_ranch(p) or not _near(id, i):
+		return {}
+	if not p.get("ranch") is Dictionary:
+		p["ranch"] = {"animals": []}
+	return p
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_animal(d: Dictionary) -> void:
+	var id := Net.sender()
+	var p := _ranch(id, int(d.get("plot", -1)))
+	var kind := str(d.get("kind", ""))
+	if p.is_empty() or not ANIMALS.has(kind):
+		return
+	if p.ranch.animals.size() >= MAX_ANIMALS:
+		Net.notify(id, "Ahır dolu (%d hayvan)." % MAX_ANIMALS, false)
+		return
+	if not Net.try_spend(id, int(ANIMALS[kind].price)):
+		Net.notify(id, "%s %s." % [ANIMALS[kind].name, U.money(int(ANIMALS[kind].price))], false)
+		return
+	var now := _now()
+	p.ranch.animals.append({"k": kind, "fed": now + FEED_TIME, "last": now})
+	Net.mark_dirty()
+	Land._broadcast()
+	Net.notify(id, "Ahıra bir %s geldi! İlk yemi bizden." % ANIMALS[kind].name.to_lower())
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_feed(d: Dictionary) -> void:
+	var id := Net.sender()
+	var p := _ranch(id, int(d.get("plot", -1)))
+	if p.is_empty() or p.ranch.animals.is_empty():
+		return
+	var now := _now()
+	var hungry: Array = []
+	for a in p.ranch.animals:
+		if float(a.fed) - now < FEED_TIME * 0.5:      # yarıdan fazlası bitmişse beslenebilir
+			hungry.append(a)
+	if hungry.is_empty():
+		Net.notify(id, "Hayvanların tok.", false)
+		return
+	if bool(d.get("wheat", false)):
+		var store := barn(_rec(id))
+		var need := hungry.size() * 2
+		if int(store.get("bugday", 0)) < need:
+			Net.notify(id, "Buğdayla beslemek için %d buğday gerekli (hayvan başına 2)." % need, false)
+			return
+		store["bugday"] = int(store.bugday) - need
+		if int(store.bugday) <= 0:
+			store.erase("bugday")
+		send_state(id)
+	elif not Net.try_spend(id, hungry.size() * FEED_PRICE):
+		Net.notify(id, "Yem için %s gerekli." % U.money(hungry.size() * FEED_PRICE), false)
+		return
+	for a in hungry:
+		if float(a.fed) < now:
+			a["last"] = maxf(float(a.last), now)      # aç kaldığı süre üretime sayılmaz
+		a["fed"] = maxf(float(a.fed), now) + FEED_TIME
+	Net.mark_dirty()
+	Land._broadcast()
+	Rpg.add_xp(id, "farming", hungry.size() * 2)
+	Net.notify(id, "%d hayvan beslendi." % hungry.size())
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_collect(d: Dictionary) -> void:
+	var id := Net.sender()
+	var p := _ranch(id, int(d.get("plot", -1)))
+	if p.is_empty():
+		return
+	var now := _now()
+	var store := barn(_rec(id))
+	var got := {}
+	for a in p.ranch.animals:
+		var info: Dictionary = ANIMALS[str(a.k)]
+		var n := animal_ready(a, now)
+		if n <= 0:
+			continue
+		var k: String = info.product
+		n = mini(n, MAX_STACK - int(store.get(k, 0)))
+		if n <= 0:
+			continue
+		store[k] = int(store.get(k, 0)) + n
+		got[k] = int(got.get(k, 0)) + n
+		a["last"] = float(a.last) + ceilf(float(n) / float(info.per)) * float(info.every)
+		if float(a.last) > now:
+			a["last"] = now
+	if got.is_empty():
+		Net.notify(id, "Toplanacak ürün yok (aç hayvan üretmez).", false)
+		return
+	var parts: Array = []
+	var total := 0
+	for k in got:
+		parts.append("%d %s" % [got[k], PRODUCTS[k].name])
+		total += int(got[k])
+	Net.mark_dirty()
+	Land._broadcast()
+	send_state(id)
+	Rpg.add_xp(id, "farming", 4 * total)
+	Ach.event(id, "ranch_products", total)
+	Bank.activity("TARM", total)
+	Net.notify(id, "Ahırdan toplandı: %s" % ", ".join(parts))
 
 
 ## Boş arsaya tarla kur (Land.req_build çağırır).
@@ -362,7 +545,7 @@ func req_sell(d: Dictionary) -> void:
 	var sum := 0
 	var count := 0
 	for k in store.keys():
-		if (only == "" or only == k) and CROPS.has(k):
+		if (only == "" or only == k) and (CROPS.has(k) or PRODUCTS.has(k)):
 			sum += int(round(int(store[k]) * sell_price(k, Env.season) * (1.5 if Events.is_active("harvest") else 1.0)))
 			count += int(store[k])
 			store.erase(k)

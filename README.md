@@ -35,6 +35,29 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.1: Hayvan çiftliği, yemek pişirme, dalgıçlık, özelleştirme
+
+| | |
+|---|---|
+| ![Ahır](docs/ekran/ahir.png) | ![Mutfak](docs/ekran/mutfak.png) |
+| ![Deniz altı](docs/ekran/deniz_alti.png) | ![Batık gemi](docs/ekran/batik_gemi.png) |
+| ![Galeri](docs/ekran/galeri_ozellestir.png) | ![Boyalı ev ve araba](docs/ekran/boyali_ev_araba.png) |
+
+- **Hayvan çiftliği:** Boş arsaya **Ahır** kur (3.000 TL, çiftçilik seviyesi 3). En fazla 6 hayvan:
+  tavuk (yumurta), inek (süt), koyun (yün). Hayvanlar sadece tokken üretir; bir besleme 30 dakika
+  yeter (yemle 10 TL ya da 2 buğdayla). Ürünler ambarda birikir, Hal'de satılır ya da mutfakta kullanılır.
+- **Yemek pişirme:** Mobilyacı'dan **Ocak ve Tezgâh** alıp evine koy; ev panelinde tarifler çıkar.
+  Menemen, ızgara balık, sütlaç, çorba, salata, kabak tatlısı, su böreği, çilekli pasta. Yemekler
+  marketteki yiyeceklerden çok enerji verir, bazıları süreli bonus verir: **iş maaşı +%15**,
+  **nadir balık şansı**, **XP +%10**. Bonuslar HUD'da görünür.
+- **Dalgıçlık:** Açık denizde teknedeyken **V** ile dal. Deniz tabanında mercanlar, yosunlar, balık
+  sürüleri ve bir **batık gemi** var. Kumdaki istiridyelerden inci (bazen Siyah İnci) toplanır;
+  batıkta ara sıra **hazine sandığı** çıkar. Oksijen 25 sn, Galeri'den alınan **dalış tüpüyle** 60 sn;
+  bitince otomatik yüzeye çıkarsın. İnciler balık kovasına girer, iskelede/Hal'de satılır.
+- **Özelleştirme:** Galeri'de araba boyası (10 renk), jant (altın/siyah/krom) ve bisiklet rengi;
+  kendi binanın dış boyası (arsa panelinde, 9 renk). Herkes görür.
+- Yeni başarımlar: Zevk Sahibi, Çoban, Aşçıbaşı, İnci Avcısı, Kâşif.
+
 ## 1.0: Sanayi Limanı, lig ve sezonlar, yeni sesler, sağlamlık
 
 | | |
@@ -248,8 +271,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.0.1
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.0.1
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.1
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.1
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

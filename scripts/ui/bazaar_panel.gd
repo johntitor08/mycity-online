@@ -108,9 +108,11 @@ func _fill_hal() -> void:
 	for c in hal_box.get_children():
 		c.queue_free()
 	var any := false
-	for k in Farm.CROPS:
+	for k in Farm.CROPS.keys() + Farm.PRODUCTS.keys():
 		var n := int(Farm.my_crops.get(k, 0))
-		var c: Dictionary = Farm.CROPS[k]
+		var c: Dictionary = Farm.item_info(k)
+		if Farm.PRODUCTS.has(k) and n <= 0:
+			continue       # hayvan ürünleri sadece varsa listelenir
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 10)
 		hal_box.add_child(h)
@@ -120,7 +122,7 @@ func _fill_hal() -> void:
 		dot.size_flags_vertical = SIZE_SHRINK_CENTER
 		h.add_child(dot)
 		var price := Farm.sell_price(k, Env.season)
-		var l := add_label(h, "%s  ×%d   •   %s/adet%s" % [c.name, n, U.money(price), "  (mevsim dışı!)" if c.season != Env.season else ""], 16,
+		var l := add_label(h, "%s  ×%d   •   %s/adet%s" % [c.name, n, U.money(price), "  (mevsim dışı!)" if c.has("season") and c.season != Env.season else ""], 16,
 			Color.WHITE if n > 0 else Color("#64748b"))
 		l.size_flags_horizontal = SIZE_EXPAND_FILL
 		var b := add_button(h, "Sat (%s)" % U.money(price * n), func(): Farm.sell(k))
@@ -177,7 +179,7 @@ func _fill_items() -> void:
 		"food":
 			var items: Dictionary = Rpg.sheet.get("items", {})
 			for k in items:
-				item_opt.add_item("%s ×%d" % [Rpg.FOODS[k].name, items[k]])
+				item_opt.add_item("%s ×%d" % [Rpg.food_info(k).get("name", k), items[k]])
 				_items.append(k)
 		"furniture":
 			for k in Homes.depot:
@@ -190,7 +192,7 @@ func _fill_items() -> void:
 					_items.append(i)
 		"crop":
 			for k in Farm.my_crops:
-				item_opt.add_item("%s ×%d" % [Farm.CROPS[k].name, Farm.my_crops[k]])
+				item_opt.add_item("%s ×%d" % [Farm.item_info(k).get("name", k), Farm.my_crops[k]])
 				_items.append(k)
 	if _items.is_empty():
 		item_opt.add_item("(satılacak bir şeyin yok)")

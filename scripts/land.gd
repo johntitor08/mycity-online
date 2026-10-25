@@ -20,8 +20,8 @@ var _timer: Timer
 
 
 static func income_of(p: Dictionary) -> int:
-	if Biz.is_biz(p) or Farm.is_farm(p):
-		return 0          # işletme ve tarlalar kira değil satış/hasat geliri getirir
+	if Biz.is_biz(p) or Farm.is_farm(p) or Farm.is_ranch(p):
+		return 0          # işletme, tarla ve ahır kira değil satış/hasat geliri getirir
 	return int(int(p.price) * 0.006) + LEVEL_INCOME[int(p.level)]
 
 
@@ -29,6 +29,8 @@ static func income_of(p: Dictionary) -> int:
 static func building_name(p: Dictionary) -> String:
 	if Farm.is_farm(p):
 		return "Tarla"
+	if Farm.is_ranch(p):
+		return "Ahır"
 	return Biz.NAMES[int(p.level)] if Biz.is_biz(p) else LEVEL_NAMES[int(p.level)]
 
 
@@ -36,6 +38,11 @@ static func sell_value(p: Dictionary) -> int:
 	var total := int(p.price)
 	if Farm.is_farm(p):
 		return int((total + Farm.BUILD_COST) * SELL_RATIO)
+	if Farm.is_ranch(p):
+		var val := total + Farm.RANCH_COST
+		for a in p.get("ranch", {}).get("animals", []):
+			val += int(Farm.ANIMALS.get(str(a.k), {}).get("price", 0)) / 2
+		return int(val * SELL_RATIO)
 	var costs: Array = Biz.BUILD_COST if Biz.is_biz(p) else BUILD_COST
 	for l in range(1, int(p.level) + 1):
 		total += costs[l]
@@ -78,9 +85,16 @@ func server_init() -> void:
 								b[key] = old[k][key]
 					beds.append(b)
 				p["farm"] = {"beds": beds}
-			for key in ["party_until", "guestbook", "rating"]:
+			for key in ["party_until", "guestbook", "rating", "tint"]:
 				if saved[i].has(key):
 					p[key] = saved[i][key]
+			if str(saved[i].get("kind", "home")) == "ranch" and saved[i].get("ranch") is Dictionary:
+				p["kind"] = "ranch"
+				var animals: Array = []
+				for a in saved[i].ranch.get("animals", []):
+					if a is Dictionary and Farm.ANIMALS.has(str(a.get("k", ""))):
+						animals.append({"k": str(a.k), "fed": float(a.get("fed", 0.0)), "last": float(a.get("last", 0.0))})
+				p["ranch"] = {"animals": animals}
 			if saved[i].get("sec") is Dictionary:
 				p["sec"] = {"lock": bool(saved[i].sec.get("lock", false)), "alarm": bool(saved[i].sec.get("alarm", false))}
 			var furn: Array = []
@@ -143,6 +157,42 @@ func sell(i: int) -> void:
 	Net.ask(self, "req_sell", {"i": i})
 
 
+# 1.1: ev / dükkân dış rengi
+const TINTS := [Color("#ffffff"), Color("#fecaca"), Color("#fed7aa"), Color("#fef08a"), Color("#bbf7d0"),
+	Color("#bae6fd"), Color("#c7d2fe"), Color("#f5d0fe"), Color("#d6d3d1")]
+const TINT_NAMES := ["Doğal", "Gül", "Şeftali", "Limon", "Nane", "Gök", "Lavanta", "Leylak", "Taş"]
+const TINT_PRICE := 500
+
+
+func set_tint(i: int, idx: int) -> void:
+	Net.ask(self, "req_tint", {"i": i, "idx": idx})
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_tint(d: Dictionary) -> void:
+	var i := _check(d)
+	if i < 0:
+		return
+	var id := Net.sender()
+	var p: Dictionary = plots[i]
+	var idx := clampi(int(d.get("idx", 0)), 0, TINTS.size() - 1)
+	if p.owner != Net.players[id].name or int(p.level) < 1 or Farm.is_farm(p):
+		return
+	if not Map.plot_rect(i).grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+		Net.notify(id, "Boyamak için arsanın yanına git.", false)
+		return
+	if int(p.get("tint", 0)) == idx:
+		return
+	if not Net.try_spend(id, TINT_PRICE):
+		Net.notify(id, "Boya %s." % U.money(TINT_PRICE), false)
+		return
+	p["tint"] = idx
+	Net.mark_dirty()
+	_broadcast()
+	Ach.event(id, "custom")
+	Net.notify(id, "Binan %s renge boyandı!" % TINT_NAMES[idx])
+
+
 # ------------------------------------------------------------------ sunucu
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -182,8 +232,11 @@ func req_build(d: Dictionary) -> void:
 	var p: Dictionary = plots[i]
 	if p.owner != Net.players[id].name:
 		return
-	if Farm.is_farm(p):
-		Net.notify(id, "Tarla büyütülemez; satıp başka bir şey kurabilirsin.", false)
+	if Farm.is_farm(p) or Farm.is_ranch(p):
+		Net.notify(id, "Tarla ve ahır büyütülemez; satıp başka bir şey kurabilirsin.", false)
+		return
+	if int(p.level) == 0 and str(d.get("kind", "home")) == "ranch":
+		Farm.build_ranch(id, i)
 		return
 	if int(p.level) == 0 and str(d.get("kind", "home")) == "farm":
 		Farm.build(id, i)
@@ -227,10 +280,12 @@ func req_sell(d: Dictionary) -> void:
 		value += int(p.biz.cash)      # kasadaki para da sahibine
 	p.erase("biz")
 	p.erase("farm")
+	p.erase("ranch")
 	p.erase("sec")
 	p.erase("guestbook")
 	p.erase("rating")
 	p.erase("party_until")
+	p.erase("tint")
 	p["kind"] = "home"
 	Bazaar.drop_plot_listing(i)
 	Homes.clear_plot(i, str(p.owner))

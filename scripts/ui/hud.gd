@@ -68,6 +68,7 @@ func _ready() -> void:
 	jr.visible = false
 	Work.job_changed.connect(_refresh_job)
 	Jobs.inventory_changed.connect(_refresh_job)
+	Rpg.sheet_changed.connect(_refresh_job)
 	quest_label = _label(tv, "", 13, Color("#93c5fd"))
 	quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	quest_label.custom_minimum_size = Vector2(300, 0)
@@ -274,6 +275,9 @@ func _refresh_job() -> void:
 		parts.append("Çöp torbası: %d/%d" % [Work.carrying, Work.TRASH_CARRY])
 	if Work.on_duty_fire():
 		parts.append("İtfaiye görevinde (%d yangın)" % Work.fires.size())
+	var buffs: Dictionary = Rpg.sheet.get("buffs", {})
+	for b in buffs:
+		parts.append("%s %d dk" % [Kitchen.BUFF_NAMES.get(b, b), int(ceil(float(buffs[b]) / 60.0))])
 	job_label.text = "  •  ".join(parts)
 	job_quit.visible = str(j.get("kind", "")) != ""
 	job_row.visible = not parts.is_empty()
@@ -310,6 +314,9 @@ func _refresh_status() -> void:
 	elif Police.on_duty():
 		status_label.text = "POLİS — görevde"
 		status_label.add_theme_color_override("font_color", Color("#93c5fd"))
+	elif Dive.state == "down":
+		status_label.text = "DALIŞ — Oksijen: %d sn" % int(Dive.oxygen_left())
+		status_label.add_theme_color_override("font_color", Color("#7dd3fc") if Dive.oxygen_left() > 8.0 else Color("#fca5a5"))
 	elif Garage.rent_left() > 0.0:
 		var rl := Garage.rent_left()
 		status_label.text = "Kiralık tekne: %d:%02d" % [int(rl) / 60, int(rl) % 60]

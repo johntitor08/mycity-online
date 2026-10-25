@@ -107,7 +107,7 @@ func req_sort(d: Dictionary) -> void:
 		s.combo = 0
 	elif int(d.get("bin", -1)) == int(s.cur.color):
 		s.combo = int(s.combo) + 1
-		var pay := int((BASE_PAY + mini(int(s.combo), 20)) * Events.pay_mult() * Clans.pay_mult(id))
+		var pay := int((BASE_PAY + mini(int(s.combo), 20)) * Events.pay_mult() * Clans.pay_mult(id) * (1.15 if Rpg.buff(id, "work") else 1.0))
 		res = {"ok": true, "pay": pay, "text": "Doğru kutu! +%s (seri %d)" % [U.money(pay), s.combo]}
 		Net.add_money(id, pay)
 		Rpg.add_xp(id, "", 4)

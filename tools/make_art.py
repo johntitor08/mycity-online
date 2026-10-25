@@ -658,6 +658,12 @@ def furniture():
     items["desk"] = (w, h, [rect(3, 8, w - 6, h - 14, "#a16207", 4), rect(26, 10, 36, 20, "#111827", 3, 2),
                             rect(29, 13, 30, 14, "#60a5fa", 2, 0), rect(30, 32, 28, 6, "#374151", 2, 1.5),
                             circle(70, 34, 3, "#e5e7eb", 1)])
+    # 1.1: ocak ve tezgâh 2x1
+    w, h = 2 * T, T
+    items["stove"] = (w, h, [rect(3, 6, w - 6, h - 10, "#e5e7eb", 4), rect(8, 10, w / 2 - 12, h - 20, "#374151", 3, 2),
+                             circle(w / 4, 18, 6, "#111827", 1.5), circle(w / 4, 32, 6, "#111827", 1.5),
+                             circle(w / 4, 18, 3, "#ef4444", 0), rect(w / 2 + 4, 10, w / 2 - 12, h - 20, "#a16207", 3, 2),
+                             ellipse(w * 0.75, h / 2, 9, 6, "#94a3b8", 1.5)])
     for name, (w, h, parts) in items.items():
         save(f"furniture/{name}.svg", svg(w, h, parts))
 

@@ -11,7 +11,7 @@ var door_btn: Button
 func _ready() -> void:
 	var plot: Dictionary = Land.view[focus_plot] if focus_plot >= 0 and focus_plot < Land.view.size() else {}
 	var mine: bool = plot.get("owner", "") == Net.my_name
-	build("%s'in Evi" % plot.get("owner", "?"), Vector2(560, 0))
+	build("%s'in Evi" % plot.get("owner", "?"), Vector2(640, 0))
 	_party_info(plot)
 	if not mine:
 		add_label(body, "Misafirsin. Ev sahibi kapıyı kilitlerse dışarı çıkarılırsın.", 15, Color("#94a3b8"))
@@ -48,10 +48,38 @@ func _ready() -> void:
 	list = VBoxContainer.new()
 	body.add_child(list)
 	add_label(body, "Yerleştirilmiş bir eşyayı kaldırmak için üstüne sağ tıkla. Mobilya almak için: Mobilyacı.", 13, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if Kitchen.has_stove(plot):
+		_kitchen()
 	_guestbook(plot)
 	Homes.depot_changed.connect(_refresh)
 	Land.plots_changed.connect(_refresh)
 	_refresh()
+
+
+## Mutfak: tarifler ve eldeki malzemeler.
+func _kitchen() -> void:
+	body.add_child(HSeparator.new())
+	add_label(body, "Mutfak (ocak) — tarifler", 17, Color("#facc15"))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 4)
+	body.add_child(grid)
+	for k in Kitchen.RECIPES:
+		var r: Dictionary = Kitchen.RECIPES[k]
+		var parts: Array = []
+		var ok := true
+		for ing in r.needs:
+			var have := Jobs.my_fish.size() if ing == "balik" else int(Farm.my_crops.get(ing, 0))
+			ok = ok and have >= int(r.needs[ing])
+			parts.append("%d %s (%d)" % [int(r.needs[ing]), Kitchen.ing_name(ing), have])
+		add_label(grid, r.name, 15, Color.WHITE if ok else Color("#94a3b8"))
+		var desc := "+%d enerji%s  •  %s" % [int(r.energy), (", " + Kitchen.BUFF_NAMES[r.buff[0]]) if r.has("buff") else "", ", ".join(parts)]
+		var l := add_label(grid, desc, 12, Color("#cbd5e1") if ok else Color("#64748b"))
+		l.custom_minimum_size = Vector2(330, 0)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		add_button(grid, "Pişir", Kitchen.cook.bind(k)).disabled = not ok
+	add_label(body, "Malzemeler: tarladan ekin, ahırdan yumurta/süt, kovadan balık. Yemekler çantaya girer (Profil'den ye).", 12, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
 ## Parti durumu, dekor ve misafir puanı.

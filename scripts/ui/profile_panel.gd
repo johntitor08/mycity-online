@@ -115,7 +115,7 @@ func _refresh() -> void:
 	if s.items.is_empty():
 		add_label(items_box, "Çanta boş. Marketten yiyecek alabilirsin.", 14, Color("#7c859e"))
 	for item in s.items:
-		var f: Dictionary = Rpg.FOODS.get(item, {})
+		var f: Dictionary = Rpg.food_info(item)
 		if f.is_empty():
 			continue
 		add_button(items_box, "%s ×%d (+%d)" % [f.name, s.items[item], f.energy], Rpg.use.bind(item))

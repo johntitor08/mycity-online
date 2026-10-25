@@ -69,6 +69,12 @@ const LIST := {
 	"league_win": ["league_win", 1, "Sezon Şampiyonu", "Bir lig sezonunu birinci bitir.", 3000, "Lig Şampiyonu"],
 	"factory50": ["factory", 50, "Usta İşçi", "Fabrikada 50 parçayı doğru ayıkla.", 1500, "Usta"],
 	"ferry": ["ferry", 1, "Denizci Yolcu", "Feribotla yolculuk et.", 100, ""],
+	"custom": ["custom", 3, "Zevk Sahibi", "Aracını ya da evini 3 kez özelleştir.", 500, "Zevk Sahibi"],
+	"ranch": ["ranch_products", 30, "Çiftçi Ailesi", "Ahırdan 30 ürün topla.", 1500, "Çoban"],
+	"chef": ["cooked", 10, "Aşçıbaşı", "10 yemek pişir.", 1500, "Aşçıbaşı"],
+	"dive1": ["dive", 1, "İlk Dalış", "Tekneden denize dal.", 200, ""],
+	"pearl10": ["pearl", 10, "İnci Avcısı", "10 inci topla.", 2500, "İnci Avcısı"],
+	"wreck": ["wreck", 1, "Batık Kâşifi", "Batık gemideki sandığı bul.", 3000, "Kâşif"],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

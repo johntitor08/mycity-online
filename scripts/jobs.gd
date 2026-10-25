@@ -234,7 +234,7 @@ func req_reel(_d: Dictionary) -> void:
 		Net.tell(self, id, "on_fish", {"state": "early"})
 		_set_fishing(id, "")
 		return
-	var rare: float = Rpg.perk(id, "fish_rare") * {"boat": 1.3, "island": 1.6}.get(t.spot, 1.0) * (1.25 if t.get("deep", false) else 1.0) * (1.15 if Pets.bonus(id, "dog") else 1.0)
+	var rare: float = (1.25 if Rpg.buff(id, "luck") else 1.0) * Rpg.perk(id, "fish_rare") * {"boat": 1.3, "island": 1.6}.get(t.spot, 1.0) * (1.25 if t.get("deep", false) else 1.0) * (1.15 if Pets.bonus(id, "dog") else 1.0)
 	var f := _roll_fish(LAKE_FISH if t.spot == "lake" else SEA_FISH, rare)
 	_bag(id).append({"name": f[0], "price": f[1]})
 	_set_fishing(id, "caught")
@@ -361,7 +361,7 @@ func req_hospital_answer(d: Dictionary) -> void:
 	elif choice == t.correct:
 		res["ok"] = true
 		res["pay"] = int((25 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "medicine_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0)
-			* Events.pay_mult() * Clans.pay_mult(id))
+			* Events.pay_mult() * Clans.pay_mult(id) * (1.15 if Rpg.buff(id, "work") else 1.0))
 		res["text"] = "Doğru tedavi! Hasta iyileşti. +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "medicine", 10)
 		Rpg.quest_event(id, "patient")
@@ -420,7 +420,7 @@ func req_market_answer(d: Dictionary) -> void:
 	elif change == t.change:
 		res["ok"] = true
 		res["pay"] = int((50 + maxf(left, 0.0) * 3.0) * Rpg.perk(id, "cashier_pay") * (1.2 if Env.is_night() else 1.0) * (1.1 if Pets.bonus(id, "parrot") else 1.0)
-			* Events.pay_mult() * Clans.pay_mult(id))
+			* Events.pay_mult() * Clans.pay_mult(id) * (1.15 if Rpg.buff(id, "work") else 1.0))
 		res["text"] = "Doğru para üstü! +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "cashier", 12)
 		Rpg.quest_event(id, "customer")

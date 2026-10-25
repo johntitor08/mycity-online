@@ -105,6 +105,7 @@ var furn_tex := {}          # mobilya türü -> doku
 var placing := ""           # mobilya yerleştirme modu (tür) ya da ""
 var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
 var _jail := false          # hapishanede miyim
+var _dive := false          # deniz tabanında mıyım (dalış)
 var _g_action := {}         # G tuşunun şu anki eylemi (yankesicilik/soygun/tutuklama)
 var _blockers: Array = []   # çarpışma kutuları: binalar ve arsalardaki yapılar (Rect2)
 var _fish_t := {}           # oyuncu adı -> [olta durumu, başladığı an] (animasyon için)
@@ -226,6 +227,8 @@ func _process(delta: float) -> void:
 			var mult := Garage.speed_of(ride)
 			if ride == "" and Map.in_sea(my_pos):
 				mult = 0.55
+			if _dive:
+				mult = 0.6
 			var step := dir.normalized() * SPEED * delta * mult
 			# Eksen eksen dene ki kıyı/duvar boyunca kayabilelim.
 			for s in [step, Vector2(step.x, 0), Vector2(0, step.y)]:
@@ -253,7 +256,7 @@ func _process(delta: float) -> void:
 	if swimming and not _was_swimming:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
-	var outside := _room < 0 and not _jail
+	var outside := _room < 0 and not _jail and not _dive
 	Sfx.set_ambience(clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0) if outside else 0.0)
 	Sfx.set_environment((1.0 if Env.weather == "storm" else 0.6) if Env.is_rainy() and outside else 0.0,
 		Env.darkness() * 0.8 if outside and not Env.is_rainy() else 0.0,
@@ -291,6 +294,9 @@ func my_ride() -> String:
 
 ## Bulunduğum alan: ev içiysem oda, değilsem şehir.
 func _clamp_to_area(p: Vector2) -> Vector2:
+	if _dive:
+		var b := Map.SEA_BED.grow(-20)
+		return p.clamp(b.position, b.end)
 	if _jail:
 		var j := Map.JAIL.grow(-18)
 		return p.clamp(j.position, j.end)
@@ -302,7 +308,7 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 
 
 func _can_stand(p: Vector2, ride: String) -> bool:
-	if _room >= 0 or _jail:
+	if _room >= 0 or _jail or _dive:
 		return true
 	if _blocked(p) and not _blocked(my_pos):
 		return false              # bina, ev ya da araba (içindeysen çıkabilirsin)
@@ -320,12 +326,16 @@ func _can_stand(p: Vector2, ride: String) -> bool:
 func _update_area() -> void:
 	var room := Map.interior_at(my_pos)
 	var jail := Map.JAIL.has_point(my_pos)
-	if room == _room and jail == _jail:
+	var dive := Map.SEA_BED.has_point(my_pos)
+	if room == _room and jail == _jail and dive == _dive:
 		return
 	_room = room
 	_jail = jail
+	_dive = dive
 	var r := Map.WORLD
-	if jail:
+	if dive:
+		r = Map.SEA_BED
+	elif jail:
 		r = Map.JAIL.grow(160)
 	elif room >= 0:
 		var lvl := int(Land.view[room].level) if room < Land.view.size() else 1
@@ -476,6 +486,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		if aim.length() < 10.0:
 			aim = {"left": Vector2.LEFT, "right": Vector2.RIGHT, "up": Vector2.UP, "down": Vector2.DOWN}.get(my_facing, Vector2.DOWN)
 		Seasonal.throw(aim)
+	elif Settings.is_key(k, "dive") and (_dive or (my_ride() == "boat" and Map.in_sea(my_pos))):
+		if _dive:
+			Dive.surface()
+		else:
+			Dive.dive()
+		Sfx.play("splash")
 	elif Settings.is_key(k, "action") and not _g_action.is_empty():
 		_do_g_action()
 	else:
@@ -491,6 +507,16 @@ func _update_zone() -> void:
 	if _jail:
 		zone = {}
 		hud.set_hint("" if panel != null else "Hapistesin — sol üstten kefalet ödeyebilirsin")
+		return
+	if _dive:
+		zone = {}
+		for it in Dive.items:
+			if my_pos.distance_to(Vector2(float(it.x), float(it.y))) < Dive.PICK_RANGE:
+				zone = {"type": "dive_pick", "id": int(it.id), "label": "Sandığı aç" if it.k == "chest" else "İstiridyeyi aç"}
+		var hint := "[%s] yüzeye çık  ·  Oksijen %d sn" % [Settings.key_name("dive"), int(Dive.oxygen_left())]
+		if not zone.is_empty():
+			hint = "[%s]  %s\n%s" % [Settings.key_name("interact"), zone.label, hint]
+		hud.set_hint("" if panel != null else hint)
 		return
 	if _room >= 0:
 		var lvl := int(Land.view[_room].level) if _room < Land.view.size() else 1
@@ -523,7 +549,7 @@ func _update_zone() -> void:
 		spot = "boat"
 	if spot != "":
 		var where: String = {"lake": "Göl", "sea": "Deniz İskelesi", "island": "Martı Adası", "boat": "Tekne"}.get(spot, "")
-		z = {"type": "fishing", "label": "%s — Balık Tut" % where, "spot": spot}
+		z = {"type": "fishing", "label": "%s — Balık Tut%s" % [where, ("   ·   [%s] Dal" % Settings.key_name("dive")) if spot == "boat" else ""], "spot": spot}
 	for i in Map.PLOT_COUNT:
 		if Map.plot_rect(i).has_point(my_pos):
 			z = {"type": "realestate", "label": "Arsa #%d" % (i + 1), "plot": i}
@@ -630,6 +656,10 @@ func _open_panel() -> void:
 		Garage.rent_boat()
 		return
 	match str(zone.type):
+		"dive_pick":
+			Dive.pick(zone.id)
+			Sfx.play("coin", -6.0)
+			return
 		"league":
 			open_simple_panel("res://scripts/ui/league_panel.gd")
 			return
@@ -722,7 +752,7 @@ func open_pet_panel() -> void:
 func _structure_of(i: int, p: Dictionary) -> Array:
 	var c := Map.plot_rect(i).get_center()
 	var level := int(p.get("level", 0))
-	if level < 1 or str(p.get("owner", "")) == "" or Farm.is_farm(p):
+	if level < 1 or str(p.get("owner", "")) == "" or Farm.is_farm(p) or Farm.is_ranch(p):
 		return []
 	if Biz.is_biz(p):
 		return [BIZ_TEX[level], Vector2(c.x, c.y + 54), [0, 116, 126, 146][level]]
@@ -1438,6 +1468,7 @@ func _draw() -> void:
 	_draw_lake()
 	_draw_interiors()
 	_draw_jail()
+	_draw_seabed()
 	for lp in Map.lamp_positions():
 		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
 		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
@@ -1635,10 +1666,13 @@ func _draw_plot(i: int) -> void:
 	if Farm.is_farm(p) and p.get("farm") is Dictionary:
 		_draw_farm(r, p)
 		level = -1
+	elif Farm.is_ranch(p):
+		_draw_ranch(r, p)
+		level = -1
 	if Biz.is_biz(p) and level >= 1:
 		var b: Dictionary = p.get("biz", {})
 		var heights := [0, 116, 126, 146]
-		_draw_tex_at(BIZ_TEX[level], Vector2(c.x, c.y + 54), heights[level])
+		_draw_tex_at(BIZ_TEX[level], Vector2(c.x, c.y + 54), heights[level], Land.TINTS[int(p.get("tint", 0)) % Land.TINTS.size()])
 		var open := int(b.get("stock", 0)) > 0
 		_text(Vector2(r.position.x, r.position.y + 26), "%s  %s" % [Biz.NAMES[level], "★%.1f" % float(b.get("rating", 3.0))], 15,
 			Color("#fde68a") if open else Color("#94a3b8"), r.size.x)
@@ -1649,11 +1683,11 @@ func _draw_plot(i: int) -> void:
 		0:
 			_text(Vector2(r.position.x, c.y), "Boş arsa", 16, Color(1, 1, 1, 0.8), r.size.x)
 		1:
-			_draw_tex_at(PLOT_TEX[1], Vector2(c.x, c.y + 42), 120)
+			_draw_tex_at(PLOT_TEX[1], Vector2(c.x, c.y + 42), 120, Land.TINTS[int(p.get("tint", 0)) % Land.TINTS.size()])
 		2:
-			_draw_tex_at(PLOT_TEX[2], Vector2(c.x, c.y + 50), 130)
+			_draw_tex_at(PLOT_TEX[2], Vector2(c.x, c.y + 50), 130, Land.TINTS[int(p.get("tint", 0)) % Land.TINTS.size()])
 		3:
-			_draw_tex_at(PLOT_TEX[3], Vector2(c.x, c.y + 60), 158)
+			_draw_tex_at(PLOT_TEX[3], Vector2(c.x, c.y + 60), 158, Land.TINTS[int(p.get("tint", 0)) % Land.TINTS.size()])
 	# Sahip bayrağı
 	var fp := r.position + Vector2(r.size.x - 34, 14)
 	draw_rect(Rect2(fp, Vector2(3, 34)), Color("#374151"))
@@ -1966,6 +2000,53 @@ func _draw_farm(r: Rect2, p: Dictionary) -> void:
 	draw_rect(Rect2(sc.x - 7, sc.y - 18, 14, 4), Color("#92400e"))
 
 
+## Ahır: kırmızı ambar, çitli ağıl, dolaşan hayvanlar (konumlar zamana göre, herkeste aynı).
+func _draw_ranch(r: Rect2, p: Dictionary) -> void:
+	draw_rect(r.grow(-6), Color("#86a35f"))
+	var bx := Rect2(r.position.x + 14, r.position.y + 34, 92, 74)
+	draw_rect(Rect2(bx.position + Vector2(4, 6), bx.size), Color(0, 0, 0, 0.2))
+	draw_rect(bx, Color("#b91c1c"))
+	draw_colored_polygon(PackedVector2Array([bx.position + Vector2(-6, 0), bx.position + Vector2(bx.size.x + 6, 0), bx.position + Vector2(bx.size.x / 2, -26)]), Color("#7f1d1d"))
+	draw_rect(Rect2(bx.position.x + 30, bx.end.y - 40, 32, 40), Color("#fef3c7"))
+	draw_line(bx.position + Vector2(30, bx.size.y - 40), bx.position + Vector2(62, bx.size.y), Color("#b91c1c"), 3)
+	draw_line(bx.position + Vector2(62, bx.size.y - 40), bx.position + Vector2(30, bx.size.y), Color("#b91c1c"), 3)
+	var pen := Rect2(r.position.x + 120, r.position.y + 40, r.size.x - 134, r.size.y - 56)
+	draw_rect(pen, Color("#a3b86c"))
+	draw_rect(pen, Color("#78350f"), false, 3)
+	for x in range(int(pen.position.x), int(pen.end.x), 22):
+		draw_line(Vector2(x, pen.position.y - 6), Vector2(x, pen.position.y + 4), Color("#78350f"), 2)
+	var animals: Array = p.get("ranch", {}).get("animals", [])
+	var now := Land.server_now()
+	for k in animals.size():
+		var a: Dictionary = animals[k]
+		var seed_v := float(k * 37 + int(r.position.x))
+		var ap := pen.position + Vector2(18 + fposmod(seed_v * 13.0 + sin(_t * 0.4 + k) * 30.0, pen.size.x - 36), 16 + fposmod(seed_v * 7.0 + cos(_t * 0.3 + k * 2.0) * 18.0, pen.size.y - 30))
+		var hungry := float(a.fed) < now
+		match str(a.k):
+			"chicken":
+				draw_circle(ap, 6, Color("#f8fafc"))
+				draw_circle(ap + Vector2(5, -5), 3.5, Color("#f8fafc"))
+				draw_circle(ap + Vector2(6, -8), 1.6, Color("#ef4444"))
+				draw_colored_polygon(PackedVector2Array([ap + Vector2(8, -5), ap + Vector2(11, -4), ap + Vector2(8, -3)]), Color("#f59e0b"))
+			"cow":
+				draw_rect(Rect2(ap - Vector2(13, 8), Vector2(26, 15)), Color("#f8fafc"))
+				draw_circle(ap + Vector2(-5, -2), 4, Color("#111827"))
+				draw_circle(ap + Vector2(6, 3), 3, Color("#111827"))
+				draw_rect(Rect2(ap + Vector2(12, -10), Vector2(9, 9)), Color("#f8fafc"))
+				draw_circle(ap + Vector2(18, -4), 2.5, Color("#fda4af"))
+				for lx in [-10, -4, 6, 11]:
+					draw_line(ap + Vector2(lx, 7), ap + Vector2(lx, 12), Color("#111827"), 2)
+			"sheep":
+				for c in [Vector2(-6, 0), Vector2(0, -3), Vector2(6, 0), Vector2(0, 3)]:
+					draw_circle(ap + c, 6, Color("#f5f5f4"))
+				draw_circle(ap + Vector2(10, -3), 4, Color("#44403c"))
+		if hungry:
+			_text(ap + Vector2(-20, -16), "!", 14, Color("#fca5a5"), 40)
+		elif Farm.animal_ready(a, now) > 0:
+			draw_circle(ap + Vector2(0, -16 + sin(_t * 3.0 + k) * 2.0), 3.5, Color("#facc15"))
+	_text(Vector2(r.position.x, r.position.y + 26), "AHIR", 15, Color("#fde68a"), r.size.x)
+
+
 ## Yarış pisti: damalı başlangıç çizgisi, hakem bayrağı; yarıştayken sıradaki kontrol noktası.
 func _draw_race_track() -> void:
 	var st := Map.RACE_START
@@ -2026,6 +2107,72 @@ func _draw_event_world() -> void:
 			var px := Map.SPAWN.x + fmod(k * 97.0, 700.0) - 350.0
 			var py := Map.SPAWN.y - 120.0 + fmod(k * 53.0 + _t * (40.0 + k % 7 * 10.0), 260.0)
 			draw_rect(Rect2(px + sin(_t * 3.0 + k) * 8.0, py, 5, 3), cols[k % cols.size()])
+
+
+## Deniz tabanı (dalış): su, ışık huzmeleri, kum, yosun, mercan, balıklar, batık, istiridyeler.
+func _draw_seabed() -> void:
+	var b: Rect2 = Map.SEA_BED
+	var vsize := get_viewport_rect().size / camera.zoom
+	if not Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(200).intersects(b):
+		return
+	draw_rect(b, Color("#0e5a7a"))
+	draw_rect(Rect2(b.position.x, b.position.y, b.size.x, 260), Color(0.2, 0.55, 0.75, 0.35))
+	for k in 9:
+		var x := b.position.x + 150 + k * 310 + sin(_t * 0.3 + k) * 30.0
+		draw_colored_polygon(PackedVector2Array([Vector2(x, b.position.y), Vector2(x + 70, b.position.y), Vector2(x + 220, b.end.y), Vector2(x + 90, b.end.y)]), Color(0.7, 0.9, 1.0, 0.06))
+	var floor_y := b.end.y - 170
+	var sand := PackedVector2Array()
+	for i in 71:
+		sand.append(Vector2(b.position.x + i * 40.0, floor_y + sin(i * 0.7) * 14.0))
+	sand.append(b.end)
+	sand.append(Vector2(b.position.x, b.end.y))
+	draw_colored_polygon(sand, Color("#c8b27a"))
+	for k in 60:
+		var x := b.position.x + fmod(k * 173.0, b.size.x)
+		var base := Vector2(x, floor_y + 10 + fmod(k * 37.0, 120.0))
+		if k % 3 == 0:
+			var sway := sin(_t * 1.5 + k) * 10.0
+			draw_polyline(PackedVector2Array([base, base + Vector2(sway * 0.5, -30), base + Vector2(sway, -60)]), Color("#15803d"), 4)
+		elif k % 3 == 1:
+			var col: Color = [Color("#f472b6"), Color("#fb923c"), Color("#a78bfa"), Color("#f87171")][k % 4]
+			draw_circle(base + Vector2(0, -10), 12, col)
+			draw_circle(base + Vector2(-10, -18), 8, col.lightened(0.2))
+			draw_circle(base + Vector2(9, -20), 7, col.darkened(0.1))
+		else:
+			draw_circle(base, 10, Color("#78716c"))
+	var w := Map.WRECK
+	draw_set_transform(w, -0.18, Vector2.ONE)
+	draw_colored_polygon(PackedVector2Array([Vector2(-180, -30), Vector2(170, -30), Vector2(130, 40), Vector2(-150, 40)]), Color("#57351f"))
+	for x in range(-160, 160, 30):
+		draw_line(Vector2(x, -28), Vector2(x + 8, 38), Color("#3f2614"), 2)
+	draw_rect(Rect2(-40, -150, 10, 120), Color("#3f2614"))
+	draw_colored_polygon(PackedVector2Array([Vector2(-30, -140), Vector2(40, -110), Vector2(-30, -80)]), Color(0.85, 0.85, 0.75, 0.5))
+	draw_set_transform(Vector2.ZERO)
+	_text(w + Vector2(-80, -170), "BATIK GEMİ", 15, Color("#fde68a"), 160)
+	for g in 6:
+		var cx := b.position.x + fposmod(g * 470.0 + _t * (40.0 + g * 8.0) * (1.0 if g % 2 == 0 else -1.0), b.size.x)
+		var cy := b.position.y + 200 + g * 110 + sin(_t * 0.8 + g) * 30.0
+		var dir := 1.0 if g % 2 == 0 else -1.0
+		for f in 7:
+			var fp := Vector2(cx + (f % 3) * 22.0 * dir, cy + int(f / 3.0) * 14.0 + sin(_t * 3.0 + f) * 3.0)
+			var col: Color = [Color("#facc15"), Color("#38bdf8"), Color("#fb923c")][g % 3]
+			draw_colored_polygon(PackedVector2Array([fp + Vector2(8 * dir, 0), fp + Vector2(-4 * dir, -4), fp + Vector2(-4 * dir, 4)]), col)
+			draw_colored_polygon(PackedVector2Array([fp + Vector2(-4 * dir, 0), fp + Vector2(-10 * dir, -4), fp + Vector2(-10 * dir, 4)]), col.darkened(0.2))
+	for it in Dive.items:
+		var ip := Vector2(float(it.x), float(it.y))
+		if it.k == "chest":
+			draw_rect(Rect2(ip.x - 20, ip.y - 18, 40, 26), Color("#92400e"))
+			draw_rect(Rect2(ip.x - 20, ip.y - 26, 40, 10), Color("#b45309"))
+			draw_rect(Rect2(ip.x - 4, ip.y - 18, 8, 8), Color("#facc15"))
+			draw_circle(ip + Vector2(0, -36 + sin(_t * 3.0) * 3.0), 3, Color(1, 0.95, 0.5, 0.8))
+		else:
+			draw_colored_polygon(_ellipse(Rect2(ip.x - 14, ip.y - 8, 28, 16), 16), Color("#a8a29e"))
+			draw_arc(ip, 10, PI, TAU, 8, Color("#78716c"), 2)
+			if fmod(_t + float(it.id), 4.0) < 1.5:
+				draw_circle(ip + Vector2(0, -2), 3.5, Color("#f8fafc"))
+	for k in 14:
+		var bp := Vector2(b.position.x + fmod(k * 211.0, b.size.x), b.end.y - fmod(_t * 60.0 + k * 77.0, b.size.y))
+		draw_arc(bp, 3 + k % 3, 0, TAU, 10, Color(1, 1, 1, 0.35), 1.2)
 
 
 ## Hapishane koğuşu (harita dışında).
@@ -2142,18 +2289,28 @@ func _draw_placement_ghost() -> void:
 	draw_rect(fr, Color("#22c55e") if ok else Color("#ef4444"), false, 3)
 
 
-func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color) -> void:
+func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color, vstyle: Dictionary = {}) -> void:
 	var ang: float = FACING_ANGLE.get(facing, 0.0)
 	match ride:
 		"car":
+			if int(vstyle.get("car", -1)) >= 0:
+				col = Garage.PAINTS[int(vstyle.car) % Garage.PAINTS.size()]
 			draw_set_transform(p + Vector2(4, 6), ang, Vector2.ONE)
 			draw_rect(Rect2(-46, -24, 92, 48), Color(0, 0, 0, 0.25))
 			draw_set_transform(p, ang, Vector2.ONE)
 			draw_texture_rect(CAR_BODY, Rect2(-48, -26, 96, 52), false, col)
 			draw_texture_rect(CAR_DETAIL, Rect2(-48, -26, 96, 52), false)
+			var rims := int(vstyle.get("rims", 0))
+			if rims > 0:      # jantlar (tekerlek göbekleri)
+				for wp in [Vector2(-28, -24), Vector2(28, -24), Vector2(-28, 24), Vector2(28, 24)]:
+					draw_circle(wp, 4.0, Garage.RIM_COLORS[rims])
+					draw_circle(wp, 1.6, Color("#374151"))
 		"bike":
+			var bcol := Color.WHITE
+			if int(vstyle.get("bike", -1)) >= 0:
+				bcol = Garage.PAINTS[int(vstyle.bike) % Garage.PAINTS.size()].lightened(0.25)
 			draw_set_transform(p + Vector2(0, 8), ang, Vector2.ONE)
-			draw_texture_rect(BIKE_TEX, Rect2(-32, -12, 64, 24), false)
+			draw_texture_rect(BIKE_TEX, Rect2(-32, -12, 64, 24), false, bcol)
 		"boat":
 			var bob := sin(_t * 3.0) * 2.0
 			var flip := -1.0 if facing == "left" else 1.0
@@ -2195,16 +2352,16 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	var name_col := Color("#fde68a") if me else Color.WHITE
 	match ride:
 		"car":
-			_draw_vehicle(p, ride, facing, col)
+			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
 			_name(p, -40, pname, name_col, extra)
 			return
 		"bike":
-			_draw_vehicle(p, ride, facing, col)
+			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
 			Avatar.draw(self, p, app, facing, 0)
 			_name(p, -56, pname, name_col, extra)
 			return
 		"boat":
-			_draw_vehicle(p, ride, facing, col)
+			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
 			Avatar.draw(self, p + Vector2(0, -6), app, facing, 0, 1.0, true)
 			if str(extra.get("fishing", "")) != "":
 				_draw_rod(p + Vector2(0, -6), facing, extra)
@@ -2231,6 +2388,13 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	if moving:
 		frame = [1, 0, 2, 0][int(_t * (6.0 if swim else 9.0)) % 4]
 	Avatar.draw(self, p, app, facing, frame, 1.0, swim)
+	if Map.SEA_BED.has_point(p):
+		draw_rect(Rect2(p.x - 9, p.y - 35, 18, 9), Color(0.6, 0.85, 1.0, 0.6))
+		draw_rect(Rect2(p.x - 9, p.y - 35, 18, 9), Color("#facc15"), false, 2)
+		draw_rect(Rect2(p.x - 14, p.y - 30, 6, 18), Color("#334155"))
+		for k in 3:
+			var by := fmod(_t * 50.0 + k * 20.0, 60.0)
+			draw_arc(p + Vector2(6 + sin(_t * 4.0 + k) * 3.0, -40 - by), 3, 0, TAU, 8, Color(1, 1, 1, 0.6 - by / 120.0), 1.2)
 	if str(extra.get("fishing", "")) != "":
 		_draw_rod(p, facing, extra)
 	_name(p, -56 + (22 if swim else 0), pname, name_col, extra)

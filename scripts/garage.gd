@@ -15,6 +15,16 @@ const VEHICLES := {
 }
 
 var owned: Array = []        # istemci: sahip olduğum araçlar
+var vstyle: Dictionary = {}  # istemci: araç görünümüm {car, rims, bike}
+# 1.1: araç özelleştirme (Galeri'de)
+const PAINTS := [Color("#ef4444"), Color("#f97316"), Color("#facc15"), Color("#22c55e"), Color("#06b6d4"),
+	Color("#3b82f6"), Color("#8b5cf6"), Color("#ec4899"), Color("#f8fafc"), Color("#1f2937")]
+const PAINT_NAMES := ["Kırmızı", "Turuncu", "Sarı", "Yeşil", "Turkuaz", "Mavi", "Mor", "Pembe", "Beyaz", "Siyah"]
+const RIMS := ["Standart", "Altın", "Siyah", "Krom"]
+const RIM_COLORS := [Color("#9ca3af"), Color("#facc15"), Color("#111827"), Color("#e5e7eb")]
+const RIM_PRICES := [0, 1500, 600, 900]
+const CAR_PAINT_PRICE := 400
+const BIKE_PAINT_PRICE := 150
 var rent_until := 0.0        # istemci: kiralık teknenin bitiş anı (yerel saat)
 const RENT_PRICE := 250
 const RENT_SECONDS := 600.0
@@ -73,6 +83,7 @@ func rent_left() -> float:
 @rpc("authority", "call_local", "reliable")
 func on_owned(d: Dictionary) -> void:
 	owned = d.get("owned", [])
+	vstyle = d.get("vstyle", {})
 	var rl := float(d.get("rent_left", 0.0))
 	rent_until = Time.get_ticks_msec() / 1000.0 + rl if rl > 0.0 else 0.0
 	owned_changed.emit()
@@ -82,7 +93,62 @@ func on_owned(d: Dictionary) -> void:
 
 func send_state(id: int) -> void:
 	if Net.players.has(id):
-		Net.tell(self, id, "on_owned", {"owned": _list(id).duplicate(), "rent_left": _rent_left(id)})
+		var st := _style(id)
+		Net.tell(self, id, "on_owned", {"owned": _list(id).duplicate(), "rent_left": _rent_left(id), "vstyle": st.duplicate()})
+		if Net.players[id].get("vstyle", {}) != st:
+			Net.players[id]["vstyle"] = st.duplicate()
+			Net._broadcast_roster()
+
+
+func _style(id: int) -> Dictionary:
+	var rec: Dictionary = Net.save_data.players.get(Net.players[id].name, {})
+	if not rec.get("vstyle") is Dictionary:
+		rec["vstyle"] = {"car": -1, "rims": 0, "bike": -1}
+	return rec["vstyle"]
+
+
+func set_style(what: String, idx: int) -> void:
+	Net.ask(self, "req_style", {"what": what, "idx": idx})
+
+
+## Galeri'de araç boyası / jant / bisiklet rengi.
+@rpc("any_peer", "call_remote", "reliable")
+func req_style(d: Dictionary) -> void:
+	var id := Net.sender()
+	if not Net.players.has(id):
+		return
+	if not Map.building("galeri").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+		Net.notify(id, "Araç özelleştirme Galeri'de yapılır.", false)
+		return
+	var what := str(d.get("what", ""))
+	var idx := int(d.get("idx", 0))
+	var st := _style(id)
+	var cost := 0
+	match what:
+		"car":
+			if not _list(id).has("car") or idx < 0 or idx >= PAINTS.size():
+				return
+			cost = CAR_PAINT_PRICE
+		"rims":
+			if not _list(id).has("car") or idx < 0 or idx >= RIMS.size():
+				return
+			cost = RIM_PRICES[idx]
+		"bike":
+			if not _list(id).has("bike") or idx < 0 or idx >= PAINTS.size():
+				return
+			cost = BIKE_PAINT_PRICE
+		_:
+			return
+	if int(st.get(what, -1)) == idx:
+		return
+	if not Net.try_spend(id, cost):
+		Net.notify(id, "Bunun için %s gerekli." % U.money(cost), false)
+		return
+	st[what] = idx
+	Net.mark_dirty()
+	send_state(id)
+	Ach.event(id, "custom")
+	Net.notify(id, "Aracın yenilendi! Herkes görecek.")
 
 
 func _rent_left(id: int) -> float:

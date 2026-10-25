@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "1.0"
+const VERSION := "1.1"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -246,6 +246,7 @@ func _reset_peer() -> void:
 	Work.reset()
 	League.reset()
 	Factory.reset()
+	Dive.reset()
 
 
 func _on_connected() -> void:
@@ -420,6 +421,7 @@ func _on_peer_disconnected(id: int) -> void:
 	Work.on_player_left(id)
 	Langirt.on_player_left(id)
 	Factory.on_player_left(id)
+	Dive.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -555,6 +557,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Football.send_state(id)
 	Work.send_state(id)
 	League.send_state(id)
+	Dive.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -670,6 +673,13 @@ func send_pos(p: Vector2) -> void:
 		positions[id] = p.clamp(Map.JAIL.position, Map.JAIL.end)     # hapisten çıkılamaz
 		return
 	if speed_check and not _speed_ok(id, p):
+		return
+	# dalış: deniz tabanı sadece dalgıçlara; dalgıç da yüzeye ancak sunucu çıkarınca döner
+	if Map.SEA_BED.has_point(p):
+		if Dive.is_diving(id):
+			positions[id] = p.clamp(Map.SEA_BED.position, Map.SEA_BED.end)
+		return
+	if Dive.is_diving(id):
 		return
 	if Map.JAIL.has_point(p):
 		return

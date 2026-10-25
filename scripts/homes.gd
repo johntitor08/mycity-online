@@ -25,6 +25,7 @@ const FURNITURE := {
 	"lamp": {"name": "Lambader", "price": 400, "size": Vector2i(1, 1), "desc": "Gece odayı aydınlatır"},
 	"aquarium": {"name": "Akvaryum", "price": 3000, "size": Vector2i(2, 1)},
 	"desk": {"name": "Bilgisayar Masası", "price": 3500, "size": Vector2i(2, 1)},
+	"stove": {"name": "Ocak ve Tezgâh", "price": 1200, "size": Vector2i(2, 1), "desc": "Evde yemek pişirmeni sağlar"},
 }
 const MAX_PER_ROOM := 40
 const SELL_BACK := 0.5          # Mobilyacı kullanılmayan mobilyayı yarı fiyatına geri alır

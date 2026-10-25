@@ -74,6 +74,12 @@ func _rebuild_rooms() -> void:
 func update(player_pos: Vector2) -> void:
 	var d := Env.darkness()
 	var inside := Map.interior_at(player_pos) >= 0
+	if Map.SEA_BED.has_point(player_pos):
+		canvas_mod.color = Color(0.55, 0.8, 1.0).lerp(Color(0.2, 0.3, 0.5), d * 0.7)
+		for l in street:
+			l.visible = false
+		player_light.visible = false
+		return
 	var c: Color
 	if inside:
 		c = Color.WHITE.lerp(Color(0.5, 0.47, 0.58), d)       # odalar gece loş, ışıklar açık

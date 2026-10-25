@@ -523,7 +523,7 @@ func req_patrol_answer(d: Dictionary) -> void:
 	elif choice == int(t.correct):
 		res["ok"] = true
 		res["pay"] = int((35 + maxf(left, 0.0) * 2.0) * Rpg.perk(id, "police_pay") * (1.2 if Env.is_night() else 1.0)
-			* Events.pay_mult() * Clans.pay_mult(id))
+			* Events.pay_mult() * Clans.pay_mult(id) * (1.15 if Rpg.buff(id, "work") else 1.0))
 		res["text"] = "Doğru müdahale! Olay çözüldü. +%s" % U.money(res.pay)
 		Rpg.add_xp(id, "police", 12)
 		Rpg.quest_event(id, "patrol")

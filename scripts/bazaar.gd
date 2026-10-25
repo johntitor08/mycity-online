@@ -125,13 +125,13 @@ func req_list(d: Dictionary) -> void:
 		"food":
 			var k := str(d.get("ref", ""))
 			var items: Dictionary = Rpg.ensure(rec).items
-			if not Rpg.FOODS.has(k) or int(items.get(k, 0)) <= 0:
+			if Rpg.food_info(k).is_empty() or int(items.get(k, 0)) <= 0:
 				return
 			items[k] = int(items[k]) - 1
 			if int(items[k]) <= 0:
 				items.erase(k)
 			item = k
-			label = Rpg.FOODS[k].name
+			label = Rpg.food_info(k).name
 			Rpg.send_sheet(id)
 		"furniture":
 			var k := str(d.get("ref", ""))
@@ -148,13 +148,13 @@ func req_list(d: Dictionary) -> void:
 			var k := str(d.get("ref", ""))
 			var store := Farm.barn(rec)
 			var qty := clampi(int(d.get("qty", 1)), 1, int(store.get(k, 0)))
-			if not Farm.CROPS.has(k) or int(store.get(k, 0)) <= 0:
+			if Farm.item_info(k).is_empty() or int(store.get(k, 0)) <= 0:
 				return
 			store[k] = int(store[k]) - qty
 			if int(store[k]) <= 0:
 				store.erase(k)
 			item = {"k": k, "n": qty}
-			label = "%d %s" % [qty, Farm.CROPS[k].name]
+			label = "%d %s" % [qty, Farm.item_info(k).name]
 			Farm.send_state(id)
 		"plot":
 			var i := int(d.get("ref", -1))
