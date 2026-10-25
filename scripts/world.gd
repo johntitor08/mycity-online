@@ -110,6 +110,8 @@ var nav_target = null       # haritadan seçilen hedef (Vector2) ya da null
 var _snowballs: Array = []  # uçan kartopları (istemcide çizim): {from, dir, t0}
 var _splats: Array = []     # isabet izleri: {pos, t0}
 var minimap: Control
+var _walked := 0.0
+var _spray_acc := 0.0
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
 var _label_queue: Array = []
@@ -142,6 +144,8 @@ func _ready() -> void:
 	camera.position_smoothing_speed = 8.0
 	camera.position = my_pos
 	camera.make_current()
+	camera.zoom = Vector2.ONE * Settings.world_zoom()
+	Settings.changed.connect(_on_settings)
 	ui_layer = CanvasLayer.new()
 	add_child(ui_layer)
 	hud = HUD.new()
@@ -179,6 +183,11 @@ func _ready() -> void:
 	Family.proposal.connect(_on_proposal)
 	hud.achievements_requested.connect(open_simple_panel.bind("res://scripts/ui/ach_panel.gd"))
 	hud.map_requested.connect(open_map)
+	hud.settings_requested.connect(open_settings)
+	Tutorial.start(ui_layer)
+	Work.job_changed.connect(_on_job_changed)
+	Jobs.job_result.connect(func(d): if d.get("ok", false): Tutorial.note("job"))
+	Story.dialog.connect(func(_d): Tutorial.note("talk"))
 	minimap = preload("res://scripts/ui/minimap.gd").new()
 	minimap.world = self
 	hud.set_minimap(minimap)
@@ -195,13 +204,13 @@ func _process(delta: float) -> void:
 	my_moving = false
 	if panel == null and not hud.is_typing():
 		var dir := Vector2.ZERO
-		if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		if Settings.held("up"):
 			dir.y -= 1
-		if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		if Settings.held("down"):
 			dir.y += 1
-		if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
+		if Settings.held("left"):
 			dir.x -= 1
-		if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
+		if Settings.held("right"):
 			dir.x += 1
 		if dir != Vector2.ZERO:
 			my_facing = _facing_of(dir)
@@ -217,7 +226,16 @@ func _process(delta: float) -> void:
 					my_moving = np != my_pos
 					my_pos = np
 					break
+	if panel == null and zone.get("type", "") == "fire" and Settings.held("interact"):
+		_spray_acc += delta
+		if _spray_acc >= 0.25:
+			_spray_acc = 0.0
+			Work.spray(int(zone.id))
 	Net.update_my_pos(my_pos, delta)
+	if my_moving:
+		_walked += delta
+		if _walked > 1.2:
+			Tutorial.note("move")
 	camera.position = my_pos
 	_update_area()
 	var swimming := Map.in_sea(my_pos) and my_ride() == ""
@@ -409,51 +427,50 @@ func _unhandled_input(event: InputEvent) -> void:
 						Sfx.play("place", -4.0, 1.3)
 						return
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			camera.zoom = (camera.zoom * 1.1).clamp(Vector2(0.6, 0.6), Vector2(2, 2))
+			camera.zoom = (camera.zoom * 1.1).clamp(Vector2(0.6, 0.6) / Settings.ui_scale, Vector2(2, 2) / Settings.ui_scale)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			camera.zoom = (camera.zoom / 1.1).clamp(Vector2(0.6, 0.6), Vector2(2, 2))
+			camera.zoom = (camera.zoom / 1.1).clamp(Vector2(0.6, 0.6) / Settings.ui_scale, Vector2(2, 2) / Settings.ui_scale)
 		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
-	match event.physical_keycode:
-		KEY_E:
-			if panel == null:
-				_open_panel()
-				get_viewport().set_input_as_handled()
-		KEY_C:
-			if panel == null:
-				open_profile()
-				get_viewport().set_input_as_handled()
-		KEY_F:
-			if panel == null:
-				_toggle_vehicle()
-				get_viewport().set_input_as_handled()
-		KEY_M:
-			if panel == null:
-				open_map()
-				get_viewport().set_input_as_handled()
-		KEY_T:
-			if panel == null and Env.season == "winter" and _room < 0 and not _jail:
-				var aim := get_global_mouse_position() - my_pos
-				if aim.length() < 10.0:
-					aim = {"left": Vector2.LEFT, "right": Vector2.RIGHT, "up": Vector2.UP, "down": Vector2.DOWN}.get(my_facing, Vector2.DOWN)
-				Seasonal.throw(aim)
-				get_viewport().set_input_as_handled()
-		KEY_G:
-			if panel == null and not _g_action.is_empty():
-				_do_g_action()
-				get_viewport().set_input_as_handled()
-		KEY_ESCAPE:
-			if panel != null:
-				_close_panel()
-				get_viewport().set_input_as_handled()
-			elif placing != "":
-				placing = ""
-				get_viewport().set_input_as_handled()
-		KEY_ENTER, KEY_KP_ENTER:
-			if panel == null:
-				hud.focus_chat()
-				get_viewport().set_input_as_handled()
+	var k: InputEventKey = event
+	if k.physical_keycode == KEY_ESCAPE:
+		if panel != null:
+			_close_panel()
+			get_viewport().set_input_as_handled()
+		elif placing != "":
+			placing = ""
+			get_viewport().set_input_as_handled()
+		return
+	if k.physical_keycode == KEY_ENTER or k.physical_keycode == KEY_KP_ENTER:
+		if panel == null:
+			hud.focus_chat()
+			get_viewport().set_input_as_handled()
+		return
+	if panel != null:
+		return
+	# tuşlar Ayarlar'dan değiştirilebilir (Settings.keys)
+	var handled := true
+	if Settings.is_key(k, "interact"):
+		_open_panel()
+	elif Settings.is_key(k, "profile"):
+		open_profile()
+	elif Settings.is_key(k, "vehicle"):
+		_toggle_vehicle()
+	elif Settings.is_key(k, "map"):
+		open_map()
+	elif Settings.is_key(k, "throw") and Env.season == "winter" and _room < 0 and not _jail:
+		var aim := get_global_mouse_position() - my_pos
+		if aim.length() < 10.0:
+			aim = {"left": Vector2.LEFT, "right": Vector2.RIGHT, "up": Vector2.UP, "down": Vector2.DOWN}.get(my_facing, Vector2.DOWN)
+		Seasonal.throw(aim)
+	elif Settings.is_key(k, "action") and not _g_action.is_empty():
+		_do_g_action()
+	else:
+		handled = false
+	if handled:
+		Tutorial.note("key")
+		get_viewport().set_input_as_handled()
 
 
 func _update_zone() -> void:
@@ -470,8 +487,15 @@ func _update_zone() -> void:
 		else:
 			z = {"type": "home", "label": "Ev menüsü", "plot": _room}
 		zone = z
-		hud.set_hint("" if panel != null or placing != "" else "[E]  %s" % z.label)
+		hud.set_hint("" if panel != null or placing != "" else "[%s]  %s" % [Settings.key_name("interact"), z.label])
 		return
+	# görevdeki itfaiyeci için yangın her şeyden önce gelir
+	if Work.on_duty_fire():
+		for f in Work.fires:
+			if my_pos.distance_to(Vector2(float(f.x), float(f.y))) < 100.0:
+				zone = {"type": "fire", "label": "YANGIN — %s basılı tut, söndür!" % Settings.key_name("interact"), "id": int(f.id)}
+				hud.set_hint("" if panel != null else "[%s]  %s" % [Settings.key_name("interact"), zone.label])
+				return
 	for b in Map.BUILDINGS:
 		if b.rect.grow(26).has_point(my_pos):
 			z = {"type": b.type, "label": b.label}
@@ -480,7 +504,7 @@ func _update_zone() -> void:
 			z = {"type": "npc", "npc": k, "label": "Konuş: %s" % Map.NPCS[k].name}
 	if z.get("type", "") == "npc":
 		zone = z
-		hud.set_hint("" if panel != null else "[E]  %s" % z.label)
+		hud.set_hint("" if panel != null else "[%s]  %s" % [Settings.key_name("interact"), z.label])
 		return
 	match Map.fishing_spot(my_pos):
 		"lake":
@@ -490,6 +514,24 @@ func _update_zone() -> void:
 	for i in Map.PLOT_COUNT:
 		if Map.plot_rect(i).has_point(my_pos):
 			z = {"type": "realestate", "label": "Arsa #%d" % (i + 1), "plot": i}
+	var stop := Work.stop_near(my_pos)
+	if stop != "":
+		z = {"type": "bus", "label": "Otobüs durağı — %s" % Map.BUS_STOPS[stop][0], "stop": stop}
+	if my_pos.distance_to(Map.TAXI_STAND) < 90.0:
+		z = {"type": "taxi", "label": "Taksi durağı — iş al (arabayla)" if Work.job.get("kind", "") != "taxi" else "Taksi mesaisini bitir"}
+	if my_pos.distance_to(Map.CARGO_DEPOT) < 90.0:
+		z = {"type": "cargo", "label": "Kargo deposu — 3 paket al"}
+	if Map.FIRE_STATION.grow(50).has_point(my_pos):
+		z = {"type": "firestation", "label": "İtfaiye — %s" % ("görevi bırak" if Work.on_duty_fire() else "göreve başla")}
+	if my_pos.distance_to(Map.RECYCLE) < 90.0:
+		z = {"type": "recycle", "label": "Geri dönüşüm (%d torba elinde)" % Work.carrying}
+	if my_pos.distance_to(Map.FOUNTAIN) < Map.FOUNTAIN_R + 50.0:
+		z = {"type": "wish", "label": "Çeşmeye bozuk para at, dilek tut (1 TL)"}
+	if z.is_empty():      # çöp torbası en düşük öncelik (bina kapılarını kapatmasın)
+		for t in Work.trash:
+			if my_pos.distance_to(Vector2(float(t.x), float(t.y))) < 60.0:
+				z = {"type": "trash", "label": "Çöp torbasını topla", "id": int(t.id)}
+				break
 	if Football.FIELD.grow(70).has_point(my_pos) and not Football.FIELD.grow(-30).has_point(my_pos):
 		z = {"type": "futbol", "label": "Plaj Sahası — takım seç"}
 	if my_pos.distance_to(Langirt.POS) < 75.0:
@@ -504,9 +546,9 @@ func _update_zone() -> void:
 		z = {"type": "race", "label": "Yarış Pisti — tur başlat"}
 	zone = z
 	_g_action = _find_g_action()
-	var hint := "" if z.is_empty() else "[E]  %s" % z.label
+	var hint := "" if z.is_empty() else "[%s]  %s" % [Settings.key_name("interact"), z.label]
 	if not _g_action.is_empty():
-		hint += ("\n" if hint != "" else "") + "[G]  %s" % _g_action.label
+		hint += ("\n" if hint != "" else "") + "[%s]  %s" % [Settings.key_name("action"), _g_action.label]
 	hud.set_hint("" if panel != null else hint)
 
 
@@ -569,12 +611,47 @@ func _open_panel() -> void:
 	if zone.type == "boatrent":
 		Garage.rent_boat()
 		return
+	match str(zone.type):
+		"bus":
+			if panel == null:
+				panel = preload("res://scripts/ui/bus_panel.gd").new()
+				panel.here = zone.stop
+				panel.closed.connect(_close_panel)
+				ui_layer.add_child(panel)
+			return
+		"taxi":
+			if Work.job.get("kind", "") == "taxi":
+				Work.quit_job()
+			else:
+				Work.taxi_start()
+			return
+		"cargo":
+			Work.cargo_start()
+			return
+		"firestation":
+			Work.fire_duty(not Work.on_duty_fire())
+			return
+		"recycle":
+			Work.recycle()
+			return
+		"wish":
+			Work.wish()
+			Sfx.play("splash_small", -6.0, 1.5)
+			return
+		"trash":
+			Work.pick_trash(zone.id)
+			Sfx.play("place", -6.0)
+			return
+		"fire":
+			Work.spray(zone.id)
+			return
 	if zone.type == "dondurma":
 		Seasonal.buy_icecream()
 		return
 	if zone.type == "snowman":
 		Seasonal.build_snowman(my_pos)
 		return
+	Tutorial.note("panel")
 	panel = PANELS[zone.type].new()
 	if zone.type == "race":
 		panel.at_track = true
@@ -630,6 +707,10 @@ func _rebuild_blockers() -> void:
 		var r: Rect2 = b.rect
 		# kapının önünde (alt kenar) durulabilsin diye alt 10 px serbest
 		_blockers.append(Rect2(r.position.x + 6, r.position.y + 16, r.size.x - 12, r.size.y - 26))
+	_blockers.append(Rect2(Map.FOUNTAIN - Vector2(Map.FOUNTAIN_R, Map.FOUNTAIN_R * 0.6), Vector2(Map.FOUNTAIN_R * 2, Map.FOUNTAIN_R * 1.2)))
+	_blockers.append(Rect2(Map.CLOCK_TOWER + Vector2(-22, -36), Vector2(44, 40)))
+	var fs: Rect2 = Map.FIRE_STATION
+	_blockers.append(Rect2(fs.position.x + 4, fs.position.y + 20, fs.size.x - 8, fs.size.y - 34))
 	for i in mini(Land.view.size(), Map.PLOT_COUNT):
 		var s := _structure_of(i, Land.view[i])
 		if s.is_empty():
@@ -735,10 +816,32 @@ func _draw_rod(p: Vector2, facing: String, info: Dictionary) -> void:
 				draw_arc(tp, 6.0 + k * 30.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k * 0.8), 2.0)
 
 
+## Mesleklerde hedef değişince yön oku oraya döner.
+func _on_job_changed() -> void:
+	var t = Work.job.get("target")
+	if t is Vector2:
+		nav_target = t
+
+
+func _on_settings() -> void:
+	camera.zoom = Vector2.ONE * Settings.world_zoom()
+
+
+## Ayarlar penceresi (HUD).
+func open_settings() -> void:
+	if panel != null:
+		return
+	panel = preload("res://scripts/ui/settings_panel.gd").new()
+	panel.world = self
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+
+
 ## Büyük harita (M).
 func open_map() -> void:
 	if panel != null:
 		return
+	Tutorial.note("map")
 	panel = preload("res://scripts/ui/map_panel.gd").new()
 	panel.world = self
 	panel.closed.connect(_close_panel)
@@ -881,6 +984,167 @@ func _draw_snow_fx() -> void:
 	_splats = keep2
 
 
+# ================================================================== 0.9: şehir detayları
+
+func _draw_river() -> void:
+	var r: Rect2 = Map.RIVER
+	draw_rect(r.grow(6), Color("#c9b57e"))
+	draw_rect(r, Color("#2f7fc1"))
+	for k in 18:
+		var y := fmod(k * 37.0 + _t * 40.0, r.size.y)
+		var x := r.position.x + 10 + fmod(k * 13.0, r.size.x - 20)
+		draw_line(Vector2(x, r.position.y + y), Vector2(x, r.position.y + y + 10), Color(1, 1, 1, 0.35), 2)
+
+
+func _draw_bridge() -> void:
+	var b: Rect2 = Map.BRIDGE
+	draw_rect(Rect2(b.position + Vector2(4, 6), b.size), Color(0, 0, 0, 0.25))
+	draw_rect(b, Color("#a8a29e"))
+	for y in range(int(b.position.y) + 8, int(b.end.y), 14):
+		draw_line(Vector2(b.position.x, y), Vector2(b.end.x, y), Color("#78716c"), 1)
+	for x in [b.position.x + 2, b.end.x - 6]:
+		draw_rect(Rect2(x, b.position.y, 4, b.size.y), Color("#57534e"))
+		for y in range(int(b.position.y), int(b.end.y), 22):
+			draw_rect(Rect2(x - 2, y, 8, 8), Color("#44403c"))
+	draw_rect(Rect2(b.position.x + 8, 390, b.size.x - 16, 110), Color("#4b5563"))   # yol kısmı
+
+
+func _draw_park() -> void:
+	var p: Rect2 = Map.PARK
+	draw_rect(p, Color(0.32, 0.6, 0.3, 0.55))
+	draw_rect(p, Color("#4d7c0f"), false, 3)
+	var cy := p.get_center().y
+	draw_rect(Rect2(p.position.x, cy - 10, p.size.x, 20), Color("#e7d9b0"))               # yürüyüş yolu
+	draw_rect(Rect2(Map.FOUNTAIN.x - 10, p.position.y, 20, p.size.y), Color("#e7d9b0"))
+	for fx in [p.position.x + 70, p.position.x + 250, p.position.x + 600, p.position.x + 680]:
+		for fy in [cy - 46, cy + 30]:
+			draw_rect(Rect2(fx, fy, 70, 18), Color("#7c4a1e"))
+			for k in 6:
+				draw_circle(Vector2(fx + 7 + k * 11, fy + 9), 4, [Color("#f472b6"), Color("#facc15"), Color("#f87171"), Color("#c084fc")][(k + int(fx)) % 4])
+	for bx in [p.position.x + 170, p.position.x + 380, p.position.x + 560]:
+		draw_rect(Rect2(bx, cy + 14, 40, 8), Color("#92400e"))                            # banklar
+		draw_rect(Rect2(bx, cy + 10, 40, 4), Color("#78350f"))
+	_text(Vector2(p.position.x, p.position.y + 20), "ŞEHİR PARKI", 16, Color(1, 1, 1, 0.85), p.size.x)
+	# çeşme
+	var f := Map.FOUNTAIN
+	var rr := Map.FOUNTAIN_R
+	draw_set_transform(f, 0, Vector2(1, 0.6))
+	draw_circle(Vector2.ZERO, rr + 6, Color("#9ca3af"))
+	draw_circle(Vector2.ZERO, rr, Color("#38bdf8"))
+	for k in 3:
+		var w := fmod(_t * 18.0 + k * 12.0, rr)
+		draw_arc(Vector2.ZERO, w, 0, TAU, 24, Color(1, 1, 1, 0.5 * (1.0 - w / rr)), 2)
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(f.x - 6, f.y - 34, 12, 30), Color("#d1d5db"))
+	for k in 8:
+		var a := TAU * k / 8.0 + _t * 0.5
+		var tip := f + Vector2(cos(a) * 24.0, -34.0 + sin(_t * 6.0 + k) * 2.0)
+		draw_line(f + Vector2(0, -36), f + Vector2(cos(a) * 12.0, -44), Color(0.75, 0.92, 1.0, 0.8), 2)
+		draw_line(f + Vector2(cos(a) * 12.0, -44), tip + Vector2(0, 14), Color(0.75, 0.92, 1.0, 0.6), 2)
+
+
+func _draw_clock_tower(c: Vector2) -> void:
+	draw_set_transform(c + Vector2(0, 4), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 30, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(c.x - 22, c.y - 150, 44, 150), Color("#b45309"))
+	draw_rect(Rect2(c.x - 22, c.y - 150, 44, 150), Color("#78350f"), false, 2)
+	for y in range(int(c.y) - 140, int(c.y), 20):
+		draw_line(Vector2(c.x - 22, y), Vector2(c.x + 22, y), Color("#92400e"), 1)
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-28, -150), c + Vector2(28, -150), c + Vector2(0, -190)]), Color("#1e3a8a"))
+	var cc := c + Vector2(0, -122)
+	draw_circle(cc, 17, Color("#f8fafc"))
+	draw_arc(cc, 17, 0, TAU, 32, Color("#1f2937"), 2)
+	for k in 12:
+		var a := TAU * k / 12.0
+		draw_circle(cc + Vector2(cos(a), sin(a)) * 14.0, 1.0, Color("#1f2937"))
+	var h := Env.hour
+	var ha := TAU * fmod(h, 12.0) / 12.0 - PI / 2.0
+	var ma := TAU * (h - floorf(h)) - PI / 2.0
+	draw_line(cc, cc + Vector2(cos(ha), sin(ha)) * 8.0, Color("#111827"), 2.5)
+	draw_line(cc, cc + Vector2(cos(ma), sin(ma)) * 13.0, Color("#111827"), 1.5)
+	draw_rect(Rect2(c.x - 8, c.y - 26, 16, 26), Color("#451a03"))
+
+
+func _draw_bus(p: Vector2, dir: Vector2) -> void:
+	var ang := dir.angle()
+	draw_set_transform(p + Vector2(4, 8), ang, Vector2.ONE)
+	draw_rect(Rect2(-70, -24, 140, 48), Color(0, 0, 0, 0.25))
+	draw_set_transform(p, ang, Vector2.ONE)
+	draw_rect(Rect2(-72, -26, 144, 52), Color("#facc15"))
+	draw_rect(Rect2(-72, -26, 144, 52), Color("#854d0e"), false, 3)
+	for k in 5:
+		draw_rect(Rect2(-60 + k * 26, -20, 18, 40), Color("#bae6fd"))
+	draw_rect(Rect2(56, -22, 12, 44), Color("#1e293b"))
+	draw_set_transform(Vector2.ZERO)
+	_text(p + Vector2(-40, -36), "OTOBÜS", 12, Color("#fde68a"), 80)
+
+
+func _draw_fire(p: Vector2, hp: float) -> void:
+	var s := clampf(hp / Work.FIRE_HP, 0.3, 1.6)
+	for k in 7:
+		var off := Vector2(sin(k * 1.7) * 26.0 * s, 0)
+		var h := (34.0 + 14.0 * sin(_t * 9.0 + k)) * s
+		var base := p + off
+		draw_colored_polygon(PackedVector2Array([base + Vector2(-12 * s, 0), base + Vector2(12 * s, 0), base + Vector2(sin(_t * 7.0 + k) * 5.0, -h)]), Color(1.0, 0.45 + 0.1 * (k % 3), 0.05, 0.85))
+		draw_colored_polygon(PackedVector2Array([base + Vector2(-6 * s, 0), base + Vector2(6 * s, 0), base + Vector2(0, -h * 0.6)]), Color(1.0, 0.9, 0.3, 0.9))
+	for k in 5:
+		var sy := fmod(_t * 40.0 + k * 30.0, 140.0)
+		draw_circle(p + Vector2(sin(_t + k) * 16.0, -50.0 * s - sy), 10.0 + sy * 0.12, Color(0.3, 0.3, 0.3, 0.35 * (1.0 - sy / 140.0)))
+	_text(p + Vector2(-60, -70.0 * s - 20), "YANGIN %d%%" % int(hp), 14, Color("#fca5a5"), 120)
+
+
+func _draw_passenger(p: Vector2) -> void:
+	Avatar.draw(self, p, {"skin": 2, "hair": 1, "hair_color": 3, "shirt": 5, "pants": 2, "hat": 0, "glasses": 0, "neck": 0}, "down", 0)
+	var wave := sin(_t * 8.0) * 6.0
+	draw_line(p + Vector2(10, -34), p + Vector2(18 + wave, -52), Color("#f2c39b"), 4)
+	_text(p + Vector2(-60, -72), "TAKSİ!", 15, Color("#facc15"), 120)
+
+
+## İtfaiye, taksi durağı, kargo deposu, duraklar, geri dönüşüm, çöp torbaları.
+func _draw_work_world() -> void:
+	var fs: Rect2 = Map.FIRE_STATION
+	draw_rect(Rect2(fs.position + Vector2(6, 8), fs.size), Color(0, 0, 0, 0.2))
+	draw_rect(fs, Color("#b91c1c"))
+	draw_rect(Rect2(fs.position.x, fs.position.y, fs.size.x, 26), Color("#7f1d1d"))
+	for k in 2:
+		var gx := fs.position.x + 14 + k * 70
+		draw_rect(Rect2(gx, fs.position.y + 44, 58, fs.size.y - 44), Color("#e5e7eb"))
+		for y in range(int(fs.position.y) + 52, int(fs.end.y), 12):
+			draw_line(Vector2(gx, y), Vector2(gx + 58, y), Color("#9ca3af"), 1)
+	_text(Vector2(fs.position.x, fs.position.y + 18), "İTFAİYE", 15, Color.WHITE, fs.size.x)
+	# taksi durağı
+	var t := Map.TAXI_STAND
+	draw_rect(Rect2(t.x - 3, t.y - 60, 6, 60), Color("#374151"))
+	draw_rect(Rect2(t.x - 30, t.y - 80, 60, 24), Color("#facc15"))
+	draw_rect(Rect2(t.x - 30, t.y - 80, 60, 24), Color("#111827"), false, 2)
+	_text(Vector2(t.x - 30, t.y - 62), "TAKSİ", 13, Color("#111827"), 60, false)
+	# kargo deposu
+	var c := Map.CARGO_DEPOT
+	for k in 3:
+		draw_rect(Rect2(c.x - 40 + k * 26, c.y - 20 - (k % 2) * 10, 24, 20 + (k % 2) * 10), Color("#b45309"))
+		draw_rect(Rect2(c.x - 40 + k * 26, c.y - 20 - (k % 2) * 10, 24, 20 + (k % 2) * 10), Color("#78350f"), false, 1.5)
+	_text(Vector2(c.x - 60, c.y - 40), "KARGO", 13, Color("#fde68a"), 120)
+	# geri dönüşüm
+	var r := Map.RECYCLE
+	for k in 3:
+		draw_rect(Rect2(r.x - 36 + k * 24, r.y - 30, 22, 30), [Color("#16a34a"), Color("#2563eb"), Color("#ca8a04")][k])
+	_text(Vector2(r.x - 70, r.y - 40), "GERİ DÖNÜŞÜM", 12, Color("#bbf7d0"), 140)
+	# duraklar
+	for k in Map.BUS_STOPS:
+		var sp: Vector2 = Map.BUS_STOPS[k][1]
+		draw_rect(Rect2(sp.x - 34, sp.y - 40, 68, 6), Color("#1e3a8a"))
+		draw_rect(Rect2(sp.x - 32, sp.y - 34, 3, 34), Color("#374151"))
+		draw_rect(Rect2(sp.x + 29, sp.y - 34, 3, 34), Color("#374151"))
+		draw_rect(Rect2(sp.x - 26, sp.y - 12, 52, 6), Color("#92400e"))
+		_text(Vector2(sp.x - 70, sp.y - 48), "DURAK: %s" % Map.BUS_STOPS[k][0], 11, Color("#bfdbfe"), 140)
+	# çöp torbaları
+	for tr in Work.trash:
+		var tp := Vector2(float(tr.x), float(tr.y))
+		draw_circle(tp + Vector2(0, -6), 8, Color("#1f2937"))
+		draw_circle(tp + Vector2(0, -15), 4, Color("#374151"))
+
+
 ## Gelen evlenme teklifi.
 func _on_proposal(from_name: String) -> void:
 	if panel != null:
@@ -954,6 +1218,13 @@ func _make_nature() -> void:
 		blocked.append(r.grow(30))
 	blocked.append(Map.LAKE.grow(30))
 	blocked.append(Map.DOCK.grow(30))
+	blocked.append(Map.RIVER.grow(24))
+	blocked.append(Map.PARK.grow(10))
+	blocked.append(Map.FIRE_STATION.grow(30))
+	for k in Map.BUS_STOPS:
+		blocked.append(Rect2(Map.BUS_STOPS[k][1] - Vector2(60, 50), Vector2(120, 80)))
+	for p in [Map.TAXI_STAND, Map.CARGO_DEPOT, Map.RECYCLE]:
+		blocked.append(Rect2(p - Vector2(60, 60), Vector2(120, 100)))
 	blocked.append(Rect2(0, Map.BEACH.position.y - 30, Map.WORLD.size.x, 1000))   # plaj/deniz ayrı yerleşir
 	var decor_blocked := blocked.duplicate()   # çim/çiçek arsalara da serpilebilir
 	blocked.append(Rect2(Map.PLOT_ORIGIN - Vector2(30, 30), Vector2(1190, 650)))
@@ -992,6 +1263,10 @@ func _make_nature() -> void:
 			nature.append([pp, 3, rng.randf_range(0.85, 1.1)])
 	nature.append([ic + Vector2(-170, 60), 5, 1.0])
 	nature.append([ic + Vector2(-120, 82), 7, 1.0])
+	# park ağaçları (kenarlarda)
+	for x in range(int(Map.PARK.position.x) + 30, int(Map.PARK.end.x) - 20, 95):
+		if absf(x - Map.FOUNTAIN.x) > 90 and absf(x - Map.CLOCK_TOWER.x) > 60:
+			nature.append([Vector2(x, Map.PARK.position.y + 18), 0 if (x / 95) % 2 == 0 else 2, rng.randf_range(0.8, 1.0)])
 	nature.sort_custom(func(a, b): return a[0].y < b[0].y)
 	for _k in 900:
 		var p := Vector2(rng.randf_range(10, Map.WORLD.size.x - 10), rng.randf_range(10, 1590))
@@ -1022,7 +1297,10 @@ func _draw() -> void:
 			_:
 				draw_line(p, p + Vector2(-3, -7), Color("#4a8a3a"), 2)
 				draw_line(p, p + Vector2(2, -8), Color("#4a8a3a"), 2)
+	_draw_river()
 	_draw_roads()
+	_draw_bridge()
+	_draw_park()
 	_draw_race_track()
 	_draw_beach()
 	_draw_field()
@@ -1038,6 +1316,7 @@ func _draw() -> void:
 		_draw_building(b)
 	_draw_event_world()
 	_draw_weddings()
+	_draw_work_world()
 	# Ağaçlar ve oyuncular y'ye göre sıralanarak çizilir (önde olan üstte görünür).
 	var items: Array = []
 	for n in nature:
@@ -1075,6 +1354,13 @@ func _draw() -> void:
 			items.append([Seasonal.ICECREAM_POS.y, "ic", Seasonal.ICECREAM_POS])
 		for sm in Seasonal.snowmen:
 			items.append([float(sm.y), "sm", sm])
+		var bus := Map.bus_at(Land.server_now())
+		items.append([bus[0].y, "bus", bus])
+		items.append([Map.CLOCK_TOWER.y, "clock", Map.CLOCK_TOWER])
+		for f in Work.fires:
+			items.append([float(f.y) + 1.0, "fire", f])
+		if Work.job.get("passenger") is Vector2:
+			items.append([Work.job.passenger.y, "pax", Work.job.passenger])
 	if Events.treasure_pos != null and Events.current.get("kind", "") == "treasure":
 		items.append([Events.treasure_pos.y, "t", Events.treasure_pos])
 	items.sort_custom(func(a, b): return a[0] < b[0])
@@ -1101,6 +1387,14 @@ func _draw() -> void:
 			_draw_langirt_table(it[2])
 		elif it[1] == "ic":
 			_draw_icecream_cart(it[2])
+		elif it[1] == "bus":
+			_draw_bus(it[2][0], it[2][1])
+		elif it[1] == "clock":
+			_draw_clock_tower(it[2])
+		elif it[1] == "fire":
+			_draw_fire(Vector2(float(it[2].x), float(it[2].y)), float(it[2].hp))
+		elif it[1] == "pax":
+			_draw_passenger(it[2])
 		elif it[1] == "sm":
 			_draw_snowman(Vector2(float(it[2].x), float(it[2].y)), int(it[2].get("style", 0)))
 		elif it[1] == "pet":
@@ -1378,6 +1672,11 @@ func _draw_interiors() -> void:
 		draw_rect(Rect2(door.position.x, r.end.y - 6, door.size.x, 34), Color("#7c4a1e"))
 		draw_rect(Rect2(door.position.x + 8, r.end.y - 30, door.size.x - 16, 24), Color("#9f1239"))   # paspas
 		_text(Vector2(r.position.x, r.position.y - 36), "%s'in evi%s" % [p.owner, "  (kapı açık)" if p.get("door_open", false) else ""], 18, Color.WHITE, r.size.x)
+		if Party.is_party(p, Land.server_now()):
+			for k in 10:
+				var lp := r.position + Vector2(fposmod(k * 151.0 + _t * (60.0 + k * 9.0), r.size.x), fposmod(k * 97.0 + _t * (45.0 + k * 7.0), r.size.y))
+				draw_circle(lp, 34, Color.from_hsv(fmod(_t * 0.3 + k * 0.1, 1.0), 0.8, 1.0, 0.18))
+			_text(Vector2(r.position.x, r.position.y - 58), "♪ PARTİ ♪", 18, Color("#f9a8d4"), r.size.x)
 		var furn: Array = p.get("furniture", [])
 		for floor_pass in [true, false]:
 			for f in furn:

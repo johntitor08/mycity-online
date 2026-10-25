@@ -78,6 +78,9 @@ func server_init() -> void:
 								b[key] = old[k][key]
 					beds.append(b)
 				p["farm"] = {"beds": beds}
+			for key in ["party_until", "guestbook", "rating"]:
+				if saved[i].has(key):
+					p[key] = saved[i][key]
 			if saved[i].get("sec") is Dictionary:
 				p["sec"] = {"lock": bool(saved[i].sec.get("lock", false)), "alarm": bool(saved[i].sec.get("alarm", false))}
 			var furn: Array = []
@@ -225,6 +228,9 @@ func req_sell(d: Dictionary) -> void:
 	p.erase("biz")
 	p.erase("farm")
 	p.erase("sec")
+	p.erase("guestbook")
+	p.erase("rating")
+	p.erase("party_until")
 	p["kind"] = "home"
 	Bazaar.drop_plot_listing(i)
 	Homes.clear_plot(i, str(p.owner))

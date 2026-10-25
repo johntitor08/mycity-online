@@ -10,6 +10,12 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--sadece09" in OS.get_cmdline_user_args():
+		Net.add_money(1, 200000)
+		Rpg.add_xp(1, "", 15000)
+		await _shots_09(w)
+		get_tree().quit()
+		return
 	if "--sadece08" in OS.get_cmdline_user_args():
 		Net.add_money(1, 200000)
 		Rpg.add_xp(1, "", 15000)
@@ -133,6 +139,117 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_09(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0
+	Env.hour = 12.0
+	Env.force_weather("clear")
+	Env.force_season("spring")
+	w.camera.zoom = Vector2(1, 1)
+	# eğitim turu ve nehir/köprü
+	Tutorial.finish()
+	Tutorial.start(w.ui_layer, true)
+	w.my_pos = Vector2(523, 520)
+	await _wait(1.5)
+	_shot("nehir")
+	Tutorial.finish()
+	# park, çeşme, saat kulesi
+	w.my_pos = Map.FOUNTAIN + Vector2(120, 70)
+	Env.hour = 17.5
+	await _wait(1.5)
+	_shot("park")
+	Env.hour = 12.0
+	# otobüs: güzergâhta gelirken (saati otobüs durağa yakın olacak şekilde seçemeyiz; otobüsün olduğu yere git)
+	var bus := Map.bus_at(Land.server_now() + 2.0)
+	w.my_pos = bus[0] + Vector2(0, 70)
+	await _wait(1.5)
+	_shot("otobus")
+	# taksi
+	w.my_pos = Map.building("galeri").rect.get_center()
+	await _wait(0.2)
+	Garage.buy("car")
+	await _wait(0.2)
+	w.my_pos = Map.TAXI_STAND + Vector2(0, 20)
+	await _wait(0.3)
+	Garage.ride("car")
+	await _wait(0.3)
+	Work.taxi_start()
+	await _wait(0.4)
+	var pk: Vector2 = Work.job.target
+	w.my_pos = pk + Vector2(170, 30)
+	w.my_facing = "left"
+	await _wait(1.2)
+	_shot("taksi")
+	Work.quit_job()
+	Garage.ride("")
+	await _wait(0.3)
+	# itfaiye ve yangın
+	w.my_pos = Map.FIRE_STATION.get_center() + Vector2(0, 90)
+	await _wait(0.3)
+	Work.fire_duty(true)
+	await _wait(0.3)
+	Work._start_fire()
+	await _wait(0.4)
+	var f: Dictionary = Work.fires[0]
+	w.my_pos = Vector2(float(f.x), float(f.y)) + Vector2(-70, 50)
+	w.my_facing = "right"
+	await _wait(1.5)
+	_shot("yangin")
+	for _k in 30:
+		Work.spray(int(f.id))
+	Work.fire_duty(false)
+	await _wait(0.3)
+	# çöpçülük ve kargo deposu
+	for _k in 8:
+		Work._spawn_trash()
+	await _wait(0.3)
+	w.my_pos = Map.RECYCLE + Vector2(60, -40)
+	await _wait(1.2)
+	_shot("geri_donusum")
+	# parti
+	var plot := 4
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.2)
+	Land.buy(plot)
+	await _wait(0.2)
+	Land.build_up(plot)
+	Land.build_up(plot)
+	await _wait(0.3)
+	w.my_pos = Map.building("mobilya").rect.get_center()
+	await _wait(0.2)
+	for k in ["bed", "rug", "sofa", "tv", "table", "chair", "plant", "lamp", "aquarium"]:
+		Homes.buy(k)
+	await _wait(0.5)
+	w.my_pos = Map.plot_rect(plot).get_center()
+	await _wait(0.3)
+	Homes.enter(plot)
+	await _wait(0.5)
+	for fdef in [["bed", 1, 1], ["rug", 5, 4], ["sofa", 5, 2], ["tv", 6, 7], ["table", 11, 4], ["chair", 10, 4], ["plant", 0, 8], ["lamp", 4, 1], ["aquarium", 11, 0]]:
+		Homes.place(plot, fdef[0], fdef[1], fdef[2])
+		await _wait(0.1)
+	Land.plots[plot]["guestbook"] = [{"n": "Ayşe", "t": "Akvaryum harika, parti süperdi!", "d": "2026-10-25"}, {"n": "Mehmet", "t": "Kanepe çok rahat :)", "d": "2026-10-25"}]
+	Land.plots[plot]["rating"] = {"sum": 14, "n": 3, "by": {}}
+	Land._broadcast()
+	Party.start_party(plot)
+	await _wait(0.5)
+	w.my_pos = Map.interior_rect(plot, 2).get_center() + Vector2(-40, 60)
+	await _wait(1.2)
+	_shot("parti")
+	w.zone = {"type": "home", "label": "x", "plot": plot}
+	w.panel = null
+	w._open_panel()
+	await _wait(0.6)
+	_shot("parti_panel")
+	w._close_panel()
+	Homes.exit_home()
+	await _wait(0.4)
+	# ayarlar
+	w.open_settings()
+	await _wait(0.6)
+	_shot("ayarlar")
+	w._close_panel()
 
 
 func _shots_08(w) -> void:

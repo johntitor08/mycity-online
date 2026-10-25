@@ -68,6 +68,9 @@ func _draw() -> void:
 	_rect(Rect2(0, Map.DEEP_Y, Map.WORLD.size.x, Map.WORLD.end.y - Map.DEEP_Y), Color("#165d94"))
 	_ellipse(Map.ISLAND, Color("#f0dba5"))
 	_ellipse(Map.LAKE, Color("#2f7fc1"))
+	_rect(Map.RIVER, Color("#2f7fc1"))
+	_rect(Map.PARK, Color("#4d7c0f"))
+	_rect(Map.FIRE_STATION, Color("#b91c1c"))
 	for r in Map.ROADS:
 		_rect(r, Color("#3f4148"))
 	_rect(Map.PIER, Color("#a0703c"))
@@ -101,6 +104,12 @@ func _draw() -> void:
 		draw_arc(to_map(cur.area), float(cur.area_r) * k, 0, TAU, 24, Color("#facc15"), 1.5)
 	if str(Events.race.get("state", "")) == "running":
 		draw_circle(to_map(Map.RACE_CPS[int(Events.race.get("next", 0))]), 4, Color("#facc15"))
+	for sk in Map.BUS_STOPS:
+		draw_circle(to_map(Map.BUS_STOPS[sk][1]), 2.5 if not big else 4.0, Color("#facc15"))
+		if big:
+			draw_string(font, to_map(Map.BUS_STOPS[sk][1]) + Vector2(5, 4), "D", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#facc15"))
+	for f in Work.fires:
+		draw_circle(to_map(Vector2(float(f.x), float(f.y))), 4.0 if not big else 6.0, Color("#f97316") if int(_acc * 10) % 2 == 0 else Color("#ef4444"))
 	# görev NPC'leri
 	for n in Map.NPCS:
 		var m := Story.marker(n)

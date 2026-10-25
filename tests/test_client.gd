@@ -262,6 +262,7 @@ func _on_ok() -> void:
 		await _test_06(get_parent().world)
 		await _test_07(get_parent().world)
 		await _test_08(get_parent().world)
+		await _test_09(get_parent().world)
 		_finish()
 		return
 	print("== Şifre")
@@ -743,6 +744,7 @@ func _test_06(w) -> void:
 	Police.set_duty(true)
 	await _wait(0.3)
 	check(not Police.on_duty(), "aranan oyuncu polis olamaz")
+	Ach.ach_of(Net.save_data.players[Net.my_name]).got["jailed"] = 1.0     # başarım ödülü cezayı karıştırmasın
 	var m5 := Net.my_money()
 	var stars := Police.wanted(me)
 	Police.jail(me, stars, 0)
@@ -1173,6 +1175,168 @@ func _test_08(w) -> void:
 	check(int(Ach.data.c.get("langirt_win", 0)) >= 1, "langırtta bot yenildi")
 	Langirt.leave()
 	await _wait(0.2)
+
+
+## 0.9: nehir/park/otobüs, meslekler (taksi, kargo, itfaiye, çöpçülük), parti, ayarlar ve eğitim.
+func _test_09(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	Net.add_money(me, 50000)
+	Env.force_weather("clear")
+	await _wait(0.3)
+
+	print("== 0.9: Ayarlar ve eğitim")
+	check(Settings.key("interact") == KEY_E and Settings.key_name("map") == "M", "varsayılan tuşlar")
+	var old := Settings.ui_scale
+	Settings.ui_scale = 1.25
+	check(is_equal_approx(Settings.world_zoom(), Settings.zoom / 1.25), "arayüz büyütülünce dünya yakınlaştırması dengeleniyor")
+	Settings.ui_scale = old
+	Settings.keys["interact"] = KEY_R
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_R
+	check(Settings.is_key(ev, "interact"), "tuş atanabiliyor (E → R)")
+	Settings.keys["interact"] = KEY_E
+	w.open_settings()
+	await get_tree().process_frame
+	check(w.panel != null, "ayarlar penceresi açıldı")
+	w._close_panel()
+	Tutorial.finish()
+	Tutorial.start(w.ui_layer, true)
+	check(Tutorial.active() and Tutorial.step == 0, "eğitim turu başladı")
+	Tutorial.note("move")
+	Tutorial.note("panel")
+	check(Tutorial.step == 2, "eğitim adımları ilerliyor")
+	Tutorial.finish()
+	check(not Tutorial.active() and Settings.tutorial_done, "eğitim bitti/atlandı")
+
+	print("== 0.9: Nehir, köprü, park, otobüs")
+	check(Map.in_water(Vector2(523, 200)) and not Map.in_water(Vector2(523, 445)), "nehir suyu ve üstündeki köprü")
+	w.my_pos = Vector2(470, 200)
+	await _wait(0.2)
+	check(not w._can_stand(Vector2(523, 200), ""), "nehirde yürünemiyor")
+	w.my_pos = Map.BUS_STOPS.merkez[1]
+	await _wait(0.3)
+	check(w.zone.get("type") == "bus", "otobüs durağı bölgesi")
+	var m0 := Net.my_money()
+	Work.ride_bus("plaj")
+	await _wait(0.5)
+	check(w.my_pos.distance_to(Map.BUS_STOPS.plaj[1]) < 60.0 and int(Ach.data.c.get("bus", 0)) >= 1, "otobüsle plaja gidildi")
+	w.my_pos = Map.FOUNTAIN + Vector2(0, 70)
+	await _wait(0.3)
+	check(w.zone.get("type") == "wish", "çeşmede dilek bölgesi")
+	w._open_panel()
+	await _wait(0.4)
+	check(int(Ach.data.c.get("wish", 0)) >= 1, "dilek tutuldu")
+
+	print("== 0.9: Taksi")
+	w.my_pos = Map.TAXI_STAND
+	await _wait(0.3)
+	Garage.ride("car")
+	await _wait(0.3)
+	Work.taxi_start()
+	await _wait(0.4)
+	check(Work.job.get("kind") == "taxi" and Work.job.get("stage") == "pickup", "taksi işi alındı: yolcuyu al")
+	check(w.nav_target != null, "yön oku yolcuyu gösteriyor")
+	w.my_pos = Work.job.target
+	await _wait(0.4)
+	check(Work.job.get("stage") == "drop", "yolcu bindi")
+	var m1 := Net.my_money()
+	w.my_pos = Work.job.target
+	await _wait(0.5)
+	check(Net.my_money() > m1 and int(Ach.data.c.get("taxi", 0)) >= 1, "yolcu indi, ücret alındı (+%d TL)" % (Net.my_money() - m1))
+	check(Work.job.get("stage") == "pickup", "sıradaki yolcu atandı")
+	Work.quit_job()
+	await _wait(0.3)
+	check(Work.job.get("kind", "") == "", "taksi mesaisi bitti")
+	Garage.ride("")
+	await _wait(0.2)
+
+	print("== 0.9: Kargo")
+	w.my_pos = Map.CARGO_DEPOT
+	await _wait(0.3)
+	Work.cargo_start()
+	await _wait(0.4)
+	check(Work.job.get("kind") == "cargo", "3 paket alındı")
+	var m2 := Net.my_money()
+	for _k in 3:
+		w.my_pos = Work.job.get("target", Map.SPAWN)
+		await _wait(0.4)
+	check(Net.my_money() >= m2 + 3 * Work.CARGO_PAY + Work.CARGO_BONUS and Work.job.get("kind", "") == "", "paketler teslim, hız ikramiyesi alındı (+%d TL)" % (Net.my_money() - m2))
+
+	print("== 0.9: İtfaiye")
+	w.my_pos = Map.FIRE_STATION.get_center() + Vector2(0, 90)
+	await _wait(0.3)
+	check(w.zone.get("type") == "firestation", "itfaiye bölgesi")
+	Work.fire_duty(true)
+	await _wait(0.3)
+	check(Work.on_duty_fire(), "itfaiye görevine başlandı")
+	Work._start_fire()
+	await _wait(0.4)
+	check(Work.fires.size() >= 1, "yangın çıktı (herkese yayınlandı)")
+	var f: Dictionary = Work.fires[0]
+	w.my_pos = Vector2(float(f.x), float(f.y)) + Vector2(0, 60)
+	await _wait(0.3)
+	check(w.zone.get("type") == "fire", "yangının yanında söndürme bölgesi")
+	if w.zone.get("type") != "fire":
+		print("  [debug] zone=", w.zone, " fire=", f, " me=", w.my_pos, " duty=", Work.on_duty_fire(), " job=", Work.job)
+	var m3 := Net.my_money()
+	for _k in 30:
+		Work.spray(int(f.id))
+		await get_tree().process_frame
+	await _wait(0.4)
+	check(Work.fires.is_empty() and Net.my_money() > m3, "yangın söndürüldü (+%d TL)" % (Net.my_money() - m3))
+	Work.fire_duty(false)
+	await _wait(0.2)
+
+	print("== 0.9: Çöpçülük")
+	for _k in 5:
+		Work._spawn_trash()
+	await _wait(0.4)
+	check(not Work.trash.is_empty(), "sokakta çöp torbaları var (%d)" % Work.trash.size())
+	var tr: Dictionary = Work.trash[0]
+	w.my_pos = Vector2(float(tr.x), float(tr.y))
+	await _wait(0.3)
+	Work.pick_trash(int(tr.id))
+	await _wait(0.3)
+	check(Work.carrying == 1, "çöp torbası toplandı")
+	var m4 := Net.my_money()
+	w.my_pos = Map.RECYCLE + Vector2(0, -20)
+	await _wait(0.3)
+	Work.recycle()
+	await _wait(0.3)
+	check(Work.carrying == 0 and Net.my_money() == m4 + Work.TRASH_PAY, "geri dönüşüme götürüldü (+%d TL)" % Work.TRASH_PAY)
+
+	print("== 0.9: Ev partisi ve En Güzel Ev")
+	var hp := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			hp = i
+			break
+	w.my_pos = Map.plot_rect(hp).get_center()
+	await _wait(0.3)
+	Land.buy(hp)
+	await _wait(0.3)
+	Land.build_up(hp)
+	await _wait(0.3)
+	Homes.enter(hp)
+	await _wait(0.5)
+	for k in ["bed", "rug", "lamp"]:
+		if int(Homes.depot.get(k, 0)) > 0:
+			Homes.place(hp, k, 1 + ["bed", "rug", "lamp"].find(k) * 3, 1)
+			await _wait(0.2)
+	Party.start_party(hp)
+	await _wait(0.4)
+	check(Party.is_party(Land.view[hp], Land.server_now()) and bool(Land.view[hp].get("door_open", false)), "parti başladı, kapı herkese açık")
+	check(int(Ach.data.c.get("party", 0)) >= 1, "parti başarım sayacına işlendi")
+	Events.start_event("ev")
+	await _wait(0.5)
+	var st: Array = Events.current.get("standings", [])
+	check(not st.is_empty() and st[0].name == Net.my_name and float(st[0].score) >= Party.decor_score(Land.view[hp]), "En Güzel Ev yarışmasında dekor puanı sayıldı (%s)" % (st[0].text if not st.is_empty() else "-"))
+	Events._finish()
+	Homes.exit_home()
+	await _wait(0.4)
+	Land.sell(hp)
+	await _wait(0.3)
 
 
 func _finish() -> void:

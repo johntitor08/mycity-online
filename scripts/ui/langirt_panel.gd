@@ -75,9 +75,9 @@ func _process(delta: float) -> void:
 	if Langirt.my_seat() < 0:
 		return
 	var speed := 260.0 * delta
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+	if Settings.held("up"):
 		_rod_y -= speed
-	elif Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+	elif Settings.held("down"):
 		_rod_y += speed
 	else:
 		var m := table.get_local_mouse_position()

@@ -12,6 +12,7 @@ signal events_requested
 signal family_requested
 signal achievements_requested
 signal map_requested
+signal settings_requested
 
 var money_label: Label
 var name_label: Label
@@ -32,6 +33,10 @@ var clock_label: Label
 var quest_label: Label
 var status_label: Label
 var town_label: Label
+var help_label: Label
+var job_label: Label
+var job_quit: Button
+var job_row: HBoxContainer
 var bail_btn: Button
 var event_banner: PanelContainer
 var event_label: Label
@@ -54,6 +59,13 @@ func _ready() -> void:
 	clock_label = _label(tv, "", 14, Color("#fde68a"))
 	town_label = _label(tv, "", 13, Color("#fdba74"))
 	town_label.visible = false
+	var jr := HBoxContainer.new()
+	tv.add_child(jr)
+	job_label = _label(jr, "", 13, Color("#7dd3fc"))
+	job_quit = _small_button(jr, "Bırak", Work.quit_job)
+	job_row = jr
+	jr.visible = false
+	Work.job_changed.connect(_refresh_job)
 	quest_label = _label(tv, "", 13, Color("#93c5fd"))
 	quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	quest_label.custom_minimum_size = Vector2(300, 0)
@@ -86,6 +98,7 @@ func _ready() -> void:
 	_small_button(btns2, "Harita (M)", func(): map_requested.emit())
 	var btns3 := HBoxContainer.new()
 	tv.add_child(btns3)
+	_small_button(btns3, "Ayarlar", func(): settings_requested.emit())
 	sound_btn = _small_button(btns3, "", Sfx.toggle_mute)
 	music_btn = _small_button(btns3, "", Sfx.toggle_music)
 	_small_button(btns3, "Şehirden Çık", Net.leave)
@@ -145,7 +158,9 @@ func _ready() -> void:
 	# Sağ alt: kontroller
 	var help_box := _box(self)
 	_place(help_box, Vector2(1, 1), Vector2(-12, -12), Vector2(-12, -12))
-	_label(help_box, "WASD: yürü   E: gir   F: araç   G: eylem   M: harita   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
+	help_label = _label(help_box, "", 13, Color(1, 1, 1, 0.8))
+	_refresh_help()
+	Settings.changed.connect(_refresh_help)
 
 	# Üst orta: etkinlik bandı, yarış sayacı, bildirimler
 	var top_mid := VBoxContainer.new()
@@ -237,6 +252,29 @@ func _process(_delta: float) -> void:
 		_refresh_status()
 		_refresh_town()
 	_refresh_race()
+
+
+func _refresh_job() -> void:
+	var j := Work.job
+	var parts: Array = []
+	if str(j.get("text", "")) != "":
+		var t := str(j.text)
+		if float(j.get("left", 0.0)) > 0.0:
+			t += " (%d sn)" % int(j.left)
+		parts.append(t)
+	if Work.carrying > 0:
+		parts.append("Çöp torbası: %d/%d" % [Work.carrying, Work.TRASH_CARRY])
+	if Work.on_duty_fire():
+		parts.append("İtfaiye görevinde (%d yangın)" % Work.fires.size())
+	job_label.text = "  •  ".join(parts)
+	job_quit.visible = str(j.get("kind", "")) != ""
+	job_row.visible = not parts.is_empty()
+
+
+func _refresh_help() -> void:
+	help_label.text = "%s%s%s%s: yürü   %s: gir   %s: araç   %s: eylem   %s: harita   %s: profil   Esc: kapat   Enter: sohbet" % [
+		Settings.key_name("up"), Settings.key_name("left"), Settings.key_name("down"), Settings.key_name("right"),
+		Settings.key_name("interact"), Settings.key_name("vehicle"), Settings.key_name("action"), Settings.key_name("map"), Settings.key_name("profile")]
 
 
 ## Sağ alttaki mini harita (dünya sahnesi oluşturup verir).
@@ -481,7 +519,7 @@ func _on_toast(text: String, good: bool) -> void:
 
 func show_toast(text: String, good: bool = true) -> void:
 	var p := _box(toast_box)
-	(p.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Color(0.09, 0.32, 0.18, 0.92) if good else Color(0.45, 0.10, 0.12, 0.92)
+	(p.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Settings.good_color() if good else Settings.bad_color()
 	var l := _label(p, text, 17, Color.WHITE)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var tw := create_tween()

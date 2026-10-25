@@ -74,6 +74,28 @@ const ROADS := [
 ]
 
 const LAKE := Rect2(80, 620, 760, 820)
+# 0.9: Hastane ile Market arasından göle akan nehir; ana yolda köprü
+const RIVER := Rect2(500, 0, 46, 640)
+const BRIDGE := Rect2(490, 380, 66, 134)
+# Park (gölün güneyi): çeşme, saat kulesi, banklar
+const PARK := Rect2(60, 1455, 860, 170)
+const FOUNTAIN := Vector2(480, 1540)
+const FOUNTAIN_R := 44.0
+const CLOCK_TOWER := Vector2(790, 1545)
+# Otobüs: yollarda kapalı güzergâh ve duraklar
+const BUS_ROUTE := [Vector2(120, 425), Vector2(2650, 425), Vector2(2650, 465), Vector2(1030, 465),
+	Vector2(1030, 1570), Vector2(985, 1570), Vector2(985, 465), Vector2(120, 465)]
+const BUS_SPEED := 240.0
+const BUS_STOPS := {
+	"merkez": ["Merkez", Vector2(1300, 518)], "bati": ["Hastane / Nehir", Vector2(300, 518)],
+	"dogu": ["Doğu Mahallesi", Vector2(2480, 518)], "arsalar": ["Arsalar", Vector2(1095, 790)],
+	"plaj": ["Plaj / Park", Vector2(1095, 1600)],
+}
+# Meslek noktaları
+const TAXI_STAND := Vector2(1465, 520)
+const CARGO_DEPOT := Vector2(1855, 700)
+const FIRE_STATION := Rect2(2632, 930, 156, 140)
+const RECYCLE := Vector2(935, 1612)
 const DOCK := Rect2(760, 990, 200, 80)          # göl iskelesi (tamamı balık tutma alanı)
 
 # Plaj ve deniz
@@ -102,12 +124,34 @@ static func plot_rect(i: int) -> Rect2:
 	return Rect2(PLOT_ORIGIN + Vector2(col * (PLOT_SIZE.x + PLOT_GAP), row * (PLOT_SIZE.y + PLOT_GAP)), PLOT_SIZE)
 
 
-## Göl: yürünemez.
+## Göl ve nehir: yürünemez (iskele ve köprü hariç).
 static func in_water(p: Vector2) -> bool:
+	if RIVER.has_point(p) and not BRIDGE.has_point(p):
+		return true
 	var c := LAKE.get_center()
 	var r := LAKE.size / 2.0
 	var d := (p - c) / r
 	return d.length_squared() < 1.0 and not DOCK.has_point(p)
+
+
+## Otobüsün güzergâh üzerindeki konumu (sunucu saatinden; herkeste aynı).
+static func bus_route_len() -> float:
+	var total := 0.0
+	for i in BUS_ROUTE.size():
+		total += BUS_ROUTE[i].distance_to(BUS_ROUTE[(i + 1) % BUS_ROUTE.size()])
+	return total
+
+
+static func bus_at(t: float) -> Array:
+	var d := fmod(t * BUS_SPEED, bus_route_len())
+	for i in BUS_ROUTE.size():
+		var a: Vector2 = BUS_ROUTE[i]
+		var b: Vector2 = BUS_ROUTE[(i + 1) % BUS_ROUTE.size()]
+		var seg := a.distance_to(b)
+		if d <= seg:
+			return [a.lerp(b, d / seg), (b - a).normalized()]
+		d -= seg
+	return [BUS_ROUTE[0], Vector2.RIGHT]
 
 
 ## Deniz: yüzülebilir (iskeleler ve ada hariç).

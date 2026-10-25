@@ -57,6 +57,14 @@ const LIST := {
 	"snowman": ["snowman", 1, "Kardan Adam", "Kışın kardan adam yap.", 300, ""],
 	"snowball": ["snowball_hit", 25, "Kartopu Savaşçısı", "Kartopuyla 25 kez isabet ettir.", 1000, "Kar Tanesi"],
 	"icecream": ["icecream", 5, "Dondurma Sever", "Plajda 5 dondurma ye.", 200, ""],
+	"taxi10": ["taxi", 10, "Taksici", "10 yolcuyu yerine ulaştır.", 1500, "Taksici"],
+	"cargo20": ["cargo", 20, "Hızlı Kurye", "20 paket teslim et.", 1500, "Kurye"],
+	"fire5": ["fire", 5, "İtfaiye Eri", "5 yangın söndür.", 2500, "İtfaiyeci"],
+	"trash50": ["trash", 50, "Temizlik Kahramanı", "50 torba çöpü geri dönüşüme götür.", 1500, "Çevreci"],
+	"bus": ["bus", 1, "Otobüs Yolcusu", "Otobüsle yolculuk et.", 100, ""],
+	"wish": ["wish", 1, "Dilek Tut", "Parktaki çeşmeye bozuk para at.", 50, ""],
+	"party": ["party", 1, "Ev Sahibi", "Evinde parti ver.", 300, ""],
+	"party3": ["party_guests", 3, "Partinin Yıldızı", "Partine aynı anda 3 misafir gelsin.", 1500, "Parti Kralı"],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

@@ -6,7 +6,8 @@ markette kasiyer olarak çalış. Seviye/XP, meslek yetenekleri, enerji, eşyala
 RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var. Çiftlik ve mevsimler,
 klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri, polis ve suç sistemi (0.6);
 Çarşı ve aksesuarlar, banka ve borsa, belediye seçimi, düğün ve aile (0.7); başarımlar ve unvanlar,
-mini harita, açık deniz ve Martı Adası, mevsimlik eğlence, plaj futbolu ve langırt (0.8).
+mini harita, açık deniz ve Martı Adası, mevsimlik eğlence, plaj futbolu ve langırt (0.8); taksi, kargo,
+itfaiye ve çöpçülük meslekleri, nehir/park/otobüs, ev partileri, ayarlar ve eğitim turu (0.9).
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 **Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
@@ -32,6 +33,28 @@ Menüde:
 - **Sunucuya Katıl**: Arkadaşının IP adresini ve portunu yazıp bağlan.
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
+
+## Meslekler, şehir detayları, ev partileri, ayarlar ve eğitim (0.9)
+
+| | |
+|---|---|
+| ![Yangın](docs/ekran/yangin.png) | ![Taksi](docs/ekran/taksi.png) |
+| ![Park](docs/ekran/geri_donusum.png) | ![Parti](docs/ekran/parti.png) |
+
+- **Yeni meslekler:** Taksi (arabanla duraktan iş al, yolcuyu al ve bırak; hızlıysan bahşiş, mesai
+  sen bırakana kadar sürer), Kargo kuryesi (depodan 3 paket, adreslere teslim, 150 sn'de bitirirsen
+  ikramiye), İtfaiye (göreve başla; görevli varken şehirde yangın çıkar, yanında E'yi basılı tutarak
+  söndür; söndürülmeyen yangın arsaya hasar verir), Çöpçülük (sokaktaki torbaları topla, geri dönüşüme
+  götür). Yön oku hedefi gösterir; sol üstte mesai durumu ve "Bırak".
+- **Şehir detayları:** Hastane ile Market arasından göle akan nehir ve ana yolda taş köprü; gölün
+  güneyinde Şehir Parkı (çeşme, çiçek tarhları, banklar, oyun saatini gösteren saat kulesi), çeşmeye
+  bozuk para atıp dilek tutma; şehri dolaşan sarı otobüs ve 5 durak (biletle duraklar arası yolculuk).
+- **Ev partileri ve ziyaret:** Ev sahibi evinin içinden parti başlatır (10 dk, kapı açık, şehre duyuru,
+  disko ışıkları); misafirler XP ve enerji kazanır. Misafir defteri, 1-5 yıldız ev puanı (günde bir),
+  dekor puanı ve "En Güzel Ev Yarışması" etkinliği.
+- **Ayarlar ve erişilebilirlik:** Genel/müzik/efekt ses seviyeleri, tam ekran, kamera yakınlığı,
+  arayüz ve yazı boyutu, renk körlüğü modu (kırmızı/yeşil yerine turuncu/mavi), tuş atama (menüde ve
+  oyunda "Ayarlar"). İlk girişte adım adım eğitim turu (atlanabilir, Ayarlar'dan yeniden başlatılır).
 
 ## Başarımlar, harita, açık deniz, mevsimlik eğlence, futbol ve langırt (0.8)
 
@@ -197,8 +220,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.8
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.8
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.9
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.9
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -315,6 +338,10 @@ scripts/
   football.gd (autoload) plaj futbolu (sunucu fiziği)
   langirt.gd  (autoload) langırt masası (sunucu fiziği, bot)
   seasonal.gd (autoload) kardan adam, kartopu, dondurmacı
+  work.gd     (autoload) taksi, kargo, itfaiye, çöpçülük, otobüs, çeşme
+  party.gd    (autoload) ev partileri, misafir defteri, ev puanı
+  settings.gd (autoload) oyuncu ayarları ve tuş atamaları (istemci)
+  tutorial.gd (autoload) ilk giriş eğitim turu (istemci)
   npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)

@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+Settings="*res://scripts/settings.gd"
 Net="*res://scripts/net.gd"
 Land="*res://scripts/land.gd"
 Casino="*res://scripts/casino.gd"
@@ -43,6 +44,9 @@ Ach="*res://scripts/achievements.gd"
 Football="*res://scripts/football.gd"
 Langirt="*res://scripts/langirt.gd"
 Seasonal="*res://scripts/seasonal.gd"
+Work="*res://scripts/work.gd"
+Party="*res://scripts/party.gd"
+Tutorial="*res://scripts/tutorial.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

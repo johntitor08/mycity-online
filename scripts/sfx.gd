@@ -21,6 +21,8 @@ var rain: AudioStreamPlayer
 var crickets: AudioStreamPlayer
 var engine: AudioStreamPlayer
 var _enabled := true
+var _sfx_db := 0.0             # efekt sesi ayarı (dB)
+var _music_db := 0.0           # müzik sesi ayarı (dB)
 
 
 func _ready() -> void:
@@ -74,24 +76,34 @@ func play(sound: String, db: float = 0.0, pitch: float = 1.0) -> void:
 	var p: AudioStreamPlayer = _pool[_next]
 	_next = (_next + 1) % _pool.size()
 	p.stream = _streams[sound]
-	p.volume_db = db
+	p.volume_db = db + _sfx_db
 	p.pitch_scale = pitch
 	p.play()
+
+
+## Ayarlar: genel, müzik ve efekt seviyeleri (0..1).
+func apply_volumes(master: float, music_level: float, sfx_level: float) -> void:
+	if not _enabled:
+		return
+	AudioServer.set_bus_volume_db(0, linear_to_db(clampf(master, 0.0001, 1.0)))
+	_music_db = linear_to_db(clampf(music_level, 0.0001, 1.0))
+	_sfx_db = linear_to_db(clampf(sfx_level, 0.0001, 1.0))
+	music.volume_db = MUSIC_DB + _music_db
 
 
 ## 0..1 arası: denize yakınlık.
 func set_ambience(strength: float) -> void:
 	if _enabled:
-		ambience.volume_db = linear_to_db(clampf(strength, 0.0001, 1.0)) - 6.0
+		ambience.volume_db = linear_to_db(clampf(strength, 0.0001, 1.0)) - 6.0 + _sfx_db
 
 
 ## Dünya sahnesi her karede çağırır: hava ve gece sesleri, motor.
 func set_environment(rain_level: float, night_level: float, engine_on: bool, engine_pitch: float = 1.0) -> void:
 	if not _enabled:
 		return
-	rain.volume_db = linear_to_db(clampf(rain_level, 0.0001, 1.0)) - 4.0
-	crickets.volume_db = linear_to_db(clampf(night_level, 0.0001, 1.0)) - 10.0
-	engine.volume_db = -10.0 if engine_on else -80.0
+	rain.volume_db = linear_to_db(clampf(rain_level, 0.0001, 1.0)) - 4.0 + _sfx_db
+	crickets.volume_db = linear_to_db(clampf(night_level, 0.0001, 1.0)) - 10.0 + _sfx_db
+	engine.volume_db = (-10.0 + _sfx_db) if engine_on else -80.0
 	engine.pitch_scale = engine_pitch
 
 

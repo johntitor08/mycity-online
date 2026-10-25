@@ -121,6 +121,7 @@ func _build_menu() -> void:
 	row2.add_theme_constant_override("separation", 10)
 	v.add_child(row2)
 	_button(row2, "Karakterini Düzenle", _on_character)
+	_button(row2, "Ayarlar", _on_settings)
 	var snd := _button(row2, "", _toggle_sound)
 	snd.text = "Ses: Kapalı" if Sfx.muted else "Ses: Açık"
 	snd.pressed.connect(func(): snd.text = "Ses: Kapalı" if Sfx.muted else "Ses: Açık")
@@ -132,6 +133,12 @@ func _build_menu() -> void:
 	v.add_child(status)
 	name_edit.grab_focus()
 	pass_edit.text_submitted.connect(func(_t): _on_join())
+
+
+func _on_settings() -> void:
+	var p = load("res://scripts/ui/settings_panel.gd").new()
+	p.closed.connect(p.queue_free)
+	menu.add_child(p)
 
 
 func _toggle_sound() -> void:

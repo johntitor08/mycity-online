@@ -26,6 +26,8 @@ const KINDS := {
 		"desc": "Hal'de ürünler 1,5 kat fiyatına! En çok ürün toplayan kazanır."},
 	"beach": {"name": "Plaj Kupası", "dur": 360.0, "season": "summer",
 		"desc": "Plajdaki futbol sahasında en çok gol atan kazanır!"},
+	"ev": {"name": "En Güzel Ev Yarışması", "dur": 600.0,
+		"desc": "Evini mobilyalarla süsle, misafir çağır: dekor puanı + misafirlerin verdiği yıldızlar. En yüksek puan kazanır!"},
 }
 const GAP := 540.0                 # iki etkinlik arası bekleme
 const FIRST_DELAY := 150.0         # sunucu açıldıktan sonra ilk etkinlik
@@ -223,6 +225,8 @@ func start_event(kind: String) -> void:
 		Net.announce("HAZİNE AVI başladı! Sandık %s civarında saklı. Haritadaki sarı alana bak!" % Map.area_name(pos))
 	else:
 		Net.announce("%s başladı! %s" % [info.name.to_upper(), info.desc])
+	if kind == "ev":
+		Party.seed_contest.call_deferred()
 	Net.log_line("Etkinlik başladı: %s" % info.name)
 	_next_kind = _pick_next()
 	_next_at = 0.0

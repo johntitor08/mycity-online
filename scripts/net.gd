@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "0.8"
+const VERSION := "0.9"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -221,6 +221,7 @@ func _reset_peer() -> void:
 	Football.reset()
 	Langirt.reset()
 	Seasonal.reset()
+	Work.reset()
 
 
 func _on_connected() -> void:
@@ -246,6 +247,8 @@ func _on_peer_disconnected(id: int) -> void:
 	Jobs.on_player_left(id)
 	Events.on_player_left(id)
 	Police.on_player_left(id)
+	Work.on_player_left(id)
+	Langirt.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -379,6 +382,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Ach.on_join(id)
 	Seasonal.send_state(id)
 	Football.send_state(id)
+	Work.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
