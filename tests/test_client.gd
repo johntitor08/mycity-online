@@ -186,9 +186,15 @@ func _on_ok() -> void:
 	await _wait(0.3)
 	check(Map.in_sea(w.my_pos), "denizde yüzülebiliyor")
 	w.my_pos = Map.SPAWN
+	await _wait(0.3)
+	Jobs.sell_fish()
+	await _wait(0.3)
+	check(not Jobs.my_fish.is_empty(), "balık Pazar Yeri dışında satılmıyor")
+	w.my_pos = Map.building("pazar").rect.get_center()
+	await _wait(0.3)
 	Jobs.sell_fish()
 	await _wait(0.5)
-	check(Jobs.my_fish.is_empty(), "balıklar satıldı")
+	check(Jobs.my_fish.is_empty(), "balıklar Pazar Yeri'nde satıldı")
 
 	print("== Hastane ve market")
 	for _k in 3:
@@ -1142,7 +1148,7 @@ func _test_08(w) -> void:
 	await _wait(0.3)
 	check(w.zone.get("type") == "dondurma", "yazın plajda dondurmacı")
 	w._open_panel()
-	await _wait(0.4)
+	await _wait(0.8)
 	check(float(Rpg.sheet.energy) > e0 and int(Ach.data.c.get("icecream", 0)) >= 1, "dondurma yendi, enerji arttı")
 
 	print("== 0.8: Plaj futbolu")
@@ -1208,6 +1214,25 @@ func _test_09(w) -> void:
 	check(Tutorial.step == 2, "eğitim adımları ilerliyor")
 	Tutorial.finish()
 	check(not Tutorial.active() and Settings.tutorial_done, "eğitim bitti/atlandı")
+
+	print("== 0.9.1: Pencere olmadan balık tutma ve otobüs çarpışması")
+	w._fish_state = "idle"
+	w.my_pos = Map.DOCK.get_center()
+	await _wait(0.3)
+	check(w.zone.get("type") == "fishing" and w.zone.label.contains("Olta at"), "iskelede E: olta at")
+	var nf := Jobs.my_fish.size()
+	w._open_panel()
+	await _wait(0.4)
+	check(w.panel == null and w._fish_state == "waiting", "pencere açılmadan olta atıldı (animasyon)")
+	var t1 := Time.get_ticks_msec()
+	while Jobs.my_fish.size() == nf and Time.get_ticks_msec() - t1 < 12000:
+		await _wait(0.2)
+	check(Jobs.my_fish.size() == nf + 1 and w._fish_state == "idle", "şamandıra battı, çekildi, balık kovada")
+	var bus := Map.bus_at(Land.server_now())
+	check(w._blocked(Vector2(bus[0])), "otobüsün içine girilemiyor")
+	w.my_pos = Vector2(bus[0])
+	w._push_from_bus()
+	check(w._in_bus(w.my_pos) == 0.0, "otobüs oyuncuyu kenara itti")
 
 	print("== 0.9: Nehir, köprü, park, otobüs")
 	check(Map.in_water(Vector2(523, 200)) and not Map.in_water(Vector2(523, 445)), "nehir suyu ve üstündeki köprü")

@@ -13,6 +13,7 @@ var qty_row: HBoxContainer
 var qty_spin: SpinBox
 var hal: VBoxContainer
 var hal_box: VBoxContainer
+var fish_btn: Button
 var _items: Array = []      # item_opt sırasıyla ref değerleri
 const KINDS := ["fish", "food", "furniture", "plot", "crop"]
 
@@ -24,7 +25,7 @@ func _ready() -> void:
 	body.add_child(tabs)
 	add_button(tabs, "İlanlar", _show.bind(false))
 	add_button(tabs, "İlan Ver", _show.bind(true))
-	add_button(tabs, "Hal (ürün sat)", _show_hal)
+	add_button(tabs, "Hal (ürün ve balık sat)", _show_hal)
 	add_label(tabs, "   Satıştan %%%d pazar komisyonu kesilir." % int(Bazaar.COMMISSION * 100), 13, Color("#94a3b8"))
 	body.add_child(HSeparator.new())
 
@@ -74,7 +75,10 @@ func _ready() -> void:
 	hal_box = VBoxContainer.new()
 	hal_box.add_theme_constant_override("separation", 6)
 	hal.add_child(hal_box)
-	add_button(hal, "Hepsini Sat", func(): Farm.sell("")).custom_minimum_size = Vector2(0, 40)
+	add_button(hal, "Bütün ürünleri sat", func(): Farm.sell("")).custom_minimum_size = Vector2(0, 40)
+	fish_btn = add_button(hal, "", Jobs.sell_fish)
+	fish_btn.custom_minimum_size = Vector2(0, 40)
+	Jobs.inventory_changed.connect(_fill_hal)
 	Farm.crops_changed.connect(_fill_hal)
 	Farm.crops_changed.connect(_fill_items)
 	Env.changed.connect(_fill_hal)
@@ -124,6 +128,12 @@ func _fill_hal() -> void:
 		any = any or n > 0
 	if not any:
 		add_label(hal_box, "Ambarın boş. Arsana tarla kurup ekin yetiştirebilirsin.", 14, Color("#7c859e"))
+	if fish_btn != null:
+		var val := 0
+		for f in Jobs.my_fish:
+			val += int(f.price)
+		fish_btn.text = "Kovadaki %d balığı sat (%s)" % [Jobs.my_fish.size(), U.money(val)]
+		fish_btn.disabled = Jobs.my_fish.is_empty()
 
 
 func _refresh() -> void:

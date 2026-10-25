@@ -66,6 +66,7 @@ func _ready() -> void:
 	job_row = jr
 	jr.visible = false
 	Work.job_changed.connect(_refresh_job)
+	Jobs.inventory_changed.connect(_refresh_job)
 	quest_label = _label(tv, "", 13, Color("#93c5fd"))
 	quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	quest_label.custom_minimum_size = Vector2(300, 0)
@@ -262,6 +263,11 @@ func _refresh_job() -> void:
 		if float(j.get("left", 0.0)) > 0.0:
 			t += " (%d sn)" % int(j.left)
 		parts.append(t)
+	if not Jobs.my_fish.is_empty():
+		var val := 0
+		for f in Jobs.my_fish:
+			val += int(f.price)
+		parts.append("Kova: %d/%d balık (%s) — Pazar'da sat" % [Jobs.my_fish.size(), Jobs.BAG_SIZE, U.money(val)])
 	if Work.carrying > 0:
 		parts.append("Çöp torbası: %d/%d" % [Work.carrying, Work.TRASH_CARRY])
 	if Work.on_duty_fire():

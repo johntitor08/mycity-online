@@ -162,7 +162,7 @@ func _send_later(id: int) -> void:
 func _process(_d: float) -> void:
 	if _pending.is_empty() or not Net.is_server():
 		return
-	if Engine.get_process_frames() % 30 != 0:
+	if Engine.get_process_frames() % 10 != 0:
 		return
 	for id in _pending:
 		send_state(id)

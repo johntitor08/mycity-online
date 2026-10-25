@@ -11,7 +11,6 @@ const PANELS := {
 	"casino": preload("res://scripts/ui/casino_panel.gd"),
 	"poker": preload("res://scripts/ui/poker_panel.gd"),
 	"realestate": preload("res://scripts/ui/land_panel.gd"),
-	"fishing": preload("res://scripts/ui/fish_panel.gd"),
 	"galeri": preload("res://scripts/ui/garage_panel.gd"),
 	"pazar": preload("res://scripts/ui/bazaar_panel.gd"),
 	"mobilya": preload("res://scripts/ui/furniture_shop_panel.gd"),
@@ -111,6 +110,8 @@ var _snowballs: Array = []  # uçan kartopları (istemcide çizim): {from, dir, 
 var _splats: Array = []     # isabet izleri: {pos, t0}
 var minimap: Control
 var _walked := 0.0
+var _fish_state := "idle"   # olta: idle, waiting, bite
+var _fish_since := 0.0
 var _spray_acc := 0.0
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
@@ -186,6 +187,7 @@ func _ready() -> void:
 	hud.settings_requested.connect(open_settings)
 	Tutorial.start(ui_layer)
 	Work.job_changed.connect(_on_job_changed)
+	Jobs.fish_event.connect(_on_fish_event)
 	Jobs.job_result.connect(func(d): if d.get("ok", false): Tutorial.note("job"))
 	Story.dialog.connect(func(_d): Tutorial.note("talk"))
 	minimap = preload("res://scripts/ui/minimap.gd").new()
@@ -226,6 +228,9 @@ func _process(delta: float) -> void:
 					my_moving = np != my_pos
 					my_pos = np
 					break
+	_push_from_bus()
+	if _fish_state != "idle" and _t - _fish_since > 15.0:
+		_fish_state = "idle"        # sunucudan haber gelmedi (ör. olta iptal): takılı kalma
 	if panel == null and zone.get("type", "") == "fire" and Settings.held("interact"):
 		_spray_acc += delta
 		if _spray_acc >= 0.25:
@@ -506,11 +511,17 @@ func _update_zone() -> void:
 		zone = z
 		hud.set_hint("" if panel != null else "[%s]  %s" % [Settings.key_name("interact"), z.label])
 		return
-	match Map.fishing_spot(my_pos):
-		"lake":
-			z = {"type": "fishing", "label": "Göl İskelesi — Balık Tut"}
-		"sea":
-			z = {"type": "fishing", "label": "Deniz İskelesi — Balık Tut"}
+	var spot := Map.fishing_spot(my_pos)
+	if spot == "" and my_ride() == "boat" and Map.in_sea(my_pos):
+		spot = "boat"
+	if spot != "":
+		var where: String = {"lake": "Göl", "sea": "Deniz İskelesi", "island": "Martı Adası", "boat": "Tekne"}.get(spot, "")
+		var what := "Olta at (%d/%d kova)" % [Jobs.my_fish.size(), Jobs.BAG_SIZE]
+		if _fish_state == "waiting":
+			what = "Bekle, şamandıra batınca çek..."
+		elif _fish_state == "bite":
+			what = "ÇEK!"
+		z = {"type": "fishing", "label": "%s — %s" % [where, what]}
 	for i in Map.PLOT_COUNT:
 		if Map.plot_rect(i).has_point(my_pos):
 			z = {"type": "realestate", "label": "Arsa #%d" % (i + 1), "plot": i}
@@ -607,6 +618,12 @@ func _open_panel() -> void:
 		return
 	if zone.type == "npc":
 		Story.talk(zone.npc)
+		return
+	if zone.type == "fishing":
+		if _fish_state == "idle":
+			Jobs.cast()
+		else:
+			Jobs.reel()
 		return
 	if zone.type == "boatrent":
 		Garage.rent_boat()
@@ -731,7 +748,31 @@ func _blocked(p: Vector2) -> bool:
 		var lane: Array = Map.TRAFFIC_LANES[c.lane]
 		if Rect2(float(c.x) - 46, float(lane[0]) - 24, 92, 48).has_point(p):
 			return true
-	return false
+	return _in_bus(p) != 0.0
+
+
+## Otobüsün içinde mi? (0 değilse: otobüsün hangi yanında, ±1)
+func _in_bus(p: Vector2) -> float:
+	var bus := Map.bus_at(Land.server_now())
+	var dir: Vector2 = bus[1]
+	var local := (p - Vector2(bus[0])).rotated(-dir.angle())
+	if absf(local.x) < 76.0 and absf(local.y) < 30.0:
+		return 1.0 if local.y >= 0.0 else -1.0
+	return 0.0
+
+
+## Otobüs üstüne gelirse oyuncuyu kenara iter (otobüs herkeste aynı saatle ilerler, duramaz).
+func _push_from_bus() -> void:
+	var side := _in_bus(my_pos)
+	if side == 0.0 or _room >= 0 or _jail:
+		return
+	var bus := Map.bus_at(Land.server_now())
+	var normal: Vector2 = Vector2(bus[1]).orthogonal() * side
+	for k in range(1, 12):
+		var np := my_pos + normal * 6.0 * k
+		if _in_bus(np) == 0.0:
+			my_pos = np
+			return
 
 
 # ================================================================== olta
@@ -814,6 +855,30 @@ func _draw_rod(p: Vector2, facing: String, info: Dictionary) -> void:
 		"escaped":
 			if k < 0.8:
 				draw_arc(tp, 6.0 + k * 30.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k * 0.8), 2.0)
+
+
+## Olta olayları: pencere yok, sonuç ekranda bildirim olarak.
+func _on_fish_event(d: Dictionary) -> void:
+	_fish_since = _t
+	match str(d.state):
+		"cast":
+			_fish_state = "waiting"
+			Sfx.play("splash_small")
+		"bite":
+			_fish_state = "bite"
+			Sfx.play("bite")
+		"caught":
+			_fish_state = "idle"
+			hud.show_toast("%s yakaladın! (%s) — kova %d/%d" % [d.fish, U.money(int(d.price)), Jobs.my_fish.size() + 1, Jobs.BAG_SIZE])
+			Sfx.play("cash" if int(d.price) >= 500 else "catch")
+		"escaped":
+			_fish_state = "idle"
+			hud.show_toast("Geç kaldın, balık kaçtı...", false)
+			Sfx.play("error", -6.0)
+		"early":
+			_fish_state = "idle"
+			hud.show_toast("Çok erken çektin, balık ürktü.", false)
+			Sfx.play("error", -6.0)
 
 
 ## Mesleklerde hedef değişince yön oku oraya döner.

@@ -282,6 +282,9 @@ func req_sell_fish(_d: Dictionary) -> void:
 	var id := _player()
 	if id == 0:
 		return
+	if not Map.building("pazar").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+		Net.notify(id, "Balıkları Pazar Yeri'ndeki Hal'de satabilirsin.", false)
+		return
 	var bag := _bag(id)
 	if bag.is_empty():
 		Net.notify(id, "Satacak balığın yok.", false)
