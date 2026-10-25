@@ -52,8 +52,9 @@ Menüde:
   HUD'daki "Lig" butonu geçmiş şampiyonları gösterir.
 - **Sesler ve müzik:** Gece, kış ve yaz için ayrı müzikler (yumuşak geçişle), kuş cıvıltısı, martılar,
   rüzgâr, bina içi uğultu ve adım sesleri.
-- **Balık tutma artık pencere açmadan:** iskelede/teknede E ile olta at, şamandıra batınca E ile çek;
-  sonuç ekranda bildirim olarak çıkar, kova sol üstte görünür. Balıklar Pazar Yeri'ndeki Hal'de satılır.
+- **Balık tutma:** iskelede/teknede E ile balık paneli açılır (sağa yaslı; olta animasyonu görünür).
+  Olta ancak hemen yanında su varken atılır (sunucu da denetler). Kova sol üstte görünür; balıklar
+  iskelede, teknede ya da Pazar Yeri'ndeki Hal'de satılır.
   Otobüse de çarpışma geldi (içinden geçilmez, üstüne gelirse seni kenara iter).
 - **Sağlamlık:** Kayıt dosyası açılışta ve 6 saatte bir `yedekler/` klasörüne yedeklenir (son 14).
   Yönetici komutları (sohbette): `/duyuru`, `/kick`, `/sustur isim dk`, `/hava`, `/etkinlik`,
@@ -247,8 +248,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.0
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.0
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.0.1
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.0.1
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

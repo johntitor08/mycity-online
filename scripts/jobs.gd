@@ -205,6 +205,9 @@ func req_cast(_d: Dictionary) -> void:
 	if spot == "":
 		Net.notify(id, "Balık tutmak için bir iskelenin ucuna git.", false)
 		return
+	if not Map.water_near(pos):
+		Net.notify(id, "Suya çok uzaksın, iskelenin kenarına yaklaş.", false)
+		return
 	if spot != "lake" and Rpg.level(id) < Rpg.LEVEL_GATES.sea:
 		Net.notify(id, "Deniz balıkçılığı için seviye %d gerekli." % Rpg.LEVEL_GATES.sea, false)
 		return
@@ -283,8 +286,10 @@ func req_sell_fish(_d: Dictionary) -> void:
 	var id := _player()
 	if id == 0:
 		return
-	if not Map.building("pazar").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
-		Net.notify(id, "Balıkları Pazar Yeri'ndeki Hal'de satabilirsin.", false)
+	var here: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
+	var at_water := Map.fishing_spot(here) != "" or str(Net.players[id].get("ride", "")) == "boat"
+	if not at_water and not Map.building("pazar").rect.grow(60).has_point(here):
+		Net.notify(id, "Balıkları iskelede ya da Pazar Yeri'ndeki Hal'de satabilirsin.", false)
 		return
 	var bag := _bag(id)
 	if bag.is_empty():

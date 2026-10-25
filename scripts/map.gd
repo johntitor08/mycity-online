@@ -213,6 +213,16 @@ static func ferry_at(t: float) -> Array:
 	return [FERRY_ROUTE[0], Vector2.RIGHT]
 
 
+## Oltanın şamandırası yakında suya düşebilir mi? (balık tutmak için şart; olta animasyonu da buraya çizilir)
+static func water_near(p: Vector2) -> bool:
+	for d in [Vector2.LEFT, Vector2.DOWN, Vector2.RIGHT, Vector2.UP]:
+		for dist in [80.0, 110.0, 150.0]:
+			var q: Vector2 = p + d * dist
+			if in_water(q) or in_sea(q):
+				return true
+	return false
+
+
 ## Balık tutma noktası: "lake", "sea" ya da "" (iskele ucunda değil).
 static func fishing_spot(p: Vector2) -> String:
 	if DOCK.grow(30).has_point(p):

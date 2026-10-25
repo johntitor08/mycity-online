@@ -23,6 +23,7 @@ const PANELS := {
 	"carsi": preload("res://scripts/ui/shop_panel.gd"),
 	"futbol": preload("res://scripts/ui/football_panel.gd"),
 	"langirt": preload("res://scripts/ui/langirt_panel.gd"),
+	"fishing": preload("res://scripts/ui/fish_panel.gd"),
 	"fabrika": preload("res://scripts/ui/factory_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
@@ -522,12 +523,7 @@ func _update_zone() -> void:
 		spot = "boat"
 	if spot != "":
 		var where: String = {"lake": "Göl", "sea": "Deniz İskelesi", "island": "Martı Adası", "boat": "Tekne"}.get(spot, "")
-		var what := "Olta at (%d/%d kova)" % [Jobs.my_fish.size(), Jobs.BAG_SIZE]
-		if _fish_state == "waiting":
-			what = "Bekle, şamandıra batınca çek..."
-		elif _fish_state == "bite":
-			what = "ÇEK!"
-		z = {"type": "fishing", "label": "%s — %s" % [where, what]}
+		z = {"type": "fishing", "label": "%s — Balık Tut" % where, "spot": spot}
 	for i in Map.PLOT_COUNT:
 		if Map.plot_rect(i).has_point(my_pos):
 			z = {"type": "realestate", "label": "Arsa #%d" % (i + 1), "plot": i}
@@ -630,12 +626,6 @@ func _open_panel() -> void:
 	if zone.type == "npc":
 		Story.talk(zone.npc)
 		return
-	if zone.type == "fishing":
-		if _fish_state == "idle":
-			Jobs.cast()
-		else:
-			Jobs.reel()
-		return
 	if zone.type == "boatrent":
 		Garage.rent_boat()
 		return
@@ -696,7 +686,7 @@ func _open_panel() -> void:
 	if zone.has("plot"):
 		panel.focus_plot = zone.plot
 	if zone.type == "fishing":
-		panel.spot = Map.fishing_spot(my_pos)
+		panel.spot = str(zone.get("spot", "lake"))
 	if panel.has_signal("place_requested"):
 		panel.place_requested.connect(func(k):
 			_close_panel()
@@ -932,14 +922,20 @@ func _on_fish_event(d: Dictionary) -> void:
 			Sfx.play("bite")
 		"caught":
 			_fish_state = "idle"
+			if panel != null:
+				return
 			hud.show_toast("%s yakaladın! (%s) — kova %d/%d" % [d.fish, U.money(int(d.price)), Jobs.my_fish.size() + 1, Jobs.BAG_SIZE])
 			Sfx.play("cash" if int(d.price) >= 500 else "catch")
 		"escaped":
 			_fish_state = "idle"
+			if panel != null:
+				return
 			hud.show_toast("Geç kaldın, balık kaçtı...", false)
 			Sfx.play("error", -6.0)
 		"early":
 			_fish_state = "idle"
+			if panel != null:
+				return
 			hud.show_toast("Çok erken çektin, balık ürktü.", false)
 			Sfx.play("error", -6.0)
 
