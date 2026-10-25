@@ -47,6 +47,9 @@ func _ready() -> void:
 	if "--test-yardimci" in args:
 		add_child(load("res://tests/test_helper.gd").new())
 		return
+	if "--teaser" in args:
+		add_child(load("res://tests/teaser.gd").new())
+		return
 	if "--foto" in args:
 		add_child(load("res://tests/screenshot.gd").new())
 		return
