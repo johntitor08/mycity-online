@@ -5,7 +5,8 @@ Texas Hold'em poker oyna, gölde ve denizde balık tut, plajda yüz, hastanede d
 markette kasiyer olarak çalış. Seviye/XP, meslek yetenekleri, enerji, eşyalar ve günlük görevlerle
 RPG sistemi; şifreli hesaplar, karakter özelleştirme, müzik ve ses efektleri var. Çiftlik ve mevsimler,
 klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri, polis ve suç sistemi (0.6);
-Çarşı ve aksesuarlar, banka ve borsa, belediye seçimi, düğün ve aile (0.7).
+Çarşı ve aksesuarlar, banka ve borsa, belediye seçimi, düğün ve aile (0.7); başarımlar ve unvanlar,
+mini harita, açık deniz ve Martı Adası, mevsimlik eğlence, plaj futbolu ve langırt (0.8).
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 **Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
@@ -31,6 +32,31 @@ Menüde:
 - **Sunucuya Katıl**: Arkadaşının IP adresini ve portunu yazıp bağlan.
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
+
+## Başarımlar, harita, açık deniz, mevsimlik eğlence, futbol ve langırt (0.8)
+
+| | |
+|---|---|
+| ![Futbol](docs/ekran/futbol.png) | ![Harita](docs/ekran/harita.png) |
+| ![Ada](docs/ekran/ada.png) | ![Kış](docs/ekran/kis_kartopu.png) |
+
+- **Başarımlar ve unvanlar:** 48 başarım (ilk av, Altın Balık, köpekbalığı, başhekim, gökdelen, pist
+  rekoru, başkan, evlilik, şerif, milyoner, gol, langırt, kardan adam...). Her biri para ve XP verir;
+  bir kısmı unvan açar (Deniz Kurdu, Başkan, Şerif, Golcü...). Seçtiğin unvan isminin üstünde görünür.
+  HUD'da "Başarım" butonu.
+- **Mini harita ve navigasyon:** Sağ altta mini harita (binalar, arsaların, oyuncular, görev
+  işaretleri, hazine alanı). M ile büyük harita: bir yere tıkla ya da listeden seç (görev hedefi dahil),
+  yön oku ve mesafe seni oraya götürür.
+- **Açık deniz ve Martı Adası:** Harita güneye büyüdü. Derin denize yüzerek değil tekneyle gidilir.
+  Deniz iskelesinin başında Kaptan Rüstem'in yanında tekne kirala (250 TL / 10 dk); iskeleden ya da
+  kıyıdan F ile doğrudan tekneye bin. Martı Adası'nda deniz feneri (gece döner) ve en nadir balıkların
+  çıktığı ada iskelesi; derin denizde tekneden balık tutmak da şanslıdır. Hazine adaya da saklanabilir.
+- **Mevsimlik eğlence ve hava:** Sis ve yağmur sonrası gökkuşağı (balık şansı artar). Kışın çimende
+  kardan adam yap (E), T ile fareye doğru kartopu at; yazın plajda dondurmacı (enerji). Mevsimlik
+  etkinlikler: Kartopu Savaşı (kış), Hasat Festivali (sonbahar, Hal fiyatları ×1,5), Plaj Kupası (yaz).
+- **Plaj futbolu:** Plajın doğusunda saha. Kırmızı ya da Mavi takıma katıl, topa yürüyerek vur
+  (fizik sunucuda). 5 gol ya da 6 dakika; kazanan takıma ödül.
+- **Langırt:** Plajdaki masada iki kişi ya da bota karşı; W/S veya fareyle çubukları oynat, 5 gol.
 
 ## Çarşı, banka ve borsa, belediye seçimi, düğün ve aile (0.7)
 
@@ -171,8 +197,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.7.1
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.7.1
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 0.8
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 0.8
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -285,6 +311,10 @@ scripts/
   bank.gd     (autoload) banka hesabı, kredi, sanal borsa
   election.gd (autoload) belediye seçimi, vergi, başkanlık
   family.gd   (autoload) evlilik, düğün, aile kasası
+  achievements.gd (autoload, Ach) başarımlar ve unvanlar
+  football.gd (autoload) plaj futbolu (sunucu fiziği)
+  langirt.gd  (autoload) langırt masası (sunucu fiziği, bot)
+  seasonal.gd (autoload) kardan adam, kartopu, dondurmacı
   npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)

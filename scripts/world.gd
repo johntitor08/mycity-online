@@ -22,6 +22,8 @@ const PANELS := {
 	"race": preload("res://scripts/ui/event_panel.gd"),
 	"banka": preload("res://scripts/ui/bank_panel.gd"),
 	"carsi": preload("res://scripts/ui/shop_panel.gd"),
+	"futbol": preload("res://scripts/ui/football_panel.gd"),
+	"langirt": preload("res://scripts/ui/langirt_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -104,6 +106,10 @@ var _jail := false          # hapishanede miyim
 var _g_action := {}         # G tuşunun şu anki eylemi (yankesicilik/soygun/tutuklama)
 var _blockers: Array = []   # çarpışma kutuları: binalar ve arsalardaki yapılar (Rect2)
 var _fish_t := {}           # oyuncu adı -> [olta durumu, başladığı an] (animasyon için)
+var nav_target = null       # haritadan seçilen hedef (Vector2) ya da null
+var _snowballs: Array = []  # uçan kartopları (istemcide çizim): {from, dir, t0}
+var _splats: Array = []     # isabet izleri: {pos, t0}
+var minimap: Control
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
 var _label_queue: Array = []
@@ -171,6 +177,15 @@ func _ready() -> void:
 	hud.events_requested.connect(open_simple_panel.bind("res://scripts/ui/event_panel.gd"))
 	hud.family_requested.connect(open_simple_panel.bind("res://scripts/ui/family_panel.gd"))
 	Family.proposal.connect(_on_proposal)
+	hud.achievements_requested.connect(open_simple_panel.bind("res://scripts/ui/ach_panel.gd"))
+	hud.map_requested.connect(open_map)
+	minimap = preload("res://scripts/ui/minimap.gd").new()
+	minimap.world = self
+	hud.set_minimap(minimap)
+	Seasonal.snowball.connect(func(d): _snowballs.append({"from": d.from, "dir": d.dir, "t0": _t}))
+	Seasonal.hit.connect(func(d):
+		_splats.append({"pos": d.pos, "t0": _t})
+		Sfx.play("splash_small", -6.0, 1.4))
 	Family.wedding.connect(func(_d): Sfx.play("success"))
 	_make_nature()
 
@@ -265,6 +280,8 @@ func _can_stand(p: Vector2, ride: String) -> bool:
 		return false              # göl
 	if ride == "boat":
 		return Map.in_sea(p)      # tekne karaya çıkamaz
+	if ride == "" and Map.in_deep(p) and not Map.in_deep(my_pos):
+		return false              # açık denize yüzülmez, tekne gerekir
 	if ride != "":
 		return not Map.in_sea(p)  # bisiklet/araba denize giremez
 	return true
@@ -313,18 +330,36 @@ func _toggle_vehicle() -> void:
 	if _room >= 0:
 		return
 	if Map.in_sea(my_pos):
-		if Garage.owned.has("boat"):
+		if Garage.has_boat():
 			Garage.ride("boat")
 			Sfx.play("splash_small")
 		else:
-			hud.show_toast("Teknen yok. Galeri'den alabilirsin.", false)
+			hud.show_toast("Teknen yok. Galeri'den al ya da deniz iskelesinde kirala.", false)
 		return
+	# kıyıdan ya da iskeleden: yakındaki suya tekneyi indir ve bin
+	if Garage.has_boat():
+		var spot = _water_near(my_pos)
+		if spot != null:
+			my_pos = spot
+			Garage.ride("boat", spot)
+			Sfx.play("splash_small")
+			return
 	for k in ["car", "bike"]:
 		if Garage.owned.has(k):
 			Garage.ride(k)
 			Sfx.play("bell" if k == "bike" else "door")
 			return
 	hud.show_toast("Aracın yok. Galeri'den bisiklet ya da araba alabilirsin.", false)
+
+
+## Kıyıya/iskeleye yakın bir deniz noktası (tekneye binmek için).
+func _water_near(p: Vector2) -> Variant:
+	for dist in [50.0, 90.0, 130.0]:
+		for d in [Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT, Vector2.UP]:
+			var q: Vector2 = p + d * dist
+			if Map.in_sea(q):
+				return q
+	return null
 
 
 func _near_shore() -> bool:
@@ -393,6 +428,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			if panel == null:
 				_toggle_vehicle()
 				get_viewport().set_input_as_handled()
+		KEY_M:
+			if panel == null:
+				open_map()
+				get_viewport().set_input_as_handled()
+		KEY_T:
+			if panel == null and Env.season == "winter" and _room < 0 and not _jail:
+				var aim := get_global_mouse_position() - my_pos
+				if aim.length() < 10.0:
+					aim = {"left": Vector2.LEFT, "right": Vector2.RIGHT, "up": Vector2.UP, "down": Vector2.DOWN}.get(my_facing, Vector2.DOWN)
+				Seasonal.throw(aim)
+				get_viewport().set_input_as_handled()
 		KEY_G:
 			if panel == null and not _g_action.is_empty():
 				_do_g_action()
@@ -444,6 +490,16 @@ func _update_zone() -> void:
 	for i in Map.PLOT_COUNT:
 		if Map.plot_rect(i).has_point(my_pos):
 			z = {"type": "realestate", "label": "Arsa #%d" % (i + 1), "plot": i}
+	if Football.FIELD.grow(70).has_point(my_pos) and not Football.FIELD.grow(-30).has_point(my_pos):
+		z = {"type": "futbol", "label": "Plaj Sahası — takım seç"}
+	if my_pos.distance_to(Langirt.POS) < 75.0:
+		z = {"type": "langirt", "label": "Langırt Masası"}
+	if Seasonal.icecream_open() and my_pos.distance_to(Seasonal.ICECREAM_POS) < 80.0:
+		z = {"type": "dondurma", "label": "Dondurma al (%s, +%d enerji)" % [U.money(Seasonal.ICECREAM_PRICE), Seasonal.ICECREAM_ENERGY]}
+	if z.is_empty() and Env.season == "winter" and Seasonal.can_build_at(my_pos):
+		z = {"type": "snowman", "label": "Kardan adam yap (⚡%d)   ·   T: kartopu at" % Seasonal.SNOWMAN_ENERGY}
+	if my_pos.distance_to(Map.BOAT_RENT_SPOT) < 70.0:
+		z = {"type": "boatrent", "label": "Tekne kirala (%s / %d dk) — F: bin" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
 	if my_pos.distance_to(Map.RACE_FLAG) < 80.0 or my_pos.distance_to(Map.RACE_START) < 60.0:
 		z = {"type": "race", "label": "Yarış Pisti — tur başlat"}
 	zone = z
@@ -509,6 +565,15 @@ func _open_panel() -> void:
 		return
 	if zone.type == "npc":
 		Story.talk(zone.npc)
+		return
+	if zone.type == "boatrent":
+		Garage.rent_boat()
+		return
+	if zone.type == "dondurma":
+		Seasonal.buy_icecream()
+		return
+	if zone.type == "snowman":
+		Seasonal.build_snowman(my_pos)
 		return
 	panel = PANELS[zone.type].new()
 	if zone.type == "race":
@@ -670,6 +735,152 @@ func _draw_rod(p: Vector2, facing: String, info: Dictionary) -> void:
 				draw_arc(tp, 6.0 + k * 30.0, 0, TAU, 24, Color(1, 1, 1, 0.7 - k * 0.8), 2.0)
 
 
+## Büyük harita (M).
+func open_map() -> void:
+	if panel != null:
+		return
+	panel = preload("res://scripts/ui/map_panel.gd").new()
+	panel.world = self
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("open", -6.0)
+
+
+func set_nav(p: Vector2) -> void:
+	nav_target = p
+	hud.show_toast("Hedef işaretlendi: yön okunu takip et.")
+
+
+## Navigasyon oku: oyuncunun etrafında hedefi gösterir; varınca kaybolur.
+func _draw_nav() -> void:
+	if nav_target == null or _room >= 0 or _jail:
+		return
+	var t: Vector2 = nav_target
+	var d := t - my_pos
+	if d.length() < 90.0:
+		nav_target = null
+		hud.show_toast("Hedefe vardın!")
+		return
+	var dir := d.normalized()
+	var c := my_pos + Vector2(0, -20) + dir * 64.0
+	var side := dir.orthogonal()
+	var pulse := 1.0 + 0.12 * sin(_t * 6.0)
+	draw_colored_polygon(PackedVector2Array([c + dir * 18.0 * pulse, c - dir * 6.0 + side * 11.0, c - dir * 6.0 - side * 11.0]), Color(0.95, 0.27, 0.27, 0.9))
+	_text(c + Vector2(-50, -18), "%d m" % int(d.length() / 10.0), 13, Color("#fecaca"), 100)
+	# hedefte bayrak
+	draw_line(t, t + Vector2(0, -40), Color("#7f1d1d"), 3)
+	draw_colored_polygon(PackedVector2Array([t + Vector2(0, -40), t + Vector2(24, -32), t + Vector2(0, -24)]), Color("#ef4444"))
+
+
+## Plaj sahası: çizgiler, kaleler, skor.
+func _draw_field() -> void:
+	var f: Rect2 = Football.FIELD
+	draw_rect(f, Color(0.95, 0.85, 0.6, 0.6))
+	draw_rect(f, Color(1, 1, 1, 0.9), false, 3)
+	draw_line(Vector2(f.get_center().x, f.position.y), Vector2(f.get_center().x, f.end.y), Color(1, 1, 1, 0.9), 2)
+	draw_arc(f.get_center(), 34, 0, TAU, 32, Color(1, 1, 1, 0.9), 2)
+	for side in [-1, 1]:
+		var gx: float = f.position.x if side == -1 else f.end.x
+		var gy := f.get_center().y
+		var col := Color("#ef4444") if side == -1 else Color("#3b82f6")
+		draw_rect(Rect2(gx + (-18 if side == -1 else 0), gy - Football.GOAL_HALF, 18, Football.GOAL_HALF * 2), Color(1, 1, 1, 0.35))
+		for k in 5:
+			var yy := gy - Football.GOAL_HALF + k * Football.GOAL_HALF / 2.0
+			draw_line(Vector2(gx, yy), Vector2(gx + 18 * side, yy), Color(1, 1, 1, 0.6), 1)
+		draw_line(Vector2(gx, gy - Football.GOAL_HALF), Vector2(gx, gy + Football.GOAL_HALF), col, 5)
+	_text(Vector2(f.position.x, f.position.y - 10), "KIRMIZI %d : %d MAVİ" % [int(Football.score.red), int(Football.score.blue)], 18, Color("#fde68a"), f.size.x)
+
+
+func _draw_ball(p: Vector2) -> void:
+	draw_set_transform(p + Vector2(3, 7), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 10, Color(0, 0, 0, 0.25))
+	draw_set_transform(p, Football.ball.x * 0.05, Vector2.ONE)
+	draw_circle(Vector2.ZERO, Football.BALL_R, Color.WHITE)
+	for k in 5:
+		var a := TAU * k / 5.0
+		draw_circle(Vector2(cos(a), sin(a)) * 5.5, 2.2, Color("#111827"))
+	draw_circle(Vector2.ZERO, 2.4, Color("#111827"))
+	draw_set_transform(Vector2.ZERO)
+
+
+func _draw_langirt_table(p: Vector2) -> void:
+	draw_rect(Rect2(p + Vector2(-50, -12), Vector2(100, 34)), Color(0, 0, 0, 0.2))
+	for lx in [-44, 40]:
+		draw_rect(Rect2(p.x + lx, p.y - 6, 6, 26), Color("#451a03"))
+	draw_rect(Rect2(p + Vector2(-52, -40), Vector2(104, 40)), Color("#78350f"))
+	draw_rect(Rect2(p + Vector2(-46, -36), Vector2(92, 32)), Color("#15803d"))
+	for k in 4:
+		var x := p.x - 33 + k * 22
+		draw_line(Vector2(x, p.y - 46), Vector2(x, p.y + 2), Color("#cbd5e1"), 2)
+		draw_circle(Vector2(x, p.y - 20), 3.5, Color("#ef4444") if k % 2 == 0 else Color("#3b82f6"))
+	_text(p + Vector2(-60, -54), "LANGIRT", 13, Color("#fde68a"), 120)
+
+
+func _draw_icecream_cart(p: Vector2) -> void:
+	draw_set_transform(p + Vector2(0, 6), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 34, Color(0, 0, 0, 0.2))
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(p + Vector2(-34, -40), Vector2(68, 38)), Color("#fef3c7"))
+	draw_rect(Rect2(p + Vector2(-34, -40), Vector2(68, 38)), Color("#be185d"), false, 2)
+	for k in 3:
+		draw_circle(p + Vector2(-16 + k * 16, -48), 8, [Color("#f9a8d4"), Color("#a16207"), Color("#86efac")][k])
+	draw_circle(p + Vector2(-22, 0), 7, Color("#374151"))
+	draw_circle(p + Vector2(22, 0), 7, Color("#374151"))
+	draw_line(p + Vector2(30, -40), p + Vector2(30, -92), Color("#78350f"), 2)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-10, -88), p + Vector2(30, -110), p + Vector2(70, -88)]), Color("#f472b6"))
+	_text(p + Vector2(-60, -60), "DONDURMA", 13, Color("#be185d"), 120)
+
+
+func _draw_snowman(p: Vector2, style: int) -> void:
+	draw_set_transform(p + Vector2(0, 6), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 20, Color(0, 0, 0, 0.2))
+	draw_set_transform(Vector2.ZERO)
+	draw_circle(p + Vector2(0, -14), 18, Color("#f8fafc"))
+	draw_circle(p + Vector2(0, -40), 13, Color("#f8fafc"))
+	draw_circle(p + Vector2(0, -60), 10, Color("#f8fafc"))
+	draw_circle(p + Vector2(-3, -62), 1.6, Color("#111827"))
+	draw_circle(p + Vector2(3, -62), 1.6, Color("#111827"))
+	draw_colored_polygon(PackedVector2Array([p + Vector2(0, -59), p + Vector2(11, -57), p + Vector2(0, -56)]), Color("#f97316"))
+	for k in 3:
+		draw_circle(p + Vector2(0, -46 + k * 7), 1.5, Color("#111827"))
+	draw_line(p + Vector2(-12, -42), p + Vector2(-26, -52), Color("#78350f"), 2)
+	draw_line(p + Vector2(12, -42), p + Vector2(26, -52), Color("#78350f"), 2)
+	match style:
+		0:
+			draw_rect(Rect2(p.x - 10, p.y - 82, 20, 14), Color("#111827"))
+			draw_rect(Rect2(p.x - 14, p.y - 70, 28, 3), Color("#111827"))
+		1:
+			draw_rect(Rect2(p.x - 12, p.y - 53, 24, 5), Color("#dc2626"))
+		2:
+			draw_circle(p + Vector2(0, -67), 8, Color("#2563eb"))
+			draw_circle(p + Vector2(0, -75), 3, Color("#f8fafc"))
+
+
+## Kartopları (düz çizgide uçar) ve isabet izleri.
+func _draw_snow_fx() -> void:
+	var keep: Array = []
+	for b in _snowballs:
+		var k := _t - float(b.t0)
+		var dist := k * Seasonal.SNOWBALL_SPEED
+		if dist > Seasonal.SNOWBALL_RANGE:
+			continue
+		keep.append(b)
+		var p: Vector2 = b.from + Vector2(b.dir) * dist
+		draw_circle(p + Vector2(0, 18), 4, Color(0, 0, 0, 0.15))
+		draw_circle(p, 5, Color.WHITE)
+	_snowballs = keep
+	var keep2: Array = []
+	for sp in _splats:
+		var k := _t - float(sp.t0)
+		if k > 1.0:
+			continue
+		keep2.append(sp)
+		for j in 7:
+			var a := TAU * j / 7.0
+			draw_circle(Vector2(sp.pos) + Vector2(cos(a), sin(a)) * (6.0 + k * 22.0), 3.0 * (1.0 - k), Color(1, 1, 1, 1.0 - k))
+	_splats = keep2
+
+
 ## Gelen evlenme teklifi.
 func _on_proposal(from_name: String) -> void:
 	if panel != null:
@@ -761,6 +972,8 @@ func _make_nature() -> void:
 	for x in range(60, int(Map.WORLD.size.x), 170):
 		if absf(x - 1005) < 90 or absf(x - 1600) < 90:
 			continue
+		if Football.FIELD.grow(40).has_point(Vector2(x, by + 60)) or absf(x - Langirt.POS.x) < 90 or absf(x - Seasonal.ICECREAM_POS.x) < 70:
+			continue      # saha, langırt masası, dondurmacı
 		nature.append([Vector2(x + rng.randf_range(-30, 30), by + 55 + rng.randf_range(0, 25)), 3, rng.randf_range(0.9, 1.15)])
 	var k := 0
 	for x in [140, 430, 720, 1240, 1820, 2120]:
@@ -770,6 +983,15 @@ func _make_nature() -> void:
 		k += 1
 	nature.append([Vector2(1420, by + 190), 8, 1.0])
 	nature.append([Vector2(880, by + 200), 9, 1.0])
+	# Martı Adası palmiyeleri ve şezlongları
+	var ic := Map.ISLAND.get_center()
+	for j in 9:
+		var a := TAU * j / 9.0 + 0.3
+		var pp := ic + Vector2(cos(a) * Map.ISLAND.size.x * 0.36, sin(a) * Map.ISLAND.size.y * 0.33)
+		if pp.distance_to(Map.LIGHTHOUSE) > 70 and absf(pp.x - Map.ISLAND_PIER.get_center().x) > 50:
+			nature.append([pp, 3, rng.randf_range(0.85, 1.1)])
+	nature.append([ic + Vector2(-170, 60), 5, 1.0])
+	nature.append([ic + Vector2(-120, 82), 7, 1.0])
 	nature.sort_custom(func(a, b): return a[0].y < b[0].y)
 	for _k in 900:
 		var p := Vector2(rng.randf_range(10, Map.WORLD.size.x - 10), rng.randf_range(10, 1590))
@@ -803,6 +1025,7 @@ func _draw() -> void:
 	_draw_roads()
 	_draw_race_track()
 	_draw_beach()
+	_draw_field()
 	_draw_lake()
 	_draw_interiors()
 	_draw_jail()
@@ -844,6 +1067,14 @@ func _draw() -> void:
 		if info and info.get("pet") is Dictionary and not info.pet.is_empty():
 			var st: Dictionary = npc.pets[id]
 			items.append([st.pos.y, "pet", [st, info.pet]])
+	if _room < 0:
+		var bp := Football.ball_now()
+		items.append([bp.y, "ball", bp])
+		items.append([Langirt.POS.y, "lt", Langirt.POS])
+		if Seasonal.icecream_open():
+			items.append([Seasonal.ICECREAM_POS.y, "ic", Seasonal.ICECREAM_POS])
+		for sm in Seasonal.snowmen:
+			items.append([float(sm.y), "sm", sm])
 	if Events.treasure_pos != null and Events.current.get("kind", "") == "treasure":
 		items.append([Events.treasure_pos.y, "t", Events.treasure_pos])
 	items.sort_custom(func(a, b): return a[0] < b[0])
@@ -864,12 +1095,22 @@ func _draw() -> void:
 			_draw_quest_npc(it[2])
 		elif it[1] == "t":
 			_draw_chest(it[2])
+		elif it[1] == "ball":
+			_draw_ball(it[2])
+		elif it[1] == "lt":
+			_draw_langirt_table(it[2])
+		elif it[1] == "ic":
+			_draw_icecream_cart(it[2])
+		elif it[1] == "sm":
+			_draw_snowman(Vector2(float(it[2].x), float(it[2].y)), int(it[2].get("style", 0)))
 		elif it[1] == "pet":
 			_draw_pet(it[2][0], it[2][1])
 		else:
 			var a: Array = it[2]
 			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
 	_draw_placement_ghost()
+	_draw_snow_fx()
+	_draw_nav()
 	labels.items = _label_queue
 	labels.queue_redraw()
 
@@ -1036,10 +1277,23 @@ func _draw_beach() -> void:
 		shallow.append(Vector2(i * 40.0, sea.position.y + 70 + sin(i * 0.7 + _t * 0.8) * 8.0))
 	draw_colored_polygon(shallow, Color("#4fb0dd"))
 	draw_polyline(foam, Color(1, 1, 1, 0.85), 5)
-	for i in 30:
-		var sp := Vector2(float((i * 571) % int(Map.WORLD.size.x)), sea.position.y + 100 + float((i * 137) % 320))
+	# derin deniz (sadece tekneyle): koyu mavi, sınırda şamandıra sırası
+	var deep_poly := PackedVector2Array()
+	for i in n + 1:
+		deep_poly.append(Vector2(i * 40.0, Map.DEEP_Y + sin(i * 0.5 + _t * 0.6) * 10.0))
+	deep_poly.append(Vector2(Map.WORLD.size.x, Map.WORLD.end.y))
+	deep_poly.append(Vector2(0, Map.WORLD.end.y))
+	draw_colored_polygon(deep_poly, Color("#165d94"))
+	for x in range(60, int(Map.WORLD.size.x), 180):
+		var by := Map.DEEP_Y + sin(_t * 1.5 + x) * 3.0
+		draw_circle(Vector2(x, by), 7, Color("#f97316"))
+		draw_circle(Vector2(x, by - 3), 3, Color("#ffffff"))
+	_text(Vector2(80, Map.DEEP_Y - 18), "AÇIK DENİZ — sadece tekneyle", 14, Color(1, 1, 1, 0.8))
+	for i in 70:
+		var sp := Vector2(float((i * 571) % int(Map.WORLD.size.x)), sea.position.y + 100 + float((i * 137) % int(sea.size.y - 120)))
 		var a := 0.25 + 0.25 * sin(_t * 2.0 + i)
 		draw_line(sp, sp + Vector2(14, 0), Color(1, 1, 1, a), 2)
+	_draw_island()
 	# sandal (dalgada sallanır)
 	var bp := Vector2(2050, 2120 + sin(_t * 1.2) * 4.0)
 	draw_set_transform(bp, sin(_t * 0.9) * 0.04, Vector2.ONE)
@@ -1056,6 +1310,45 @@ func _draw_beach() -> void:
 		draw_line(Vector2(pr.position.x, y), Vector2(pr.end.x, y), Color("#6b4423"), 2)
 	draw_rect(pr, Color("#232634"), false, 3)
 	_text(Vector2(pr.position.x - 60, pr.end.y + 24), "DENİZ İSKELESİ", 16, Color.WHITE, pr.size.x + 120)
+
+
+## Martı Adası: kumsal, çim, iskele, deniz feneri (gece döner ışık).
+func _draw_island() -> void:
+	var r := Map.ISLAND
+	var vsize := get_viewport_rect().size / camera.zoom
+	if not Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(400).intersects(r.grow(200)):
+		return
+	draw_colored_polygon(_ellipse(r.grow(26)), Color("#4fb0dd"))         # sığ su
+	draw_colored_polygon(_ellipse(r.grow(8)), Color(1, 1, 1, 0.5))       # köpük
+	draw_colored_polygon(_ellipse(r), Color("#f0dba5"))
+	draw_colored_polygon(_ellipse(r.grow(-60)), GRASS.get(Env.season, GRASS.spring))
+	var pr := Map.ISLAND_PIER
+	draw_rect(Rect2(pr.position + Vector2(5, 6), pr.size), Color(0, 0, 0, 0.2))
+	draw_rect(pr, Color("#a0703c"))
+	for y in range(int(pr.position.y), int(pr.end.y), 16):
+		draw_line(Vector2(pr.position.x, y), Vector2(pr.end.x, y), Color("#6b4423"), 2)
+	draw_rect(pr, Color("#232634"), false, 3)
+	_text(Vector2(r.position.x, r.get_center().y + 10), "MARTI ADASI", 22, Color(1, 1, 1, 0.9), r.size.x)
+	# deniz feneri
+	var l := Map.LIGHTHOUSE
+	draw_set_transform(l + Vector2(0, 6), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 30, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	draw_colored_polygon(PackedVector2Array([l + Vector2(-24, 0), l + Vector2(24, 0), l + Vector2(14, -120), l + Vector2(-14, -120)]), Color("#f8fafc"))
+	for k in 3:
+		var y0 := -20.0 - k * 36.0
+		var w0 := 24.0 - (k * 36.0 + 20.0) / 120.0 * 10.0
+		draw_colored_polygon(PackedVector2Array([l + Vector2(-w0, y0), l + Vector2(w0, y0), l + Vector2(w0 - 1.5, y0 - 14), l + Vector2(-w0 + 1.5, y0 - 14)]), Color("#dc2626"))
+	draw_rect(Rect2(l.x - 18, l.y - 140, 36, 22), Color("#334155"))
+	draw_rect(Rect2(l.x - 12, l.y - 136, 24, 14), Color("#fde68a") if Env.darkness() > 0.2 else Color("#bae6fd"))
+	draw_colored_polygon(PackedVector2Array([l + Vector2(-22, -140), l + Vector2(22, -140), l + Vector2(0, -160)]), Color("#991b1b"))
+	if Env.darkness() > 0.2:
+		var ang := _t * 0.9
+		var src := l + Vector2(0, -129)
+		var dir := Vector2(cos(ang), sin(ang) * 0.45)
+		var side := dir.orthogonal() * 0.18
+		draw_colored_polygon(PackedVector2Array([src, src + (dir + side) * 420.0, src + (dir - side) * 420.0]), Color(1, 0.95, 0.7, 0.18 * Env.darkness()))
+	_text(l + Vector2(-80, -176), "DENİZ FENERİ", 13, Color("#fde68a"), 160)
 
 
 ## Ekranda görünen ev içlerini çiz (oda, duvar, kapı, mobilyalar).
@@ -1359,6 +1652,9 @@ func _name_of(info: Dictionary) -> String:
 ## İsim + üstünde rozetler (aranma yıldızları, polis).
 func _name(p: Vector2, y: float, pname: String, col: Color, extra: Dictionary) -> void:
 	_text(p + Vector2(-90, y), pname, 16, col, 180)
+	if str(extra.get("title", "")) != "":
+		_text(p + Vector2(-90, y - 16), "«%s»" % extra.title, 12, Color("#fcd34d"), 180)
+		y -= 14
 	var badge := ""
 	var bcol := Color("#f87171")
 	if bool(extra.get("mayor", false)):
@@ -1401,9 +1697,12 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 		draw_arc(Vector2.ZERO, r + 8, 0, TAU, 32, Color(1, 1, 1, 0.3), 2)
 		draw_set_transform(Vector2.ZERO)
 	else:
-		# gölge (ve kendi karakterinde beyaz halka)
+		# gölge (ve kendi karakterinde beyaz halka; futbol takımındaysa takım rengi)
 		draw_set_transform(p + Vector2(0, 10), 0, Vector2(1, 0.4))
 		draw_circle(Vector2.ZERO, 15, Color(0, 0, 0, 0.25))
+		var team := str(extra.get("team", ""))
+		if team != "" and Football.FIELD.grow(120).has_point(p):
+			draw_arc(Vector2.ZERO, 22, 0, TAU, 32, Color("#ef4444") if team == "red" else Color("#3b82f6"), 4)
 		if me:
 			draw_arc(Vector2.ZERO, 19, 0, TAU, 32, Color(1, 1, 1, 0.85), 3)
 		draw_set_transform(Vector2.ZERO)

@@ -161,6 +161,7 @@ func req_bank(d: Dictionary) -> void:
 				return
 			a["bal"] = float(a.bal) + amount
 			Net.notify(id, "Hesaba %s yatırıldı." % U.money(amount))
+			Ach.set_max(id, "deposit", int(a.bal))
 		"withdraw":
 			amount = mini(amount, int(a.bal))
 			if amount <= 0:
@@ -279,6 +280,8 @@ func req_trade(d: Dictionary) -> void:
 			Net.notify(id, "Elinde %s hissesi yok." % sym, false)
 			return
 		var gain := int(floor(k * p * (1.0 - STOCK_FEE)))
+		if gain > int(float(h.cost) * k):
+			Ach.event(id, "stock_profit")
 		h["n"] = int(h.n) - k
 		if int(h.n) <= 0:
 			hold.erase(sym)

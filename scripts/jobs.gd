@@ -41,7 +41,7 @@ const SEA_FISH := [
 	["Köpekbalığı", 0.4, 2000, 4000],
 	["Hazine Sandığı", 0.15, 4000, 8000],
 ]
-const SPOT_NAMES := {"lake": "Göl", "sea": "Deniz", "boat": "Açık Deniz"}
+const SPOT_NAMES := {"lake": "Göl", "sea": "Deniz", "boat": "Açık Deniz", "island": "Martı Adası"}
 
 # [belirti, doğru tedavi]
 const CASES := [
@@ -195,8 +195,10 @@ func req_cast(_d: Dictionary) -> void:
 		return
 	var pos: Vector2 = Net.positions.get(id, Vector2(-1000, -1000))
 	var spot := Map.fishing_spot(pos)
+	var deep := false
 	if spot == "" and str(Net.players[id].get("ride", "")) == "boat" and Map.in_sea(pos):
 		spot = "boat"     # teknede açık deniz: deniz balıkları, nadir şansı daha yüksek
+		deep = Map.in_deep(pos)   # derin denizde daha da yüksek
 	if spot != "lake" and spot != "" and Env.weather == "storm":
 		Net.notify(id, "Fırtına var! Denizde balık tutmak tehlikeli, gölde dene.", false)
 		return
@@ -213,7 +215,7 @@ func req_cast(_d: Dictionary) -> void:
 		return
 	var wait := randf_range(2.0, 5.0) if Env.is_rainy() else randf_range(3.0, 8.0)
 	_fish[id] = {"bite_at": _now() + wait, "bitten": false, "bite_time": 0.0, "spot": spot,
-		"window": BITE_WINDOW + Rpg.perk(id, "fish_window")}
+		"window": BITE_WINDOW + Rpg.perk(id, "fish_window"), "deep": deep}
 	_set_fishing(id, "cast")
 	Net.tell(self, id, "on_fish", {"state": "cast", "spot": spot})
 
@@ -229,7 +231,7 @@ func req_reel(_d: Dictionary) -> void:
 		Net.tell(self, id, "on_fish", {"state": "early"})
 		_set_fishing(id, "")
 		return
-	var rare := Rpg.perk(id, "fish_rare") * (1.3 if t.spot == "boat" else 1.0) * (1.15 if Pets.bonus(id, "dog") else 1.0)
+	var rare: float = Rpg.perk(id, "fish_rare") * {"boat": 1.3, "island": 1.6}.get(t.spot, 1.0) * (1.25 if t.get("deep", false) else 1.0) * (1.15 if Pets.bonus(id, "dog") else 1.0)
 	var f := _roll_fish(LAKE_FISH if t.spot == "lake" else SEA_FISH, rare)
 	_bag(id).append({"name": f[0], "price": f[1]})
 	_set_fishing(id, "caught")
@@ -241,6 +243,13 @@ func req_reel(_d: Dictionary) -> void:
 	Story.event(id, "fish", {"fish": f[0]})
 	Events.on_fish(id, f[0], int(f[1]))
 	Bank.activity("BALK", 1)
+	match f[0]:
+		"Altın Balık":
+			Ach.event(id, "goldfish")
+		"Köpekbalığı":
+			Ach.event(id, "shark")
+		"Hazine Sandığı":
+			Ach.event(id, "chest")
 	if f[1] >= 500:
 		Net.announce("%s bir %s yakaladı! (%s)" % [Net.players[id].name, f[0], U.money(f[1])])
 
@@ -254,7 +263,7 @@ func _roll_fish(table: Array, rare: float = 1.0) -> Array:
 		if Env.is_night() and Env.NIGHT_FISH.has(f[0]):
 			w *= 2.0      # gece balıkları
 		if f[3] >= 100:
-			w *= rare
+			w *= rare * (1.2 if Env.weather == "rainbow" else 1.0)
 		elif f[3] <= 3:
 			w /= rare
 		weights.append(w)

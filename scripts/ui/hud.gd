@@ -10,6 +10,8 @@ signal pet_requested
 signal clan_requested
 signal events_requested
 signal family_requested
+signal achievements_requested
+signal map_requested
 
 var money_label: Label
 var name_label: Label
@@ -80,9 +82,13 @@ func _ready() -> void:
 	tv.add_child(btns2)
 	_small_button(btns2, "Klan", func(): clan_requested.emit())
 	_small_button(btns2, "Etkinlik", func(): events_requested.emit())
-	sound_btn = _small_button(btns2, "", Sfx.toggle_mute)
-	music_btn = _small_button(btns2, "", Sfx.toggle_music)
-	_small_button(tv, "Şehirden Çık", Net.leave)
+	_small_button(btns2, "Başarım", func(): achievements_requested.emit())
+	_small_button(btns2, "Harita (M)", func(): map_requested.emit())
+	var btns3 := HBoxContainer.new()
+	tv.add_child(btns3)
+	sound_btn = _small_button(btns3, "", Sfx.toggle_mute)
+	music_btn = _small_button(btns3, "", Sfx.toggle_music)
+	_small_button(btns3, "Şehirden Çık", Net.leave)
 	Sfx.settings_changed.connect(_refresh_sound)
 	_refresh_sound()
 
@@ -139,7 +145,7 @@ func _ready() -> void:
 	# Sağ alt: kontroller
 	var help_box := _box(self)
 	_place(help_box, Vector2(1, 1), Vector2(-12, -12), Vector2(-12, -12))
-	_label(help_box, "WASD: yürü   E: gir   F: araç   G: eylem   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
+	_label(help_box, "WASD: yürü   E: gir   F: araç   G: eylem   M: harita   C: profil   Esc: kapat   Enter: sohbet", 13, Color(1, 1, 1, 0.8))
 
 	# Üst orta: etkinlik bandı, yarış sayacı, bildirimler
 	var top_mid := VBoxContainer.new()
@@ -233,6 +239,17 @@ func _process(_delta: float) -> void:
 	_refresh_race()
 
 
+## Sağ alttaki mini harita (dünya sahnesi oluşturup verir).
+func set_minimap(m: Control) -> void:
+	var box := _box(self)
+	(box.get_theme_stylebox("panel") as StyleBoxFlat).set_content_margin_all(4)
+	m.custom_minimum_size = Vector2(170, 170 * 3300.0 / 2800.0)
+	m.mouse_filter = MOUSE_FILTER_IGNORE
+	box.add_child(m)
+	_place(box, Vector2(1, 1), Vector2(-190, -262), Vector2(-12, -46))
+	box.mouse_filter = MOUSE_FILTER_IGNORE
+
+
 func _refresh_status() -> void:
 	var stars := int(Police.status.get("wanted", 0))
 	var jail := Police.jail_left()
@@ -247,6 +264,10 @@ func _refresh_status() -> void:
 	elif Police.on_duty():
 		status_label.text = "POLİS — görevde"
 		status_label.add_theme_color_override("font_color", Color("#93c5fd"))
+	elif Garage.rent_left() > 0.0:
+		var rl := Garage.rent_left()
+		status_label.text = "Kiralık tekne: %d:%02d" % [int(rl) / 60, int(rl) % 60]
+		status_label.add_theme_color_override("font_color", Color("#7dd3fc"))
 	else:
 		status_label.text = ""
 	status_label.visible = status_label.text != ""
@@ -274,7 +295,7 @@ func _refresh_event() -> void:
 	for i in st.size():
 		if st[i].name == Net.my_name:
 			t += "  ·  Sen %d. (%s)" % [i + 1, st[i].text]
-	if not st.is_empty() and st[0].name != Net.my_name and cur.kind != "treasure":
+	if not st.is_empty() and st[0].name != Net.my_name and cur.kind != "treasure" and cur.kind != "festival":
 		t += "  ·  Lider: %s" % st[0].name
 	event_label.text = t
 	event_banner.visible = true

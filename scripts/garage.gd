@@ -15,6 +15,10 @@ const VEHICLES := {
 }
 
 var owned: Array = []        # istemci: sahip olduğum araçlar
+var rent_until := 0.0        # istemci: kiralık teknenin bitiş anı (yerel saat)
+const RENT_PRICE := 250
+const RENT_SECONDS := 600.0
+var _rentals := {}           # sunucu: oyuncu adı -> bitiş (unix)
 
 
 static func speed_of(ride: String) -> float:
@@ -47,13 +51,30 @@ func buy(kind: String) -> void:
 	Net.ask(self, "req_buy_vehicle", {"kind": kind})
 
 
-func ride(kind: String) -> void:
-	Net.ask(self, "req_ride", {"kind": kind})
+func ride(kind: String, at = null) -> void:
+	var d := {"kind": kind}
+	if at is Vector2:
+		d["pos"] = at       # iskeleden/kıyıdan binerken teknenin suya konduğu nokta
+	Net.ask(self, "req_ride", d)
+
+
+func rent_boat() -> void:
+	Net.ask(self, "req_rent")
+
+
+func has_boat() -> bool:
+	return owned.has("boat") or rent_left() > 0.0
+
+
+func rent_left() -> float:
+	return maxf(0.0, rent_until - Time.get_ticks_msec() / 1000.0)
 
 
 @rpc("authority", "call_local", "reliable")
 func on_owned(d: Dictionary) -> void:
 	owned = d.get("owned", [])
+	var rl := float(d.get("rent_left", 0.0))
+	rent_until = Time.get_ticks_msec() / 1000.0 + rl if rl > 0.0 else 0.0
 	owned_changed.emit()
 
 
@@ -61,7 +82,33 @@ func on_owned(d: Dictionary) -> void:
 
 func send_state(id: int) -> void:
 	if Net.players.has(id):
-		Net.tell(self, id, "on_owned", {"owned": _list(id).duplicate()})
+		Net.tell(self, id, "on_owned", {"owned": _list(id).duplicate(), "rent_left": _rent_left(id)})
+
+
+func _rent_left(id: int) -> float:
+	return maxf(0.0, float(_rentals.get(Net.players[id].name, 0.0)) - Time.get_unix_time_from_system())
+
+
+## Deniz iskelesinin başında (Kaptan Rüstem) 10 dakikalığına tekne kirala.
+@rpc("any_peer", "call_remote", "reliable")
+func req_rent(_d: Dictionary) -> void:
+	var id := Net.sender()
+	if not Net.players.has(id):
+		return
+	if Net.positions.get(id, Vector2(-9999, -9999)).distance_to(Map.BOAT_RENT_SPOT) > 220.0:
+		Net.notify(id, "Tekne kiralamak için deniz iskelesinin başına git (Kaptan Rüstem).", false)
+		return
+	if Env.weather == "storm":
+		Net.notify(id, "Fırtınada tekne kiralanmıyor!", false)
+		return
+	if not Net.try_spend(id, RENT_PRICE):
+		Net.notify(id, "Kiralık tekne %s." % U.money(RENT_PRICE), false)
+		return
+	var me: String = Net.players[id].name
+	_rentals[me] = maxf(float(_rentals.get(me, 0.0)), Time.get_unix_time_from_system()) + RENT_SECONDS
+	send_state(id)
+	Net.notify(id, "Tekne %d dakikalığına senin! İskelede F'ye basıp bin, açık denize ve Martı Adası'na açıl." % int(RENT_SECONDS / 60.0))
+	Bank.activity("OTO", 1)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -89,6 +136,8 @@ func req_buy_vehicle(d: Dictionary) -> void:
 		return
 	list.append(kind)
 	Bank.activity("OTO", 1)
+	if kind == "car" or kind == "boat":
+		Ach.event(id, kind)
 	Net.mark_dirty()
 	send_state(id)
 	Net.notify(id, "%s senin! Binmek için F tuşuna bas." % v.name)
@@ -103,9 +152,17 @@ func req_ride(d: Dictionary) -> void:
 		return
 	var kind := str(d.get("kind", ""))
 	if kind != "":
-		if not _list(id).has(kind):
+		if not _list(id).has(kind) and not (kind == "boat" and _rent_left(id) > 0.0):
+			if kind == "boat":
+				Net.notify(id, "Teknen yok. Galeri'den al ya da iskelede kirala.", false)
 			return
 		var p: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
+		# iskeleden/kıyıdan binerken tekne yakındaki suya konur
+		if kind == "boat" and d.get("pos") is Vector2:
+			var q: Vector2 = d.pos
+			if q.distance_to(p) < 160.0 and Map.in_sea(q):
+				p = q
+				Net.positions[id] = q
 		if not usable_at(kind, p):
 			Net.notify(id, "Tekneye sadece denizde, kara araçlarına sadece karada binilir." if kind == "boat"
 				else "Buraya araçla giremezsin.", false)

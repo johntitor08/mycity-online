@@ -1,0 +1,203 @@
+extends Node
+## Başarımlar ve unvanlar. Oyun olayları sayaçları artırır (event / set_max); sayaç hedefi geçince başarım
+## açılır, para ve XP ödülü verilir. Bazı başarımlar unvan açar; oyuncu bir unvan seçer, isminin üstünde görünür.
+## Veri: rec["ach"] = {"got": {kimlik: unix}, "c": {sayaç: n}, "title": kimlik}
+
+signal changed
+
+const U = preload("res://scripts/util.gd")
+
+# kimlik: [sayaç, hedef, ad, açıklama, ödül TL, unvan]
+const LIST := {
+	"fish1": ["fish", 1, "İlk Av", "İlk balığını tut.", 100, ""],
+	"fish100": ["fish", 100, "Usta Balıkçı", "100 balık tut.", 2000, "Balıkçı Reis"],
+	"goldfish": ["goldfish", 1, "Altın Balık!", "Gölden Altın Balık çıkar.", 3000, "Şanslı"],
+	"shark": ["shark", 1, "Köpekbalığı Avcısı", "Bir köpekbalığı yakala.", 3000, "Deniz Kurdu"],
+	"chest": ["chest", 1, "Batık Hazine", "Denizden hazine sandığı çıkar.", 3000, ""],
+	"patient10": ["patient", 10, "Stajyer Doktor", "10 hastayı iyileştir.", 300, ""],
+	"patient100": ["patient", 100, "Başhekim", "100 hastayı iyileştir.", 2500, "Doktor"],
+	"customer100": ["customer", 100, "Kasa Ustası", "100 müşteriye doğru para üstü ver.", 2500, "Kasiyer"],
+	"bet50": ["bet", 50, "Şans Oyuncusu", "Kumarhanede 50 bahis oyna.", 800, "Kumarbaz"],
+	"poker10": ["poker", 10, "Poker Ası", "Pokerde 10 el kazan.", 2000, "Poker Kralı"],
+	"swim": ["swim", 30, "Yüzücü", "Denizde uzun süre yüz.", 300, ""],
+	"build1": ["build", 1, "Toprak Sahibi", "İlk arsanı al.", 300, ""],
+	"tower": ["tower", 1, "Gökdelen", "Bir gökdelen dik.", 5000, "Emlak Kralı"],
+	"biz": ["biz", 1, "Esnaf", "İlk işletmeni aç.", 500, ""],
+	"restaurant": ["restaurant", 1, "Şef", "İşletmeni restorana büyüt.", 3000, "Şef"],
+	"harvest1": ["harvest", 1, "İlk Hasat", "Tarlandan ilk ürünü topla.", 200, ""],
+	"harvest30": ["harvest", 30, "Çiftçi", "30 kez hasat yap.", 2000, "Çiftçi"],
+	"race1": ["race", 1, "Pist Çaylağı", "Yarış pistinde bir tur tamamla.", 200, ""],
+	"record": ["record", 1, "Pist Rekoru", "Pist rekorunu kır.", 2000, "Pist Kralı"],
+	"event_win": ["event_win", 1, "Şampiyon", "Bir şehir etkinliğini kazan.", 1500, "Şampiyon"],
+	"treasure": ["treasure", 1, "Hazine Avcısı", "Hazine avında sandığı bul.", 1000, "Hazine Avcısı"],
+	"level5": ["level", 5, "Yükselen Yıldız", "Seviye 5'e ulaş.", 500, ""],
+	"level10": ["level", 10, "Tecrübeli", "Seviye 10'a ulaş.", 2000, ""],
+	"level20": ["level", 20, "Efsane", "Seviye 20'ye ulaş.", 10000, "Efsane"],
+	"rich10k": ["money", 10000, "Cebi Dolu", "Cebinde 10.000 TL olsun.", 300, ""],
+	"rich100k": ["money", 100000, "Zengin", "Cebinde 100.000 TL olsun.", 2000, "Zengin"],
+	"rich1m": ["money", 1000000, "Milyoner", "Cebinde 1.000.000 TL olsun.", 10000, "Milyoner"],
+	"saver": ["deposit", 50000, "Tasarruf Ustası", "Bankada 50.000 TL biriktir.", 1000, ""],
+	"investor": ["stock_profit", 1, "Borsacı", "Hisseyi kârla sat.", 500, "Borsacı"],
+	"pet": ["pet", 1, "Can Dostu", "Bir evcil hayvan sahiplen.", 300, ""],
+	"car": ["car", 1, "Direksiyon Başında", "Bir araba al.", 1000, ""],
+	"boat": ["boat", 1, "Kaptan", "Bir tekne al.", 800, "Kaptan"],
+	"fashion": ["wardrobe", 5, "Moda İkonu", "Gardırobunda 5 parça olsun.", 800, "Moda İkonu"],
+	"clan": ["clan", 1, "Takım Oyuncusu", "Bir klana katıl ya da kur.", 300, ""],
+	"married": ["married", 1, "Mutlu Son", "Evlen.", 1000, "Romantik"],
+	"vote": ["vote", 1, "Seçmen", "Belediye seçiminde oy kullan.", 200, ""],
+	"mayor": ["mayor", 1, "Sayın Başkan", "Belediye başkanı seçil.", 3000, "Başkan"],
+	"patrol20": ["patrol", 20, "Devriye Gezgini", "20 ihbar vakası çöz.", 1500, ""],
+	"arrest5": ["arrest", 5, "Şerif", "5 aranan oyuncuyu tutukla.", 2500, "Şerif"],
+	"crime10": ["crime", 10, "Mahallenin Belası", "10 suç işle.", 0, "Haydut"],
+	"jailed": ["jailed", 1, "Parmaklıklar Ardında", "Hapse gir.", 0, "Kaçak"],
+	"story": ["story_done", 1, "Şehrin Gururu", "Hikâye görevlerinin hepsini bitir.", 5000, "Şehrin Gururu"],
+	"goal1": ["goal", 1, "Gol!", "Plaj sahasında gol at.", 200, ""],
+	"goal20": ["goal", 20, "Golcü", "20 gol at.", 2000, "Golcü"],
+	"langirt": ["langirt_win", 1, "Langırt Ustası", "Langırtta maç kazan.", 500, ""],
+	"snowman": ["snowman", 1, "Kardan Adam", "Kışın kardan adam yap.", 300, ""],
+	"snowball": ["snowball_hit", 25, "Kartopu Savaşçısı", "Kartopuyla 25 kez isabet ettir.", 1000, "Kar Tanesi"],
+	"icecream": ["icecream", 5, "Dondurma Sever", "Plajda 5 dondurma ye.", 200, ""],
+}
+
+var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}
+
+
+func reset() -> void:
+	data = {}
+
+
+func title_name(k: String) -> String:
+	return str(LIST[k][5]) if LIST.has(k) else ""
+
+
+# ------------------------------------------------------------------ istemci API
+
+func set_title(k: String) -> void:
+	Net.ask(self, "req_title", {"id": k})
+
+
+@rpc("authority", "call_local", "reliable")
+func on_ach(d: Dictionary) -> void:
+	data = d
+	changed.emit()
+
+
+# ------------------------------------------------------------------ sunucu
+
+static func ach_of(rec: Dictionary) -> Dictionary:
+	if not rec.get("ach") is Dictionary:
+		rec["ach"] = {"got": {}, "c": {}, "title": ""}
+	var a: Dictionary = rec["ach"]
+	if not a.get("got") is Dictionary:
+		a["got"] = {}
+	if not a.get("c") is Dictionary:
+		a["c"] = {}
+	return a
+
+
+func _rec(id: int) -> Dictionary:
+	if not Net.players.has(id):
+		return {}
+	return Net.save_data.players.get(Net.players[id].name, {})
+
+
+## Sayaç artır (balık, hasta, gol...).
+func event(id: int, counter: String, n: int = 1) -> void:
+	var rec := _rec(id)
+	if rec.is_empty() or n <= 0:
+		return
+	var a := ach_of(rec)
+	a.c[counter] = int(a.c.get(counter, 0)) + n
+	_check(id, a, counter)
+
+
+## Sayaç en az bu değer olsun (seviye, para, mevduat...).
+func set_max(id: int, counter: String, value: int) -> void:
+	var rec := _rec(id)
+	if rec.is_empty():
+		return
+	var a := ach_of(rec)
+	if value <= int(a.c.get(counter, 0)):
+		return
+	a.c[counter] = value
+	_check(id, a, counter)
+
+
+func _check(id: int, a: Dictionary, counter: String) -> void:
+	var opened: Array = []
+	for k in LIST:
+		var d: Array = LIST[k]
+		if d[0] == counter and not a.got.has(k) and int(a.c.get(counter, 0)) >= int(d[1]):
+			a.got[k] = Time.get_unix_time_from_system()
+			opened.append(k)
+	Net.mark_dirty()
+	for k in opened:
+		var d: Array = LIST[k]
+		if int(d[4]) > 0:
+			Net.add_money(id, int(d[4]))
+		Rpg.add_xp(id, "", 50 + int(int(d[4]) / 20.0))
+		var extra := "  Yeni unvan: «%s»" % d[5] if str(d[5]) != "" else ""
+		Net.notify(id, "BAŞARIM: %s! +%s%s" % [d[2], U.money(int(d[4])), extra])
+		if str(d[5]) != "":
+			Net.announce("%s «%s» unvanını kazandı! (%s)" % [Net.players[id].name, d[5], d[2]])
+	_send_later(id)
+
+
+var _pending := {}
+
+
+## Sık artan sayaçlarda her olayda değil, kısa aralıkla gönder.
+func _send_later(id: int) -> void:
+	_pending[id] = true
+
+
+func _process(_d: float) -> void:
+	if _pending.is_empty() or not Net.is_server():
+		return
+	if Engine.get_process_frames() % 30 != 0:
+		return
+	for id in _pending:
+		send_state(id)
+	_pending.clear()
+
+
+func send_state(id: int) -> void:
+	var rec := _rec(id)
+	if rec.is_empty():
+		return
+	var a := ach_of(rec)
+	Net.tell(self, id, "on_ach", {"got": a.got.duplicate(), "c": a.c.duplicate(), "title": str(a.get("title", ""))})
+	_refresh_roster(id)
+
+
+func on_join(id: int) -> void:
+	var rec := _rec(id)
+	if rec.is_empty():
+		return
+	set_max(id, "level", Rpg.level(id))
+	set_max(id, "money", Net.get_money(id))
+	set_max(id, "wardrobe", Shops.wardrobe(rec).size())
+	send_state(id)
+
+
+func _refresh_roster(id: int) -> void:
+	var a := ach_of(_rec(id))
+	var t := title_name(str(a.get("title", "")))
+	if str(Net.players[id].get("title", "")) != t:
+		Net.players[id]["title"] = t
+		Net._broadcast_roster()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_title(d: Dictionary) -> void:
+	var id := Net.sender()
+	var rec := _rec(id)
+	if rec.is_empty():
+		return
+	var k := str(d.get("id", ""))
+	var a := ach_of(rec)
+	if k != "" and (not a.got.has(k) or title_name(k) == ""):
+		return
+	a["title"] = k
+	Net.mark_dirty()
+	send_state(id)

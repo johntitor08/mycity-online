@@ -318,6 +318,10 @@ func req_harvest(d: Dictionary) -> void:
 		Rpg.add_xp(id, "farming", 5 + mini(200, int(total / 8.0)))
 		Rpg.quest_event(id, "harvest")
 		Bank.activity("TARM", got.size() * 2)
+		var n_crops := 0
+		for kk in got:
+			n_crops += int(got[kk])
+		Events.add_score(id, "harvest", n_crops, "%d ürün")
 		Net.notify(id, "Hasat: %s" % ", ".join(parts))
 	if rotten > 0:
 		Net.notify(id, "%d tarhtaki ekin çürümüştü, temizlendi." % rotten, false)
@@ -359,7 +363,7 @@ func req_sell(d: Dictionary) -> void:
 	var count := 0
 	for k in store.keys():
 		if (only == "" or only == k) and CROPS.has(k):
-			sum += int(store[k]) * sell_price(k, Env.season)
+			sum += int(round(int(store[k]) * sell_price(k, Env.season) * (1.5 if Events.is_active("harvest") else 1.0)))
 			count += int(store[k])
 			store.erase(k)
 	if count == 0:

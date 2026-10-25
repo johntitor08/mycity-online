@@ -41,13 +41,27 @@ func _process(delta: float) -> void:
 			r.pos += r.vel * delta
 			r.vel.y += 160.0 * delta
 	_rockets = _rockets.filter(func(r): return r.t < r.burst + 1.4)
-	visible = rainy or _flash > 0.0 or not _rockets.is_empty()
+	var special := (Env.weather == "fog" or Env.weather == "rainbow") and not inside
+	visible = rainy or _flash > 0.0 or not _rockets.is_empty() or special
 	if visible:
 		queue_redraw()
 
 
 func _draw() -> void:
 	var sz := size
+	if Env.weather == "fog" and not inside:
+		draw_rect(Rect2(Vector2.ZERO, sz), Color(0.85, 0.88, 0.92, 0.32))
+		for i in 14:
+			var d: Vector3 = _drops[i]
+			var c := Vector2(fposmod(d.x * sz.x + _t * 14.0 * d.z, sz.x + 400) - 200, d.y * sz.y)
+			draw_circle(c, 120 + 80 * d.z, Color(0.9, 0.92, 0.95, 0.16))
+	if Env.weather == "rainbow" and not inside:
+		var cols := [Color("#ef4444"), Color("#f97316"), Color("#facc15"), Color("#22c55e"), Color("#3b82f6"), Color("#8b5cf6")]
+		var c := Vector2(sz.x * 0.62, sz.y * 0.75)
+		for k in cols.size():
+			var col: Color = cols[k]
+			col.a = 0.38
+			draw_arc(c, sz.y * 0.85 - k * 15.0, PI * 1.08, PI * 1.92, 64, col, 15.0)
 	for r in _rockets:
 		if r.t < r.burst:
 			draw_circle(r.pos, 3, Color(1, 0.9, 0.6))

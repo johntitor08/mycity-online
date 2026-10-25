@@ -10,6 +10,12 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--sadece08" in OS.get_cmdline_user_args():
+		Net.add_money(1, 200000)
+		Rpg.add_xp(1, "", 15000)
+		await _shots_08(w)
+		get_tree().quit()
+		return
 	if "--olta" in OS.get_cmdline_user_args():
 		await _shots_rod(w)
 		get_tree().quit()
@@ -127,6 +133,134 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_08(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.hour = 12.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	w.camera.zoom = Vector2(1, 1)
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 0, "pants": 1, "hat": 3, "glasses": 1, "neck": 0},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 7, "pants": 0, "hat": 0, "glasses": 0, "neck": 2},
+		{"skin": 0, "hair": 2, "hair_color": 5, "shirt": 0, "pants": 4, "hat": 4, "glasses": 0, "neck": 0},
+		{"skin": 4, "hair": 4, "hair_color": 0, "shirt": 7, "pants": 5, "hat": 0, "glasses": 1, "neck": 0}]
+	var names := ["Ayşe", "Mehmet", "Zeynep", "Can"]
+	var teams := ["red", "blue", "red", "blue"]
+	var titles := ["Deniz Kurdu", "", "Golcü", "Şampiyon"]
+	for k in 4:
+		Net.players[9501 + k] = {"name": names[k], "money": 3000 * (k + 1), "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 6 + k, "team": teams[k], "title": titles[k]}
+	Net._broadcast_roster()
+	# başarımlar ve unvan
+	Ach.event(1, "fish", 120)
+	Ach.event(1, "goal", 3)
+	Ach.set_max(1, "money", 300000)
+	Ach.event(1, "shark")
+	await _wait(0.6)
+	Ach.set_title("shark")
+	await _wait(0.4)
+	w.open_simple_panel("res://scripts/ui/ach_panel.gd")
+	await _wait(0.8)
+	_shot("basarim")
+	w._close_panel()
+	# plaj futbolu
+	var f: Rect2 = Football.FIELD
+	Football.join("blue")
+	Football.score = {"red": 2, "blue": 3}
+	Football._broadcast_match()
+	for k in 4:
+		Net.positions[9501 + k] = f.get_center() + Vector2(-150 + k * 90, -40 + (k % 2) * 70)
+	w.my_pos = f.get_center() + Vector2(60, 10)
+	Football.ball = f.get_center() + Vector2(110, 20)
+	Football.vel = Vector2(120, -40)
+	w.camera.zoom = Vector2(1.3, 1.3)
+	await _wait(1.5)
+	_shot("futbol")
+	w.camera.zoom = Vector2(1, 1)
+	# langırt
+	w.my_pos = Langirt.POS + Vector2(0, 50)
+	await _wait(0.3)
+	Langirt.sit(0, true)
+	await _wait(3.5)
+	w.zone = {"type": "langirt", "label": "x"}
+	w._open_panel()
+	await _wait(1.2)
+	_shot("langirt")
+	w._close_panel()
+	Langirt.leave()
+	# dondurmacı ve kiralık tekne
+	w.my_pos = Seasonal.ICECREAM_POS + Vector2(60, 50)
+	await _wait(0.3)
+	Garage.rent_boat()
+	w.my_pos = Map.BOAT_RENT_SPOT
+	await _wait(0.3)
+	Garage.rent_boat()
+	await _wait(0.3)
+	w.my_pos = Map.PIER_END.get_center()
+	await _wait(0.3)
+	w._toggle_vehicle()
+	await _wait(0.4)
+	# Martı Adası, gece, deniz feneri
+	Env.hour = 21.5
+	w.my_pos = Map.ISLAND_PIER.get_center() + Vector2(-140, -60)
+	w.my_facing = "right"
+	Net.positions[9501] = Map.ISLAND.get_center() + Vector2(-60, 20)
+	Net.positions[9502] = Map.ISLAND_SPOT.get_center()
+	Net.players[9502]["fishing"] = "cast"
+	Net._broadcast_roster()
+	await _wait(2.0)
+	_shot("ada")
+	Env.hour = 12.0
+	Net.players[9502]["fishing"] = ""
+	Garage.ride("")
+	await _wait(0.3)
+	# harita: navigasyon + büyük harita
+	w.my_pos = Map.SPAWN
+	await _wait(0.3)
+	w.set_nav(Map.building("carsi").rect.get_center() + Vector2(0, 130))
+	await _wait(1.0)
+	_shot("navigasyon")
+	w.open_map()
+	await _wait(0.8)
+	_shot("harita")
+	w._close_panel()
+	w.nav_target = null
+	# kış: kardan adamlar, kartopu, sis
+	Env.force_season("winter")
+	await _wait(0.3)
+	var c := Vector2(260, 545)
+	for k in 3:
+		w.my_pos = c + Vector2(k * 90, (k % 2) * 30)
+		await _wait(0.2)
+		Seasonal.build_snowman(w.my_pos)
+		await _wait(0.2)
+	Rpg.add_xp(1, "", 1)
+	w.my_pos = c + Vector2(80, 110)
+	Net.positions[9503] = c + Vector2(330, 110)
+	Net.positions[9504] = c + Vector2(260, 60)
+	await _wait(0.4)
+	for k in 3:
+		Seasonal.throw(Vector2(1, randf_range(-0.1, 0.1)))
+		await _wait(0.75)
+	Seasonal._last_throw.clear()
+	Seasonal.throw(Vector2(1, 0))
+	await _wait(0.25)
+	_shot("kis_kartopu")
+	Env.force_weather("fog")
+	await _wait(1.0)
+	_shot("sis")
+	Env.force_season("spring")
+	Env.force_weather("rainbow")
+	w.my_pos = Map.SPAWN + Vector2(300, 600)
+	await _wait(1.2)
+	_shot("gokkusagi")
+	Env.force_weather("clear")
+	for k in 4:
+		Net.players.erase(9501 + k)
+		Net.positions.erase(9501 + k)
+	Net._broadcast_roster()
 
 
 ## Olta animasyonu: göl iskelesinde ben (atıldı), komşular (vurdu / yakaladı), deniz iskelesi.

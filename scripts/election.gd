@@ -217,6 +217,7 @@ func req_vote(d: Dictionary) -> void:
 	e.candidates[who]["votes"] = int(e.candidates[who].votes) + 1
 	Net.mark_dirty()
 	Net.notify(id, "Oyun %s için sandığa atıldı. Teşekkürler!" % who)
+	Ach.event(id, "vote")
 	Rpg.add_xp(id, "", 20)
 	send_state(id)
 
@@ -329,4 +330,5 @@ func _conclude(e: Dictionary) -> void:
 	var wid := Net.id_by_name(w)
 	if wid != 0:
 		Rpg.add_xp(wid, "", 500)
+		Ach.event(wid, "mayor")
 	_refresh_roster()

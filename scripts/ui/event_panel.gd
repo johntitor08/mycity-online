@@ -60,7 +60,7 @@ func _refresh() -> void:
 		add_label(cur_box, str(cur.name), 24, Color("#facc15"))
 		add_label(cur_box, "Kalan süre: %d:%02d" % [int(left) / 60, int(left) % 60], 16, Color("#fde68a"))
 		add_label(cur_box, str(cur.desc), 14, Color("#cbd5e1")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		if cur.kind in ["race", "fish"]:
+		if cur.kind in ["race", "fish", "snow", "harvest", "beach"]:
 			add_label(cur_box, "Ödüller: 1. %s · 2. %s · 3. %s (+XP, +klan puanı)" % [U.money(Events.PRIZES[0]), U.money(Events.PRIZES[1]), U.money(Events.PRIZES[2])], 13, Color("#94a3b8"))
 			add_label(cur_box, "Sıralama", 17, Color("#93c5fd"))
 			var st: Array = cur.get("standings", [])

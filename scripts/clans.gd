@@ -229,6 +229,8 @@ func _set_member(player_name: String, tag: String) -> void:
 	var pid := Net.id_by_name(player_name)
 	if pid != 0:
 		send_state(pid)
+		if tag != "":
+			Ach.event(pid, "clan")
 	Net.mark_dirty()
 
 

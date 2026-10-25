@@ -5,7 +5,8 @@ extends Node
 signal changed
 
 const DAY_SECONDS := 48.0 * 60.0          # 1 oyun günü = 48 gerçek dakika
-const WEATHER_NAMES := {"clear": "Açık", "cloudy": "Bulutlu", "rain": "Yağmurlu", "storm": "Fırtına"}
+const WEATHER_NAMES := {"clear": "Açık", "cloudy": "Bulutlu", "rain": "Yağmurlu", "storm": "Fırtına",
+	"fog": "Sisli", "rainbow": "Gökkuşağı"}
 const WEATHER_WEIGHTS := {"clear": 50.0, "cloudy": 25.0, "rain": 18.0, "storm": 7.0}
 const NIGHT_FISH := ["Yayın Balığı", "Turna", "Levrek", "Lüfer", "Kalkan", "Köpekbalığı"]
 # Mevsimler: her biri 3 oyun günü (~2,4 gerçek saat) sürer.
@@ -14,10 +15,10 @@ const SEASON_NAMES := {"spring": "İlkbahar", "summer": "Yaz", "autumn": "Sonbah
 const SEASON_DAYS := 3
 # Mevsime göre hava olasılıkları (kışın yağış kar olarak görünür)
 const SEASON_WEATHER := {
-	"spring": {"clear": 45.0, "cloudy": 25.0, "rain": 24.0, "storm": 6.0},
+	"spring": {"clear": 42.0, "cloudy": 24.0, "rain": 24.0, "storm": 5.0, "fog": 5.0},
 	"summer": {"clear": 68.0, "cloudy": 16.0, "rain": 10.0, "storm": 6.0},
-	"autumn": {"clear": 35.0, "cloudy": 30.0, "rain": 25.0, "storm": 10.0},
-	"winter": {"clear": 38.0, "cloudy": 30.0, "rain": 24.0, "storm": 8.0},
+	"autumn": {"clear": 30.0, "cloudy": 28.0, "rain": 22.0, "storm": 8.0, "fog": 12.0},
+	"winter": {"clear": 34.0, "cloudy": 28.0, "rain": 22.0, "storm": 6.0, "fog": 10.0},
 }
 
 var hour := 9.0           # 0..24
@@ -101,6 +102,7 @@ func _process(delta: float) -> void:
 		var s := season_from_unix(Time.get_unix_time_from_system())
 		if s != season and not _season_forced:
 			season = s
+			Seasonal.on_season(s)
 			Net.announce("%s geldi! %s" % [SEASON_NAMES[s], {"spring": "Çilek ekme zamanı.", "summer": "Domates, mısır ve karpuz bu mevsim hızlı büyür.",
 				"autumn": "Buğday ve balkabağı zamanı.", "winter": "Tarlalar yavaşlar; lahana kışı sever."}[s]])
 		_broadcast()
@@ -119,6 +121,10 @@ func _pick_weather() -> void:
 			pick = k
 			break
 	_weather_left = randf_range(240.0, 600.0)
+	# yağmur dinince bazen gökkuşağı çıkar (kışın değil)
+	if is_rainy() and pick in ["clear", "cloudy"] and season != "winter" and randf() < 0.5:
+		pick = "rainbow"
+		_weather_left = randf_range(120.0, 200.0)
 	if pick == weather:
 		return
 	weather = pick
@@ -130,6 +136,10 @@ func _pick_weather() -> void:
 			Farm.on_storm()
 		"clear":
 			Net.announce("Hava açtı. Plaj seni bekliyor!")
+		"fog":
+			Net.announce("Şehri yoğun bir sis kapladı. Gemiciler dikkat!")
+		"rainbow":
+			Net.announce("Yağmurdan sonra gökkuşağı çıktı! Bu sırada tutulan balıklar şans getirir.")
 	Net.log_line("Hava: %s" % weather_name())
 	_broadcast()
 
@@ -147,6 +157,7 @@ func force_season(s: String) -> void:
 	if Net.is_server() and SEASON_NAMES.has(s):
 		season = s
 		_season_forced = true
+		Seasonal.on_season(s)
 		_broadcast()
 
 

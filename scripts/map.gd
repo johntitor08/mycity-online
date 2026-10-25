@@ -1,7 +1,7 @@
 extends RefCounted
 ## Şehir haritası sabitleri. Sunucu da istemci de aynı yerleşimi kullanır.
 
-const WORLD := Rect2(0, 0, 2800, 2300)
+const WORLD := Rect2(0, 0, 2800, 3300)       # 0.8: güneye açık deniz ve Martı Adası eklendi
 const SPAWN := Vector2(1200, 445)
 
 const BUILDINGS := [
@@ -60,6 +60,7 @@ const TREASURE_SPOTS := [
 	Vector2(60, 560), Vector2(880, 600), Vector2(860, 1500), Vector2(120, 1560), Vector2(2760, 980),
 	Vector2(2750, 1580), Vector2(2200, 1580), Vector2(1700, 1580), Vector2(40, 60), Vector2(940, 60),
 	Vector2(2760, 60), Vector2(2240, 470), Vector2(560, 1620), Vector2(2100, 1700), Vector2(400, 1820),
+	Vector2(1300, 2990), Vector2(1650, 3040),       # Martı Adası (tekneyle)
 ]
 
 # Hapishane: harita dışında (ev içlerinin altında), tek büyük koğuş
@@ -77,7 +78,14 @@ const DOCK := Rect2(760, 990, 200, 80)          # göl iskelesi (tamamı balık 
 
 # Plaj ve deniz
 const BEACH := Rect2(0, 1630, 2800, 230)
-const SEA := Rect2(0, 1860, 2800, 440)
+const SEA := Rect2(0, 1860, 2800, 1440)
+const DEEP_Y := 2380.0                          # bundan sonrası derin deniz: sadece tekneyle
+# Martı Adası (açık denizde): kum + çim elips, deniz feneri, adanın kuzeyinde balık iskelesi
+const ISLAND := Rect2(1140, 2780, 720, 340)
+const ISLAND_PIER := Rect2(1470, 2690, 60, 110)
+const ISLAND_SPOT := Rect2(1460, 2690, 80, 40)  # iskele ucu: ada balıkçılığı
+const LIGHTHOUSE := Vector2(1740, 2930)
+const BOAT_RENT_SPOT := Vector2(1530, 1680)    # deniz iskelesinin başı (Kaptan Rüstem'in solunda)
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
 const PIER_END := Rect2(1550, 1960, 100, 140)   # deniz balıkçılığı alanı
 
@@ -102,11 +110,23 @@ static func in_water(p: Vector2) -> bool:
 	return d.length_squared() < 1.0 and not DOCK.has_point(p)
 
 
-## Deniz: yüzülebilir (iskele hariç).
+## Deniz: yüzülebilir (iskeleler ve ada hariç).
 static func in_sea(p: Vector2) -> bool:
 	if p.x > WORLD.end.x:
 		return false      # harita dışı (ev içleri) deniz değildir
-	return p.y > SEA.position.y + sin(p.x / 60.0) * 6.0 and not PIER.has_point(p)
+	return p.y > SEA.position.y + sin(p.x / 60.0) * 6.0 and not PIER.has_point(p) \
+		and not ISLAND_PIER.has_point(p) and not on_island(p)
+
+
+## Martı Adası'nın karası (elips).
+static func on_island(p: Vector2) -> bool:
+	var d := (p - ISLAND.get_center()) / (ISLAND.size / 2.0)
+	return d.length_squared() < 1.0
+
+
+## Derin deniz: yüzerek girilemez, sadece tekneyle.
+static func in_deep(p: Vector2) -> bool:
+	return p.y > DEEP_Y and in_sea(p)
 
 
 ## Balık tutma noktası: "lake", "sea" ya da "" (iskele ucunda değil).
@@ -115,11 +135,15 @@ static func fishing_spot(p: Vector2) -> String:
 		return "lake"
 	if PIER_END.grow(30).has_point(p):
 		return "sea"
+	if ISLAND_SPOT.grow(30).has_point(p):
+		return "island"
 	return ""
 
 
 ## Noktanın bulunduğu bölgenin adı (hazine ipuçları için).
 static func area_name(p: Vector2) -> String:
+	if on_island(p) or p.y > DEEP_Y:
+		return "Martı Adası"
 	if p.y > BEACH.position.y - 20:
 		return "plaj"
 	if LAKE.grow(80).has_point(p):

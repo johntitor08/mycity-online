@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "0.7"
+const VERSION := "0.8"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -217,6 +217,10 @@ func _reset_peer() -> void:
 	Bank.reset()
 	Election.reset()
 	Family.reset()
+	Ach.reset()
+	Football.reset()
+	Langirt.reset()
+	Seasonal.reset()
 
 
 func _on_connected() -> void:
@@ -345,7 +349,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	rec["appearance"] = app
 	players[id] = {"name": pname, "money": int(rec.get("money", START_MONEY)),
 		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec), "ride": "", "pet": {},
-		"clan": "", "clan_color": "", "wanted": 0, "police": false, "spouse": "", "mayor": false, "fishing": ""}
+		"clan": "", "clan_color": "", "wanted": 0, "police": false, "spouse": "", "mayor": false, "fishing": "", "title": "", "team": ""}
 	positions[id] = Map.SPAWN + Vector2(randf_range(-120, 120), randf_range(-30, 30))
 	if Police.jailed_rec(rec):
 		positions[id] = Map.jail_spawn()
@@ -372,6 +376,9 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Election.on_join(id)
 	Family.send_state(id)
 	Family.on_presence(pname)
+	Ach.on_join(id)
+	Seasonal.send_state(id)
+	Football.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -443,6 +450,7 @@ func add_money_by_name(player_name: String, amount: int) -> void:
 
 func _money_changed(id: int) -> void:
 	save_data.players[players[id].name]["money"] = players[id].money
+	Ach.set_max(id, "money", int(players[id].money))
 	_dirty = true
 	_broadcast_roster()
 

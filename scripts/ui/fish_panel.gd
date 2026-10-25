@@ -10,7 +10,10 @@ var spot := "lake"    # dünya sahnesi açarken ayarlar
 
 
 func _ready() -> void:
-	if spot == "sea":
+	if spot == "island":
+		build("Martı Adası İskelesi — Balık Tutma", Vector2(520, 470), true)
+		add_label(body, "Açık denizin ortasında: nadir balıkların (orkinos, kılıç balığı, köpekbalığı, hazine sandığı) en çok çıktığı yer!", 15, Color("#fde68a")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	elif spot == "sea":
 		build("Deniz İskelesi — Balık Tutma", Vector2(520, 470), true)
 		add_label(body, "Denizde palamut, lüfer, orkinos, kılıç balığı... Şanslıysan köpekbalığı ya da hazine sandığı!", 15, Color("#7dd3fc")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	else:

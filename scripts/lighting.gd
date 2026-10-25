@@ -86,6 +86,8 @@ func update(player_pos: Vector2) -> void:
 				c *= Color(0.76, 0.79, 0.88)
 			"storm":
 				c *= Color(0.6, 0.62, 0.75)
+			"fog":
+				c *= Color(0.86, 0.88, 0.9)
 	c.a = 1.0
 	canvas_mod.color = c
 	var lit := d > 0.2 or (Env.weather == "storm" and not inside)

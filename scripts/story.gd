@@ -249,6 +249,7 @@ func req_claim(_d: Dictionary) -> void:
 	Net.notify(id, "Görev tamamlandı: %s! +%s%s" % [step.title, U.money(money), (", +%d XP" % xp) if xp > 0 else ""])
 	Net.log_line("%s hikâye görevini bitirdi: %s" % [Net.players[id].name, step.title])
 	if int(s.step) >= STEPS.size():
+		Ach.event(id, "story_done")
 		Net.announce("%s tüm hikâyeyi tamamladı ve 'Şehrin Gururu' oldu!" % Net.players[id].name)
 	send_state(id)
 

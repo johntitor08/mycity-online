@@ -101,6 +101,9 @@ func build(id: int, i: int) -> void:
 	Rpg.add_xp(id, "realestate", 120 * lvl)
 	Rpg.quest_event(id, "build")
 	Story.event(id, "own_biz")
+	Ach.event(id, "biz")
+	if lvl == 3:
+		Ach.event(id, "restaurant")
 	Net.notify(id, "%s açıldı! Malzeme koy ki müşteriler gelsin." % NAMES[lvl])
 	Net.announce("%s şehre yeni bir %s açtı!" % [Net.players[id].name, NAMES[lvl].to_lower()])
 

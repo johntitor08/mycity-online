@@ -136,6 +136,7 @@ func req_buy(d: Dictionary) -> void:
 		Net.notify(id, "Pırlanta yüzük alındı! Sevdiğin kişinin ismine tıklayıp evlenme teklif edebilirsin.")
 	else:
 		wardrobe(rec).append(k)
+		Ach.set_max(id, "wardrobe", wardrobe(rec).size())
 		Net.notify(id, "%s alındı! Karakter penceresinden giyebilirsin." % it.name)
 		Bank.activity("MRKT", 2)
 	Net.mark_dirty()

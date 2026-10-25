@@ -227,6 +227,7 @@ func _add_wanted(id: int, n: int) -> void:
 		c["t"] = _now()
 	c["wanted"] = mini(MAX_WANTED, int(c.wanted) + n)
 	c["crimes"] = int(c.crimes) + 1
+	Ach.event(id, "crime")
 	Net.mark_dirty()
 	send_state(id)
 	var who: String = Net.players[id].name
@@ -415,11 +416,13 @@ func jail(tid: int, stars: int, by: int) -> void:
 	Events.on_player_left(tid)          # yarıştaysa çıkar
 	Homes._teleport(tid, Map.jail_spawn())
 	_jailed[tid] = true
+	Ach.event(tid, "jailed")
 	var officer := NPC_OFFICER
 	if by != 0 and Net.players.has(by):
 		officer = Net.players[by].name
 		var rc := crime(_rec(by))
 		rc["arrests"] = int(rc.arrests) + 1
+		Ach.event(by, "arrest")
 		Net.add_money(by, fine + 50 * stars)
 		Rpg.add_xp(by, "police", 40 * stars)
 		Rpg.quest_event(by, "patrol")

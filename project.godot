@@ -39,6 +39,10 @@ Shops="*res://scripts/shops.gd"
 Bank="*res://scripts/bank.gd"
 Election="*res://scripts/election.gd"
 Family="*res://scripts/family.gd"
+Ach="*res://scripts/achievements.gd"
+Football="*res://scripts/football.gd"
+Langirt="*res://scripts/langirt.gd"
+Seasonal="*res://scripts/seasonal.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

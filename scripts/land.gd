@@ -204,6 +204,8 @@ func req_build(d: Dictionary) -> void:
 	_broadcast()
 	Rpg.add_xp(id, "realestate", 100 * int(p.level))
 	Bank.activity("EMLK", 1)
+	if int(p.level) == 3:
+		Ach.event(id, "tower")
 	Rpg.quest_event(id, "build")
 	Net.notify(id, "%s inşa edildi! Yeni kira: %s/dk" % [building_name(p), U.money(income_of(p))])
 

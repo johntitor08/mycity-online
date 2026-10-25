@@ -122,6 +122,9 @@ func _refresh_town(soft: bool = false) -> void:
 		var wait := float(st.get("event_in", 0.0))
 		add_label(r2, "Etkinlik başlat:" if wait <= 0.0 else "Etkinlik (%d dk sonra):" % int(ceil(wait / 60.0)), 15)
 		for k in Events.KINDS:
+			var ks := str(Events.KINDS[k].get("season", ""))
+			if ks != "" and ks != Env.season:
+				continue
 			add_button(r2, Events.KINDS[k].name, Election.start_event.bind(k)).disabled = wait > 0.0
 
 

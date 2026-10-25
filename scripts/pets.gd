@@ -145,6 +145,7 @@ func req_buy_pet(d: Dictionary) -> void:
 	rec["pet"] = {"kind": kind, "name": _clean_name(str(d.get("name", "")), p.name), "food": 100.0,
 		"t": Time.get_unix_time_from_system(), "cans": 2}
 	Net.mark_dirty()
+	Ach.event(id, "pet")
 	send_state(id)
 	Net.notify(id, "%s artık seninle! İki kutu mama hediye. (%s)" % [rec.pet.name, p.desc])
 	Net.announce("%s bir %s sahiplendi: %s" % [Net.players[id].name, p.name.to_lower(), rec.pet.name])

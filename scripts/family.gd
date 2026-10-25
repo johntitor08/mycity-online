@@ -202,6 +202,8 @@ func req_answer(d: Dictionary) -> void:
 	Net.announce("DÜĞÜN VAR! %s ve %s evlendi. Mutluluklar!" % [from, me])
 	Rpg.add_xp(id, "", 200)
 	Rpg.add_xp(fid, "", 200)
+	Ach.event(id, "married")
+	Ach.event(fid, "married")
 	Net.log_line("Düğün: %s & %s" % [from, me])
 
 

@@ -224,6 +224,7 @@ func add_xp(id: int, skill_key: String, amount: int) -> void:
 		_update_energy(r, new_level)
 		r["energy"] = float(max_energy(new_level))
 		Net.players[id]["level"] = new_level
+		Ach.set_max(id, "level", new_level)
 		Net.add_money(id, reward)     # roster'ı da yayınlar (yeni seviye görünür)
 		Net.notify(id, "SEVİYE ATLADIN! Seviye %d — ödül %s, enerji doldu." % [new_level, U.money(reward)])
 		Story.send_state(id)
@@ -262,6 +263,7 @@ func quest_event(id: int, kind: String, n: int = 1) -> void:
 	var r := _rec(id)
 	if r.is_empty():
 		return
+	Ach.event(id, kind, n)
 	_ensure_quests(id, r)
 	var changed := false
 	for q in r.quests.list:

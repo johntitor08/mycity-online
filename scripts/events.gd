@@ -19,6 +19,13 @@ const KINDS := {
 		"desc": "Şehirde bir hazine sandığı saklandı! Haritadaki sarı alanda ara; ilk bulan alır."},
 	"festival": {"name": "Şehir Festivali", "dur": 360.0,
 		"desc": "Festival boyunca tüm işlerde maaş +%25, işletmelere 1,5 kat müşteri. Şehir süslendi!"},
+	# 0.8: mevsimlik etkinlikler (sadece kendi mevsiminde sıraya girer)
+	"snow": {"name": "Kartopu Savaşı", "dur": 300.0, "season": "winter",
+		"desc": "Kışın T tuşuyla kartopu at! En çok isabet ettiren kazanır."},
+	"harvest": {"name": "Hasat Festivali", "dur": 420.0, "season": "autumn",
+		"desc": "Hal'de ürünler 1,5 kat fiyatına! En çok ürün toplayan kazanır."},
+	"beach": {"name": "Plaj Kupası", "dur": 360.0, "season": "summer",
+		"desc": "Plajdaki futbol sahasında en çok gol atan kazanır!"},
 }
 const GAP := 540.0                 # iki etkinlik arası bekleme
 const FIRST_DELAY := 150.0         # sunucu açıldıktan sonra ilk etkinlik
@@ -153,10 +160,25 @@ func server_start() -> void:
 
 
 func _pick_next() -> String:
-	if _order.is_empty():
-		_order = KINDS.keys()
-		_order.shuffle()
-	return _order.pop_front()
+	for _i in 12:
+		if _order.is_empty():
+			_order = KINDS.keys()
+			_order.shuffle()
+		var k: String = _order.pop_front()
+		var s := str(KINDS[k].get("season", ""))
+		if s == "" or s == Env.season:
+			return k
+	return "festival"
+
+
+## Toplanan puanlı etkinlikler (kartopu, hasat, gol): oyuncunun puanına ekle.
+func add_score(id: int, kind: String, n: int, fmt: String) -> void:
+	if _active.get("kind", "") != kind or not Net.players.has(id) or n <= 0:
+		return
+	var who: String = Net.players[id].name
+	var cur := float(_active.scores.get(who, [0.0, ""])[0]) + n
+	_active.scores[who] = [cur, fmt % int(cur)]
+	_sync = 99.0
 
 
 func _store_records() -> Array:
@@ -242,6 +264,7 @@ func _reward(player_name: String, money: int, xp: int, clan_points: int) -> void
 	var pid := Net.id_by_name(player_name)
 	if pid != 0:
 		Rpg.add_xp(pid, "", xp)
+		Ach.event(pid, "event_win")
 		Net.notify(pid, "Etkinlik ödülü: +%s, +%d XP" % [U.money(money), xp])
 	var tag := Clans.tag_of_name(player_name)
 	if tag != "":
@@ -324,6 +347,7 @@ func _treasure_tick(now: float) -> void:
 			var tag := Clans.tag_of_name(who)
 			if tag != "":
 				Clans.add_points(tag, 120)
+			Ach.event(id, "treasure")
 			Net.announce("%s hazine sandığını buldu ve %s kazandı!" % [who, U.money(TREASURE_PRIZE)])
 			Net.notify(id, "Hazineyi buldun! +%s" % U.money(TREASURE_PRIZE))
 			_active.ends = now      # bir sonraki karede biter
@@ -423,5 +447,6 @@ func _lap_done(id: int, t: float, ride: String) -> void:
 	Net.mark_dirty()
 	Net.tell(self, id, "on_race", {"state": "finish", "time": t, "best": best, "record": is_record})
 	if is_record:
+		Ach.event(id, "record")
 		Net.announce("YENİ PİST REKORU! %s turu %.2f saniyede tamamladı%s." % [who, t, " (%s)" % Garage.VEHICLES[ride].name.to_lower() if Garage.VEHICLES.has(ride) else " (yaya)"])
 	_broadcast()
