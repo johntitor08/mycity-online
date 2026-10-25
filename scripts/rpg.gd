@@ -15,6 +15,8 @@ const SKILLS := {
 	"realestate": "Emlakçılık",
 	"farming": "Çiftçilik",
 	"police": "Polislik",
+	"mining": "Madencilik",
+	"music": "Müzisyenlik",
 }
 const SKILL_PERKS := {
 	"fishing": "Her seviye: nadir balık şansı +%8, çekme süresi +0,1 sn",
@@ -23,6 +25,8 @@ const SKILL_PERKS := {
 	"realestate": "Her seviye: kira geliri +%5",
 	"farming": "Her seviye: hasat +%5",
 	"police": "Her seviye: devriye maaşı +%5, süre +0,5 sn",
+	"mining": "Her seviye: değerli maden ve fosil şansı +%6",
+	"music": "Her seviye yeni bir şarkı açar",
 }
 const FOODS := {
 	"simit": {"name": "Simit", "price": 15, "energy": 10},
@@ -124,6 +128,8 @@ static func level_of_rec(rec: Dictionary) -> int:
 func food_info(k: String) -> Dictionary:
 	if FOODS.has(k):
 		return FOODS[k]
+	if Mountain.LODGE_FOODS.has(k):
+		return Mountain.LODGE_FOODS[k]
 	if Kitchen.RECIPES.has(k):
 		var r: Dictionary = Kitchen.RECIPES[k]
 		return {"name": r.name, "price": 0, "energy": int(r.energy), "dish": true, "buff": r.get("buff", [])}
@@ -399,6 +405,17 @@ func req_use(d: Dictionary) -> void:
 	r.items[item] = int(r.items[item]) - 1
 	if int(r.items[item]) <= 0:
 		r.items.erase(item)
+	eat(id, item, "yedin")
+
+
+## Yemeği hemen ye: enerji ve (varsa) yemek bonusu. Restoranda sipariş de bunu kullanır.
+func eat(id: int, item: String, verb: String) -> void:
+	var r := _rec(id)
+	var food := food_info(item)
+	if r.is_empty() or food.is_empty():
+		return
+	var lvl := level_of(int(r.xp))
+	_update_energy(r, lvl)
 	r["energy"] = minf(float(max_energy(lvl)), float(r.energy) + int(food.energy))
 	var extra := ""
 	if not food.get("buff", []).is_empty():
@@ -407,7 +424,7 @@ func req_use(d: Dictionary) -> void:
 		var b: Array = food.buff
 		r.buffs[b[0]] = maxf(float(r.buffs.get(b[0], 0.0)), Time.get_unix_time_from_system()) + float(b[1])
 		extra = " Bonus: %s (%d dk)" % [Kitchen.BUFF_NAMES[b[0]], int(float(b[1]) / 60.0)]
-	Net.notify(id, "%s yedin, +%d enerji.%s" % [food.name, food.energy, extra])
+	Net.notify(id, "%s %s, +%d enerji.%s" % [food.name, verb, food.energy, extra])
 	Net.mark_dirty()
 	send_sheet(id)
 

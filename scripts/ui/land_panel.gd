@@ -29,7 +29,10 @@ func _ready() -> void:
 	var h := 430
 	if focus_plot >= 0 and focus_plot < Land.view.size():
 		var fp: Dictionary = Land.view[focus_plot]
-		h = 360 if Farm.is_ranch(fp) and fp.owner == Net.my_name else (150 if fp.owner == Net.my_name else 96)
+		if Biz.is_biz(fp) and int(fp.level) >= 2:
+			h = 330
+		else:
+			h = 360 if Farm.is_ranch(fp) and fp.owner == Net.my_name else (150 if fp.owner == Net.my_name else 96)
 	scroll.custom_minimum_size = Vector2(0, h)
 	body.add_child(scroll)
 	list = VBoxContainer.new()
@@ -94,6 +97,8 @@ func _row(i: int, p: Dictionary) -> void:
 	if not mine:
 		if focus_plot >= 0 and not is_biz and lvl >= 1 and p.get("door_open", false):
 			add_button(h, "Eve Gir", func(): Homes.enter(i); close())
+		if focus_plot >= 0 and is_biz and lvl >= 2:
+			_menu_box(i, p, false)
 		return
 	if lvl == 0:
 		buy_button(h, Land.BUILD_COST[1], Land.build_up.bind(i, "home"), 0, "Ev kur")
@@ -110,6 +115,8 @@ func _row(i: int, p: Dictionary) -> void:
 		_tint_row(i, p)
 	if focus_plot >= 0 and Farm.is_ranch(p):
 		_ranch_box(i, p)
+	if focus_plot >= 0 and is_biz and lvl >= 2:
+		_menu_box(i, p, true)
 	if focus_plot >= 0 and lvl >= 1 and str(p.get("kind", "home")) == "home":
 		add_button(h, "Eve Gir", func(): Homes.enter(i); close())
 	add_button(h, "Sat (%s)" % U.money(Land.sell_value(p)), Land.sell.bind(i))
@@ -207,6 +214,62 @@ func _ranch_box(i: int, p: Dictionary) -> void:
 		var info: Dictionary = Farm.ANIMALS[k]
 		buy_button(r2, int(info.price), Farm.buy_animal.bind(i, k), 0, info.name).disabled = animals.size() >= Farm.MAX_ANIMALS or Net.my_money() < int(info.price)
 	add_label(box, "Tavuk 4 dk'da yumurta, inek 8 dk'da 2 süt, koyun 10 dk'da 2 yün verir — sadece tokken. Bir besleme 30 dk yeter. Ürünler Hal'de satılır ya da mutfakta yemek olur.", 12, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+## Kafe/restoran menüsü: sahibi yemek koyar ve fiyat belirler (ve burada pişirebilir), misafirler sipariş verir.
+func _menu_box(i: int, p: Dictionary, mine: bool) -> void:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	list.add_child(box)
+	var menu := Biz.menu_of(p)
+	var lvl := int(p.level)
+	add_label(box, "Menü — %d/%d çeşit  •  Bugüne kadar %d porsiyon satıldı  •  Son dakika %d sipariş" % [menu.size(), Biz.MENU_SLOTS[lvl],
+		int(p.biz.get("menu_sold", 0)), int(p.biz.get("last_menu", 0))], 18, Color("#facc15"))
+	if menu.is_empty():
+		add_label(box, "Menü boş." if not mine else "Menü boş. Pişirdiğin yemekleri menüye koy; NPC müşteriler ve oyuncular sipariş verir.", 14, Color("#94a3b8"))
+	for k in menu:
+		var e: Dictionary = menu[k]
+		var r := HBoxContainer.new()
+		r.add_theme_constant_override("separation", 8)
+		box.add_child(r)
+		var info: Dictionary = Kitchen.RECIPES[k]
+		var val := Kitchen.dish_value(k)
+		var l := add_label(r, "%s ×%d  —  %s%s" % [info.name, int(e.n), U.money(int(e.price)), ("  (değeri ~%s)" % U.money(val)) if mine else ("  +%d enerji" % int(info.energy))], 15)
+		l.size_flags_horizontal = SIZE_EXPAND_FILL
+		if mine:
+			add_button(r, "−", Biz.menu_price.bind(i, k, int(e.price) - maxi(5, int(val * 0.1))))
+			add_button(r, "+", Biz.menu_price.bind(i, k, int(e.price) + maxi(5, int(val * 0.1))))
+			add_button(r, "Geri al", Biz.menu_take.bind(i, k))
+		else:
+			add_button(r, "Sipariş ver (%s)" % U.money(int(e.price)), Biz.order.bind(i, k)).disabled = Net.my_money() < int(e.price)
+	if not mine:
+		return
+	var items: Dictionary = Rpg.sheet.get("items", {})
+	var r2 := HBoxContainer.new()
+	r2.add_theme_constant_override("separation", 6)
+	box.add_child(r2)
+	add_label(r2, "Çantadan ekle:", 14)
+	var any := false
+	for k in Kitchen.RECIPES:
+		if int(items.get(k, 0)) > 0:
+			any = true
+			add_button(r2, "%s ×%d" % [Kitchen.RECIPES[k].name, int(items[k])], Biz.menu_add.bind(i, k))
+	if not any:
+		add_label(r2, "çantanda yemek yok", 14, Color("#7c859e"))
+	add_label(box, "Mutfak (burada da pişirebilirsin):", 15, Color("#cbd5e1"))
+	var g := GridContainer.new()
+	g.columns = 4
+	box.add_child(g)
+	for k in Kitchen.RECIPES:
+		var ok := true
+		for ing in Kitchen.RECIPES[k].needs:
+			var have := Jobs.my_fish.size() if ing == "balik" else int(Farm.my_crops.get(ing, 0))
+			if have < int(Kitchen.RECIPES[k].needs[ing]):
+				ok = false
+		var b := add_button(g, "Pişir: %s" % Kitchen.RECIPES[k].name, Kitchen.cook.bind(k))
+		b.disabled = not ok
+		b.tooltip_text = ", ".join(Kitchen.RECIPES[k].needs.keys().map(func(n): return "%d %s" % [Kitchen.RECIPES[k].needs[n], Kitchen.ing_name(n)]))
+	add_label(box, "Müşteri fiyat yemeğin değerine yakınsa sipariş verir; çok pahalıysa vazgeçer ve puan düşer. Çeşit arttıkça daha çok müşteri gelir.", 12, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
 ## Bina dış rengi seçimi (500 TL).

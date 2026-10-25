@@ -51,6 +51,9 @@ League="*res://scripts/league.gd"
 Factory="*res://scripts/factory.gd"
 Kitchen="*res://scripts/kitchen.gd"
 Dive="*res://scripts/dive.gd"
+Mountain="*res://scripts/mountain.gd"
+Museum="*res://scripts/museum.gd"
+Band="*res://scripts/band.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

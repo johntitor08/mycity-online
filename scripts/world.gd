@@ -25,6 +25,9 @@ const PANELS := {
 	"langirt": preload("res://scripts/ui/langirt_panel.gd"),
 	"fishing": preload("res://scripts/ui/fish_panel.gd"),
 	"fabrika": preload("res://scripts/ui/factory_panel.gd"),
+	"muze": preload("res://scripts/ui/museum_panel.gd"),
+	"dagevi": preload("res://scripts/ui/lodge_panel.gd"),
+	"stage": preload("res://scripts/ui/band_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -49,6 +52,10 @@ const BUILDING_TEX := {
 	"pazar": preload("res://assets/buildings/pazar.svg"),
 	"mobilya": preload("res://assets/buildings/mobilya.svg"),
 	"petshop": preload("res://assets/buildings/petshop.svg"),
+	"muze": preload("res://assets/buildings/muze.svg"),
+	"teleferik": preload("res://assets/buildings/teleferik.svg"),
+	"teleferik_dag": preload("res://assets/buildings/teleferik.svg"),
+	"dagevi": preload("res://assets/buildings/dagevi.svg"),
 	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
 	"karakol": preload("res://assets/buildings/karakol.svg"),
 	"banka": preload("res://assets/buildings/banka.svg"),
@@ -83,6 +90,14 @@ const PROPS := [
 ]
 const BOAT_TEX := preload("res://assets/beach/boat.svg")
 const SPEED := 300.0
+# sahne önündeki seyirciler (biri çalarken görünür): konum, görünüm
+const AUDIENCE := [
+	[Vector2(150, 1590), {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+	[Vector2(205, 1606), {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+	[Vector2(262, 1588), {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}],
+	[Vector2(318, 1604), {"skin": 4, "hair": 4, "hair_color": 0, "shirt": 8, "pants": 5}],
+	[Vector2(372, 1592), {"skin": 2, "hair": 0, "hair_color": 2, "shirt": 3, "pants": 2}],
+]
 
 var my_pos := Vector2.ZERO
 var my_facing := "down"
@@ -106,6 +121,9 @@ var placing := ""           # mobilya yerleştirme modu (tür) ya da ""
 var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
 var _jail := false          # hapishanede miyim
 var _dive := false          # deniz tabanında mıyım (dalış)
+var _mount := false         # dağda mıyım (1.2)
+var _rock_acc := 0.0
+var mountain_nature: Array = []   # dağdaki çamlar [konum, ölçek]
 var _g_action := {}         # G tuşunun şu anki eylemi (yankesicilik/soygun/tutuklama)
 var _blockers: Array = []   # çarpışma kutuları: binalar ve arsalardaki yapılar (Rect2)
 var _fish_t := {}           # oyuncu adı -> [olta durumu, başladığı an] (animasyon için)
@@ -205,13 +223,19 @@ func _ready() -> void:
 		_splats.append({"pos": d.pos, "t0": _t})
 		Sfx.play("splash_small", -6.0, 1.4))
 	Family.wedding.connect(func(_d): Sfx.play("success"))
+	Mountain.ski_result.connect(func(d):
+		hud.show_toast(str(d.get("text", "")), bool(d.get("ok", false)))
+		if d.get("ok", false):
+			Sfx.play("success"))
 	_make_nature()
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	my_moving = false
-	if panel == null and not hud.is_typing():
+	if my_ride() == "ski":
+		_ski_move(delta)
+	elif panel == null and not hud.is_typing():
 		var dir := Vector2.ZERO
 		if Settings.held("up"):
 			dir.y -= 1
@@ -240,6 +264,12 @@ func _process(delta: float) -> void:
 	_push_from_bus()
 	if _fish_state != "idle" and _t - _fish_since > 15.0:
 		_fish_state = "idle"        # sunucudan haber gelmedi (ör. olta iptal): takılı kalma
+	if panel == null and zone.get("type", "") == "rock" and Settings.held("interact"):
+		_rock_acc += delta
+		if _rock_acc >= 0.45:
+			_rock_acc = 0.0
+			Mountain.hit(int(zone.id))
+			Sfx.play("pick", -5.0, randf_range(0.9, 1.1))
 	if panel == null and zone.get("type", "") == "fire" and Settings.held("interact"):
 		_spray_acc += delta
 		if _spray_acc >= 0.25:
@@ -256,7 +286,7 @@ func _process(delta: float) -> void:
 	if swimming and not _was_swimming:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
-	var outside := _room < 0 and not _jail and not _dive
+	var outside := _room < 0 and not _jail and not _dive and not _mount
 	Sfx.set_ambience(clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0) if outside else 0.0)
 	Sfx.set_environment((1.0 if Env.weather == "storm" else 0.6) if Env.is_rainy() and outside else 0.0,
 		Env.darkness() * 0.8 if outside and not Env.is_rainy() else 0.0,
@@ -294,6 +324,14 @@ func my_ride() -> String:
 
 ## Bulunduğum alan: ev içiysem oda, değilsem şehir.
 func _clamp_to_area(p: Vector2) -> Vector2:
+	if _mount:
+		var m := Map.MOUNTAIN.grow(-20)
+		var lo := Vector2(m.position.x, Map.MOUNTAIN_TOP_Y)
+		var hi := m.end
+		if my_ride() == "ski":
+			lo.x = Map.SLOPE.position.x + 12
+			hi.x = Map.SLOPE.end.x - 12
+		return p.clamp(lo, hi)
 	if _dive:
 		var b := Map.SEA_BED.grow(-20)
 		return p.clamp(b.position, b.end)
@@ -310,6 +348,8 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 func _can_stand(p: Vector2, ride: String) -> bool:
 	if _room >= 0 or _jail or _dive:
 		return true
+	if _mount:
+		return not (_blocked(p) and not _blocked(my_pos))
 	if _blocked(p) and not _blocked(my_pos):
 		return false              # bina, ev ya da araba (içindeysen çıkabilirsin)
 	if Map.in_water(p):
@@ -327,14 +367,18 @@ func _update_area() -> void:
 	var room := Map.interior_at(my_pos)
 	var jail := Map.JAIL.has_point(my_pos)
 	var dive := Map.SEA_BED.has_point(my_pos)
-	if room == _room and jail == _jail and dive == _dive:
+	var mount := Map.MOUNTAIN.has_point(my_pos)
+	if room == _room and jail == _jail and dive == _dive and mount == _mount:
 		return
 	_room = room
 	_jail = jail
 	_dive = dive
+	_mount = mount
 	var r := Map.WORLD
 	if dive:
 		r = Map.SEA_BED
+	elif mount:
+		r = Map.MOUNTAIN
 	elif jail:
 		r = Map.JAIL.grow(160)
 	elif room >= 0:
@@ -361,6 +405,12 @@ func _on_teleport(pos: Vector2) -> void:
 ## F: araca bin / in.
 func _toggle_vehicle() -> void:
 	var ride := my_ride()
+	if ride == "ski":
+		Mountain.ski_stop()
+		return
+	if _mount:
+		hud.show_toast("Dağda araç kullanılmaz. Kayak için telesiyeje git.", false)
+		return
 	if ride != "":
 		if ride == "boat" and not _near_shore():
 			hud.show_toast("Tekneden inmek için kıyıya ya da iskeleye yaklaş.", false)
@@ -518,6 +568,9 @@ func _update_zone() -> void:
 			hint = "[%s]  %s\n%s" % [Settings.key_name("interact"), zone.label, hint]
 		hud.set_hint("" if panel != null else hint)
 		return
+	if _mount:
+		_update_mountain_zone()
+		return
 	if _room >= 0:
 		var lvl := int(Land.view[_room].level) if _room < Land.view.size() else 1
 		if Map.interior_door(_room, lvl).grow(10).has_point(my_pos):
@@ -537,6 +590,8 @@ func _update_zone() -> void:
 	for b in Map.BUILDINGS:
 		if b.rect.grow(26).has_point(my_pos):
 			z = {"type": b.type, "label": b.label}
+			if b.type == "teleferik":
+				z.label = "Teleferikle dağa çık (%s)" % U.money(Mountain.CABLE_PRICE)
 	for k in Map.NPCS:
 		if my_pos.distance_to(Map.NPCS[k].pos) < Map.NPC_TALK_RANGE:
 			z = {"type": "npc", "npc": k, "label": "Konuş: %s" % Map.NPCS[k].name}
@@ -567,6 +622,8 @@ func _update_zone() -> void:
 		z = {"type": "firestation", "label": "İtfaiye — %s" % ("görevi bırak" if Work.on_duty_fire() else "göreve başla")}
 	if my_pos.distance_to(Map.RECYCLE) < 90.0:
 		z = {"type": "recycle", "label": "Geri dönüşüm (%d torba elinde)" % Work.carrying}
+	if Map.STAGE.grow(50).has_point(my_pos):
+		z = {"type": "stage", "label": "Park Sahnesi — çal, dinle, bahşiş ver"}
 	if my_pos.distance_to(Map.CHAMPIONS_WALL) < 70.0:
 		z = {"type": "league", "label": "Şampiyonlar Duvarı — lig sıralamaları"}
 	if my_pos.distance_to(Map.FOUNTAIN) < Map.FOUNTAIN_R + 50.0:
@@ -656,6 +713,22 @@ func _open_panel() -> void:
 		Garage.rent_boat()
 		return
 	match str(zone.type):
+		"teleferik":
+			Mountain.go_up()
+			Sfx.play("door", -4.0, 0.8)
+			return
+		"teleferik_dag":
+			Mountain.go_down()
+			Sfx.play("door", -4.0, 0.8)
+			return
+		"rock":
+			Mountain.hit(int(zone.id))
+			_rock_acc = 0.0
+			Sfx.play("pick", -5.0, randf_range(0.9, 1.1))
+			return
+		"lift":
+			Mountain.ski_start()
+			return
 		"dive_pick":
 			Dive.pick(zone.id)
 			Sfx.play("coin", -6.0)
@@ -771,6 +844,9 @@ func _rebuild_blockers() -> void:
 		_blockers.append(Rect2(Map.CONTAINER_YARD.position.x, Map.CONTAINER_YARD.position.y + row * 100 + 30, 8 * 145 - 15, 50))
 	for cr in Map.CRANES:
 		_blockers.append(Rect2(cr.x - 40, cr.y - 10, 80, 16))
+	for b in Map.MOUNTAIN_BUILDINGS:
+		var mr: Rect2 = b.rect
+		_blockers.append(Rect2(mr.position.x + 6, mr.position.y + 16, mr.size.x - 12, mr.size.y - 26))
 	var fs: Rect2 = Map.FIRE_STATION
 	_blockers.append(Rect2(fs.position.x + 4, fs.position.y + 20, fs.size.x - 8, fs.size.y - 34))
 	for i in mini(Land.view.size(), Map.PLOT_COUNT):
@@ -1172,6 +1248,8 @@ func _draw_park() -> void:
 	draw_rect(Rect2(Map.FOUNTAIN.x - 10, p.position.y, 20, p.size.y), Color("#e7d9b0"))
 	for fx in [p.position.x + 70, p.position.x + 250, p.position.x + 600, p.position.x + 680]:
 		for fy in [cy - 46, cy + 30]:
+			if Map.STAGE.grow(10).intersects(Rect2(fx, fy, 70, 18)):
+				continue
 			draw_rect(Rect2(fx, fy, 70, 18), Color("#7c4a1e"))
 			for k in 6:
 				draw_circle(Vector2(fx + 7 + k * 11, fy + 9), 4, [Color("#f472b6"), Color("#facc15"), Color("#f87171"), Color("#c084fc")][(k + int(fx)) % 4])
@@ -1426,7 +1504,7 @@ func _make_nature() -> void:
 	nature.append([ic + Vector2(-120, 82), 7, 1.0])
 	# park ağaçları (kenarlarda)
 	for x in range(int(Map.PARK.position.x) + 30, int(Map.PARK.end.x) - 20, 95):
-		if absf(x - Map.FOUNTAIN.x) > 90 and absf(x - Map.CLOCK_TOWER.x) > 60:
+		if absf(x - Map.FOUNTAIN.x) > 90 and absf(x - Map.CLOCK_TOWER.x) > 60 and not Map.STAGE.grow(40).has_point(Vector2(x, Map.PARK.position.y + 18)):
 			nature.append([Vector2(x, Map.PARK.position.y + 18), 0 if (x / 95) % 2 == 0 else 2, rng.randf_range(0.8, 1.0)])
 	nature.sort_custom(func(a, b): return a[0].y < b[0].y)
 	for _k in 900:
@@ -1462,6 +1540,7 @@ func _draw() -> void:
 	_draw_roads()
 	_draw_bridge()
 	_draw_park()
+	_draw_stage()
 	_draw_race_track()
 	_draw_beach()
 	_draw_field()
@@ -1469,6 +1548,7 @@ func _draw() -> void:
 	_draw_interiors()
 	_draw_jail()
 	_draw_seabed()
+	_draw_mountain()
 	for lp in Map.lamp_positions():
 		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
 		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
@@ -1476,6 +1556,9 @@ func _draw() -> void:
 		_draw_plot(i)
 	for b in Map.BUILDINGS:
 		_draw_building(b)
+	if _mount:
+		for b in Map.MOUNTAIN_BUILDINGS:
+			_draw_building(b)
 	_draw_event_world()
 	_draw_weddings()
 	_draw_work_world()
@@ -1508,6 +1591,17 @@ func _draw() -> void:
 		if info and info.get("pet") is Dictionary and not info.pet.is_empty():
 			var st: Dictionary = npc.pets[id]
 			items.append([st.pos.y, "pet", [st, info.pet]])
+	if _mount:
+		for n in mountain_nature:
+			items.append([n[0].y, "mp", n])
+		for r in Mountain.rocks:
+			items.append([float(r.y), "rock", r])
+		var gates := Map.ski_gates()
+		for gi in gates.size():
+			items.append([gates[gi].y, "gate", [gates[gi], gi]])
+	elif _room < 0 and not Band.performers_seen().is_empty():
+		for k in AUDIENCE.size():
+			items.append([AUDIENCE[k][0].y, "aud", k])
 	if _room < 0:
 		var bp := Football.ball_now()
 		items.append([bp.y, "ball", bp])
@@ -1557,6 +1651,15 @@ func _draw() -> void:
 			_draw_crane(it[2])
 		elif it[1] == "clock":
 			_draw_clock_tower(it[2])
+		elif it[1] == "mp":
+			_draw_mpine(it[2])
+		elif it[1] == "rock":
+			_draw_rock(it[2])
+		elif it[1] == "gate":
+			_draw_gate(it[2][0], it[2][1])
+		elif it[1] == "aud":
+			var ad: Array = AUDIENCE[it[2]]
+			Avatar.draw(self, ad[0], ad[1], "up", 0 if fmod(_t * 2.0 + it[2], 2.0) < 1.0 else 1)
 		elif it[1] == "fire":
 			_draw_fire(Vector2(float(it[2].x), float(it[2].y)), float(it[2].hp))
 		elif it[1] == "pax":
@@ -1638,6 +1741,8 @@ func _draw_building(b: Dictionary) -> void:
 	draw_texture_rect(BUILDING_TEX[b.type], r, false)
 	# Tabela SVG'de boş bırakıldı (eski binalarda y=86..118, yenilerde sign_y).
 	_text(r.position + Vector2(0, float(b.get("sign_y", 110))), b.label.to_upper(), 22, Color.WHITE, r.size.x)
+	if b.type in ["teleferik", "teleferik_dag"]:
+		_draw_cable(r, b.type == "teleferik")
 
 
 func _draw_plot(i: int) -> void:
@@ -2355,6 +2460,10 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
 			_name(p, -40, pname, name_col, extra)
 			return
+		"ski":
+			_draw_skier(p, app, moving)
+			_name(p, -56, pname, name_col, extra)
+			return
 		"bike":
 			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
 			Avatar.draw(self, p, app, facing, 0)
@@ -2388,6 +2497,8 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	if moving:
 		frame = [1, 0, 2, 0][int(_t * (6.0 if swim else 9.0)) % 4]
 	Avatar.draw(self, p, app, facing, frame, 1.0, swim)
+	if str(extra.get("playing", "")) != "":
+		_draw_instrument(p, str(extra.playing), facing)
 	if Map.SEA_BED.has_point(p):
 		draw_rect(Rect2(p.x - 9, p.y - 35, 18, 9), Color(0.6, 0.85, 1.0, 0.6))
 		draw_rect(Rect2(p.x - 9, p.y - 35, 18, 9), Color("#facc15"), false, 2)
@@ -2398,3 +2509,343 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	if str(extra.get("fishing", "")) != "":
 		_draw_rod(p, facing, extra)
 	_name(p, -56 + (22 if swim else 0), pname, name_col, extra)
+
+
+# ================================================================== 1.2: dağ, kayak, sahne
+
+func _ski_move(delta: float) -> void:
+	my_facing = "down"
+	my_moving = true
+	var steer := 0.0
+	var v := 1.2
+	if panel == null and not hud.is_typing():
+		if Settings.held("left"):
+			steer -= 1.0
+		if Settings.held("right"):
+			steer += 1.0
+		if Settings.held("down"):
+			v = 1.55
+		if Settings.held("up"):
+			v = 0.7
+	var np := _clamp_to_area(my_pos + Vector2(steer * 1.05, v) * SPEED * delta)
+	if np.y >= Map.MOUNTAIN.end.y - 21:
+		Mountain.ski_stop()
+	my_pos = np
+
+
+func _update_mountain_zone() -> void:
+	var mz := {}
+	for b in Map.MOUNTAIN_BUILDINGS:
+		if b.rect.grow(26).has_point(my_pos):
+			mz = {"type": b.type, "label": "Teleferikle şehre dön" if b.type == "teleferik_dag" else b.label}
+	if my_pos.distance_to(Map.LIFT) < 110.0 and my_ride() != "ski":
+		mz = {"type": "lift", "label": "Telesiyejle zirveye çık ve kay (%s)" % ("kendi kayağınla" if Mountain.has_skis else "kiralık kayak " + U.money(Mountain.SKI_RENT))}
+	var best_d := Mountain.HIT_RANGE
+	for r in Mountain.rocks:
+		var d := my_pos.distance_to(Vector2(float(r.x), float(r.y)))
+		if d < best_d:
+			best_d = d
+			mz = {"type": "rock", "id": int(r.id), "label": "Kayayı kır (basılı tut)" if Mountain.has_pickaxe else "Kaya — kazma Dağ Evi'nde"}
+	zone = mz
+	var hint := ""
+	if my_ride() == "ski":
+		var el := Time.get_ticks_msec() / 1000.0 - Mountain.ski_t0 if Mountain.skiing() else 0.0
+		hint = "KAYAK  ·  Kapı %d/12  ·  %.1f sn\n%s/%s: dön   %s: hızlan   %s: yavaşla   [%s] bırak" % [Mountain.ski_gate, el,
+			Settings.key_name("left"), Settings.key_name("right"), Settings.key_name("down"), Settings.key_name("up"), Settings.key_name("vehicle")]
+	elif not mz.is_empty():
+		hint = "[%s]  %s" % [Settings.key_name("interact"), mz.label]
+	hud.set_hint("" if panel != null else hint)
+
+
+func _make_mountain_nature() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1212
+	var m: Rect2 = Map.MOUNTAIN
+	var keep_out: Array = [Map.QUARRY.grow(40), Map.SLOPE.grow(70), Rect2(Map.LIFT.x - 50, Map.MOUNTAIN_TOP_Y, 100, Map.LIFT.y - Map.MOUNTAIN_TOP_Y + 80)]
+	for b in Map.MOUNTAIN_BUILDINGS:
+		keep_out.append(b.rect.grow(60))
+	for seg in _mountain_paths():
+		keep_out.append(Rect2(seg[0], Vector2.ZERO).expand(seg[1]).grow(50))
+	for _k in 700:
+		if mountain_nature.size() >= 170:
+			break
+		var p := Vector2(rng.randf_range(m.position.x + 40, m.end.x - 40), rng.randf_range(Map.MOUNTAIN_TOP_Y + 60, m.end.y - 30))
+		var ok := true
+		for r in keep_out:
+			if r.has_point(p):
+				ok = false
+				break
+		if ok:
+			for n in mountain_nature:
+				if n[0].distance_to(p) < 70.0:
+					ok = false
+					break
+		if ok:
+			mountain_nature.append([p, rng.randf_range(0.8, 1.25)])
+
+
+## Dağ yolları (teleferik → Dağ Evi → telesiyej, ve maden ocağına).
+func _mountain_paths() -> Array:
+	return [[Map.MOUNTAIN_SPAWN, Vector2(8800, 2790)], [Vector2(8800, 2790), Vector2(9930, 2780)],
+		[Vector2(9930, 2780), Map.LIFT], [Vector2(8500, 2790), Vector2(8500, Map.QUARRY.end.y)]]
+
+
+func _snowy(y: float) -> bool:
+	return Env.season == "winter" or y < Map.SNOW_LINE
+
+
+func _draw_mountain() -> void:
+	var b: Rect2 = Map.MOUNTAIN
+	var vsize := get_viewport_rect().size / camera.zoom
+	var view := Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(200)
+	if not view.intersects(b):
+		return
+	if mountain_nature.is_empty():
+		_make_mountain_nature()
+	var winter := Env.season == "winter"
+	var grass: Color = (GRASS.get(Env.season, GRASS.spring) as Color).darkened(0.12)
+	var snow := Color("#eef3f7")
+	draw_rect(b, snow if winter else grass)
+	if not winter:
+		var edge := PackedVector2Array([b.position])
+		for i in 49:
+			edge.append(Vector2(b.position.x + i * 50.0, Map.SNOW_LINE + sin(i * 0.9) * 40.0 + cos(i * 0.37) * 30.0))
+		edge.append(Vector2(b.end.x, b.position.y))
+		draw_colored_polygon(edge, snow)
+	# zirveler
+	for k in 13:
+		var x := b.position.x - 80 + k * 200.0
+		var h := 230.0 + float((k * 73) % 120)
+		var base_y := Map.MOUNTAIN_TOP_Y + 30
+		draw_colored_polygon(PackedVector2Array([Vector2(x - 170, base_y), Vector2(x, base_y - h), Vector2(x + 170, base_y)]), Color("#7b8794"))
+		draw_colored_polygon(PackedVector2Array([Vector2(x, base_y - h), Vector2(x + 170, base_y), Vector2(x + 40, base_y)]), Color("#64707d"))
+		draw_colored_polygon(PackedVector2Array([Vector2(x - 62, base_y - h + 85), Vector2(x, base_y - h), Vector2(x + 62, base_y - h + 85),
+			Vector2(x + 25, base_y - h + 70), Vector2(x, base_y - h + 92), Vector2(x - 28, base_y - h + 72)]), Color("#f8fafc"))
+	# yollar
+	for seg in _mountain_paths():
+		draw_line(seg[0], seg[1], Color("#d6c7a1") if not _snowy(seg[0].y) else Color("#cbd5e1"), 34)
+		draw_circle(seg[0], 17, Color("#d6c7a1") if not _snowy(seg[0].y) else Color("#cbd5e1"))
+	# maden ocağı
+	var q: Rect2 = Map.QUARRY
+	var qp := PackedVector2Array()
+	for i in 24:
+		var a := TAU * i / 24.0
+		qp.append(q.get_center() + Vector2(cos(a) * q.size.x * (0.5 + 0.03 * sin(i * 2.1)), sin(a) * q.size.y * (0.5 + 0.03 * cos(i * 1.7))))
+	draw_colored_polygon(qp, Color("#8a7a66"))
+	for i in 90:
+		var pp := q.position + Vector2(float((i * 337) % int(q.size.x)), float((i * 211) % int(q.size.y)))
+		if q.grow(-60).has_point(pp):
+			draw_circle(pp, 3.0 + float(i % 4), Color("#6f6252"))
+	# mağara ağzı ve raylar
+	var c: Vector2 = Map.CAVE
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-110, 40), c + Vector2(-80, -60), c + Vector2(0, -95), c + Vector2(80, -60), c + Vector2(110, 40)]), Color("#57534e"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-55, 40), c + Vector2(-45, -20), c + Vector2(0, -45), c + Vector2(45, -20), c + Vector2(55, 40)]), Color("#1c1917"))
+	draw_rect(Rect2(c.x - 58, c.y - 30, 10, 70), Color("#92400e"))
+	draw_rect(Rect2(c.x + 48, c.y - 30, 10, 70), Color("#92400e"))
+	draw_rect(Rect2(c.x - 62, c.y - 36, 124, 12), Color("#78350f"))
+	for k in 12:
+		draw_rect(Rect2(c.x - 22, c.y + 40 + k * 26, 44, 6), Color("#78350f"))
+	draw_line(c + Vector2(-14, 40), c + Vector2(-14, 352), Color("#9ca3af"), 3)
+	draw_line(c + Vector2(14, 40), c + Vector2(14, 352), Color("#9ca3af"), 3)
+	draw_rect(Rect2(c.x - 26, c.y + 250, 52, 34), Color("#57534e"))
+	draw_rect(Rect2(c.x - 22, c.y + 244, 44, 12), Color("#a8a29e"))
+	_text(Vector2(c.x - 100, c.y - 104), "MADEN OCAĞI", 18, Color("#fde68a"), 200)
+	# kayak pisti
+	var sl: Rect2 = Map.SLOPE
+	draw_rect(sl, Color("#f8fafc"))
+	for y in range(int(sl.position.y) + 10, int(sl.end.y), 14):
+		draw_line(Vector2(sl.position.x + 8, y), Vector2(sl.end.x - 8, y), Color(0.82, 0.88, 0.94, 0.5), 1)
+	for y in range(int(sl.position.y), int(sl.end.y), 120):
+		for x in [sl.position.x, sl.end.x]:
+			draw_rect(Rect2(x - 3, y - 18, 6, 22), Color("#2563eb"))
+	_text(Vector2(sl.position.x, sl.position.y + 6), "KAYAK PİSTİ — START", 18, Color("#1e3a8a"), sl.size.x)
+	var fy := Map.SKI_FINISH_Y
+	for k in int(sl.size.x / 20.0):
+		draw_rect(Rect2(sl.position.x + k * 20, fy, 20, 10), Color.BLACK if k % 2 == 0 else Color.WHITE)
+		draw_rect(Rect2(sl.position.x + k * 20, fy + 10, 20, 10), Color.WHITE if k % 2 == 0 else Color.BLACK)
+	_text(Vector2(sl.position.x, fy + 44), "FİNİŞ", 18, Color("#1e3a8a"), sl.size.x)
+	# telesiyej: direkler, halat, sandalyeler
+	var top := Vector2(Map.LIFT.x, Map.SKI_TOP.y)
+	for y in range(int(top.y), int(Map.LIFT.y) + 1, 300):
+		draw_rect(Rect2(top.x - 5, y - 70, 10, 74), Color("#475569"))
+		draw_rect(Rect2(top.x - 26, y - 74, 52, 6), Color("#334155"))
+	draw_line(Vector2(top.x - 22, top.y - 70), Vector2(top.x - 22, Map.LIFT.y - 70), Color("#1f2937"), 2)
+	draw_line(Vector2(top.x + 22, top.y - 70), Vector2(top.x + 22, Map.LIFT.y - 70), Color("#1f2937"), 2)
+	var span := Map.LIFT.y - top.y
+	for k in 14:
+		var t := fmod(_t * 40.0 + k * span / 7.0, span * 2.0)
+		var up := t < span
+		var cy := Map.LIFT.y - 70 - t if up else top.y - 70 + (t - span)
+		var cx := top.x + (-22 if up else 22)
+		draw_line(Vector2(cx, cy), Vector2(cx, cy + 22), Color("#1f2937"), 2)
+		draw_rect(Rect2(cx - 10, cy + 20, 20, 6), Color("#dc2626"))
+	for hp in [top, Map.LIFT]:
+		draw_rect(Rect2(hp.x - 40, hp.y - 50, 80, 56), Color("#7c2d12"))
+		draw_colored_polygon(PackedVector2Array([hp + Vector2(-48, -48), hp + Vector2(0, -80), hp + Vector2(48, -48)]), Color("#e2e8f0"))
+	_text(Vector2(Map.LIFT.x - 80, Map.LIFT.y + 30), "TELESİYEJ", 16, Color("#1e293b"), 160)
+	# kar yağışı (karlı bölgede hafif)
+	if view.position.y < Map.SNOW_LINE + 300 or winter:
+		for i in 70:
+			var sx := view.position.x + fmod(i * 97.3 + sin(_t * 0.6 + i) * 30.0, view.size.x)
+			var sy := view.position.y + fmod(i * 53.7 + _t * (40.0 + (i % 5) * 10.0), view.size.y)
+			draw_circle(Vector2(sx, sy), 1.6 + (i % 3) * 0.6, Color(1, 1, 1, 0.75))
+
+
+func _draw_mpine(n: Array) -> void:
+	var p: Vector2 = n[0]
+	var h: float = 86.0 * float(n[1])
+	draw_set_transform(p + Vector2(0, -2), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, h * 0.3, Color(0, 0, 0, 0.18))
+	draw_set_transform(Vector2.ZERO)
+	_draw_tex_at(PROPS[1][0], p, h, Color(0.85, 0.92, 0.88) if _snowy(p.y) else Color.WHITE)
+	if _snowy(p.y):
+		draw_set_transform(p + Vector2(0, -h * 0.82), 0, Vector2(1, 0.45))
+		draw_circle(Vector2.ZERO, h * 0.2, Color(1, 1, 1, 0.92))
+		draw_set_transform(Vector2.ZERO)
+		draw_set_transform(p + Vector2(0, -h * 0.45), 0, Vector2(1, 0.35))
+		draw_circle(Vector2.ZERO, h * 0.28, Color(1, 1, 1, 0.75))
+		draw_set_transform(Vector2.ZERO)
+
+
+func _draw_rock(r: Dictionary) -> void:
+	var p := Vector2(float(r.x), float(r.y))
+	var k := str(r.k)
+	var base: Color = {"tas": Color("#78716c"), "maden": Color("#57534e"), "kristal": Color("#4c1d95")}.get(k, Color("#78716c"))
+	draw_set_transform(p + Vector2(0, 2), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 30, Color(0, 0, 0, 0.22))
+	draw_set_transform(Vector2.ZERO)
+	var pts := PackedVector2Array([p + Vector2(-30, 0), p + Vector2(-26, -26), p + Vector2(-6, -40), p + Vector2(18, -34), p + Vector2(30, -12), p + Vector2(28, 0)])
+	draw_colored_polygon(pts, base)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-6, -40), p + Vector2(18, -34), p + Vector2(30, -12), p + Vector2(4, -18)]), base.lightened(0.18))
+	match k:
+		"maden":
+			for s in [Vector2(-12, -20), Vector2(8, -26), Vector2(16, -10), Vector2(-20, -8)]:
+				draw_circle(p + s, 4, Color("#fbbf24") if int(s.x) % 2 == 0 else Color("#e5e7eb"))
+		"kristal":
+			for s in [[Vector2(-10, -30), 0.2], [Vector2(6, -36), -0.15], [Vector2(16, -22), 0.35]]:
+				var c: Vector2 = p + s[0]
+				var a: float = s[1]
+				draw_colored_polygon(PackedVector2Array([c + Vector2(-5, 8).rotated(a), c + Vector2(0, -14).rotated(a), c + Vector2(5, 8).rotated(a)]),
+					Color(0.75, 0.6, 1.0, 0.95) if fmod(_t + s[0].x, 2.0) < 1.6 else Color(0.95, 0.9, 1.0))
+	var max_hp := int(Mountain.ROCKS.get(k, [0, 3])[1])
+	for i in max_hp - int(r.hp):
+		draw_line(p + Vector2(-14 + i * 9, -34), p + Vector2(-8 + i * 9, -14), Color("#1c1917"), 2)
+
+
+func _draw_gate(g: Vector2, i: int) -> void:
+	var col := Color("#dc2626") if i % 2 == 0 else Color("#2563eb")
+	if Mountain.skiing() and i < Mountain.ski_gate:
+		col = col.lerp(Color(0.8, 0.8, 0.8), 0.6)
+	var hw := Map.SKI_GATE_W / 2.0
+	for x in [g.x - hw, g.x + hw]:
+		draw_rect(Rect2(x - 2, g.y - 46, 4, 48), Color("#374151"))
+		draw_colored_polygon(PackedVector2Array([Vector2(x, g.y - 46), Vector2(x + (14 if x < g.x else -14), g.y - 38), Vector2(x, g.y - 30)]), col)
+	draw_line(Vector2(g.x - hw, g.y), Vector2(g.x + hw, g.y), Color(col, 0.25), 2)
+	_text(Vector2(g.x - 20, g.y - 52), str(i + 1), 13, col, 40)
+
+
+func _draw_skier(p: Vector2, app: Dictionary, moving: bool) -> void:
+	draw_set_transform(p + Vector2(0, 10), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 15, Color(0, 0, 0, 0.2))
+	draw_set_transform(Vector2.ZERO)
+	if moving:
+		for k in 4:
+			var sp := fmod(_t * 3.0 + k * 0.25, 1.0)
+			draw_circle(p + Vector2(-8 + k * 5, -2 - sp * 26), 3.0 * (1.0 - sp), Color(1, 1, 1, 0.8 * (1.0 - sp)))
+	for dx in [-7.0, 7.0]:
+		draw_line(p + Vector2(dx, -14), p + Vector2(dx, 24), Color("#dc2626"), 4)
+		draw_line(p + Vector2(dx - 1, 22), p + Vector2(dx + 1, 26), Color("#7f1d1d"), 3)
+	Avatar.draw(self, p, app, "down", 0)
+	for dx in [-16.0, 16.0]:
+		draw_line(p + Vector2(dx * 0.7, -22), p + Vector2(dx, 14), Color("#1f2937"), 2)
+		draw_circle(p + Vector2(dx, 12), 3, Color("#1f2937"), false, 1.5)
+
+
+func _draw_instrument(p: Vector2, inst: String, facing: String) -> void:
+	var bob := sin(_t * 9.0) * 1.5
+	match inst:
+		"gitar":
+			var c := p + Vector2(4, -16 + bob * 0.3)
+			draw_line(c + Vector2(4, -2), c + Vector2(-20, -16), Color("#78350f"), 4)
+			draw_set_transform(c, 0.5, Vector2(1, 0.75))
+			draw_circle(Vector2(6, 2), 10, Color("#b45309"))
+			draw_circle(Vector2(6, 2), 3.5, Color("#1c1917"))
+			draw_set_transform(Vector2.ZERO)
+		"davul":
+			var d := p + Vector2(0, 10)
+			draw_circle(d + Vector2(0, 4), 14, Color("#1d4ed8"))
+			draw_circle(d + Vector2(0, 4), 10, Color("#e5e7eb"))
+			draw_set_transform(d + Vector2(-20, -10), 0, Vector2(1, 0.45))
+			draw_circle(Vector2.ZERO, 10, Color("#fbbf24"))
+			draw_set_transform(Vector2.ZERO)
+			draw_line(p + Vector2(-8, -18), p + Vector2(-18, -8 + bob * 2.0), Color("#fef3c7"), 2)
+			draw_line(p + Vector2(8, -18), p + Vector2(16, -8 - bob * 2.0), Color("#fef3c7"), 2)
+		"klavye":
+			var k := p + Vector2(-22, -8)
+			draw_rect(Rect2(k.x - 2, k.y + 6, 4, 18), Color("#374151"))
+			draw_rect(Rect2(k.x + 42, k.y + 6, 4, 18), Color("#374151"))
+			draw_rect(Rect2(k.x, k.y, 44, 10), Color("#111827"))
+			for i in 8:
+				draw_rect(Rect2(k.x + 2 + i * 5, k.y + 3, 4, 6), Color.WHITE)
+	# yükselen notalar
+	for i in 3:
+		var t := fmod(_t * 0.8 + i * 0.33, 1.0)
+		var np := p + Vector2(-14 + i * 14 + sin(_t * 3.0 + i) * 6.0, -64 - t * 46.0)
+		_text(np - Vector2(10, 0), "♪" if i % 2 == 0 else "♫", 18, Color(["#f472b6", "#facc15", "#60a5fa"][i]).darkened(0.0) * Color(1, 1, 1, 1.0 - t), 20, false)
+
+
+func _draw_stage() -> void:
+	var s: Rect2 = Map.STAGE
+	var live := not Band.performers_seen().is_empty()
+	var night := Env.darkness() > 0.3
+	# arka duvar ve ışık dizisi
+	var wall := Rect2(s.position.x + 10, s.position.y - 46, s.size.x - 20, 46)
+	draw_rect(wall, Color("#1f2937"))
+	draw_rect(wall, Color("#111827"), false, 3)
+	_text(Vector2(wall.position.x, wall.position.y + 26), "PARK SAHNESİ", 16, Color("#facc15"), wall.size.x)
+	for i in 12:
+		var on := live or night
+		var col := Color.from_hsv(fmod(i * 0.13 + (_t * 0.3 if live else 0.0), 1.0), 0.7, 1.0) if on else Color("#4b5563")
+		draw_circle(Vector2(wall.position.x + 8 + i * (wall.size.x - 16) / 11.0, wall.position.y + 6), 3.5, col)
+	# platform
+	draw_rect(Rect2(s.position + Vector2(0, 8), s.size), Color(0, 0, 0, 0.25))
+	draw_rect(s, Color("#8b5a2b"))
+	for x in range(int(s.position.x) + 24, int(s.end.x), 24):
+		draw_line(Vector2(x, s.position.y), Vector2(x, s.end.y), Color("#6b4423"), 1)
+	draw_rect(Rect2(s.position.x, s.end.y - 8, s.size.x, 8), Color("#5c3a1a"))
+	# hoparlörler
+	for x in [s.position.x - 6, s.end.x - 22]:
+		draw_rect(Rect2(x, s.position.y - 30, 28, 44), Color("#111827"))
+		draw_circle(Vector2(x + 14, s.position.y - 16), 8 + (sin(_t * 18.0) * 1.2 if live else 0.0), Color("#374151"))
+		draw_circle(Vector2(x + 14, s.position.y + 4), 5, Color("#374151"))
+	# spot ışıkları
+	if live:
+		for i in 3:
+			var from := Vector2(wall.position.x + 30 + i * (wall.size.x - 60) / 2.0, wall.position.y)
+			var to := Vector2(s.position.x + 40 + fmod(_t * 60.0 + i * 70.0, s.size.x - 80), s.end.y)
+			var col := Color.from_hsv(fmod(_t * 0.2 + i * 0.33, 1.0), 0.6, 1.0, 0.18)
+			draw_colored_polygon(PackedVector2Array([from, to + Vector2(-30, 0), to + Vector2(30, 0)]), col)
+
+
+## Teleferik halatı ve gidip gelen kabin (şehirde kuzeydoğuya, dağda yukarı doğru uzanır).
+func _draw_cable(r: Rect2, city: bool) -> void:
+	var a := r.position + Vector2(r.size.x * 0.5, 8)
+	var dir := Vector2(0.12, -1.0).normalized() if city else Vector2(-0.3, -1.0).normalized()
+	var length := 560.0
+	# halat uzaklaştıkça solar (dağlara / şehre doğru gider)
+	for k in 14:
+		var u0 := k / 14.0
+		var u1 := (k + 1) / 14.0
+		var al := clampf(1.6 - u1 * 1.6, 0.0, 1.0)
+		draw_line(a + dir * length * u0, a + dir * length * u1, Color(0.12, 0.16, 0.22, al), 3)
+		draw_line(a + dir * length * u0 + Vector2(12, 3), a + dir * length * u1 + Vector2(12, 3), Color(0.22, 0.25, 0.32, al), 2)
+	for k in 2:
+		var u := fmod(_t * 0.06 + k * 0.5, 1.0)
+		var up := k == 0
+		var c := a + dir * length * (u if up else 1.0 - u) + (Vector2.ZERO if up else Vector2(12, 3))
+		var al := clampf(1.6 - (u if up else 1.0 - u) * 1.6, 0.0, 1.0)
+		if al <= 0.02:
+			continue
+		draw_line(c, c + Vector2(0, 16), Color(0.12, 0.16, 0.22, al), 2)
+		draw_rect(Rect2(c.x - 16, c.y + 14, 32, 24), Color(0.86, 0.15, 0.15, al))
+		draw_rect(Rect2(c.x - 12, c.y + 18, 24, 9), Color(0.73, 0.9, 0.99, al))

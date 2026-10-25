@@ -75,6 +75,23 @@ const LIST := {
 	"dive1": ["dive", 1, "İlk Dalış", "Tekneden denize dal.", 200, ""],
 	"pearl10": ["pearl", 10, "İnci Avcısı", "10 inci topla.", 2500, "İnci Avcısı"],
 	"wreck": ["wreck", 1, "Batık Kâşifi", "Batık gemideki sandığı bul.", 3000, "Kâşif"],
+	# 1.2
+	"miner1": ["mined", 1, "İlk Kazma", "Dağda bir kaya kır.", 200, ""],
+	"miner100": ["mined", 100, "Usta Madenci", "100 kaya kır.", 3000, "Madenci"],
+	"diamond": ["diamond", 1, "Elmas!", "Bir elmas çıkar.", 2500, ""],
+	"fossil": ["fossil", 1, "Paleontolog", "Bir fosil bul.", 800, "Paleontolog"],
+	"summit": ["summit", 1, "Zirve", "Telesiyejle zirveye çık.", 300, ""],
+	"ski1": ["ski", 1, "Kayakçı", "Kayak pistini bitir.", 400, ""],
+	"ski_clean": ["ski_clean", 1, "Kusursuz İniş", "Hiç kapı kaçırmadan pisti bitir.", 1500, "Kar Leoparı"],
+	"donate10": ["donate", 10, "Bağışçı", "Müzeye 10 parça bağışla.", 1500, "Küratör"],
+	"museum_set": ["museum_set", 1, "Koleksiyoncu", "Tamamlanan bir müze koleksiyonuna katkı ver.", 2000, "Koleksiyoncu"],
+	"menu50": ["menu_sold", 50, "Lokantacı", "Restoranında menüden 50 yemek sat.", 3000, "Lokantacı"],
+	"gourmet": ["ate_out", 5, "Gurme", "Başka oyuncuların restoranlarında 5 kez yemek ye.", 1000, "Gurme"],
+	"song1": ["songs", 1, "İlk Sahne", "Sahnede bir şarkı çal.", 200, ""],
+	"songs20": ["songs", 20, "Müzisyen", "Sahnede 20 şarkı çal.", 2500, "Müzisyen"],
+	"band": ["band", 1, "Grup Ruhu", "Sahnede başka bir oyuncuyla birlikte çal.", 1500, "Grup Üyesi"],
+	"fullcombo": ["fullcombo", 1, "Ritim Ustası", "Bir şarkıyı hiç kaçırmadan çal.", 2000, "Ritim Ustası"],
+	"tips10": ["tips", 10, "Sokak Sanatçısı", "Sahnede 10 bahşiş al.", 1000, ""],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

@@ -271,6 +271,7 @@ func _on_ok() -> void:
 		await _test_09(get_parent().world)
 		await _test_10(get_parent().world)
 		await _test_11(get_parent().world)
+		await _test_12(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -641,7 +642,8 @@ func _test_06(w) -> void:
 	var m1 := Net.my_money()
 	Farm.sell("domates")
 	await _wait(0.3)
-	check(Net.my_money() == m1 + got * Farm.sell_price("domates", "summer") and not Farm.my_crops.has("domates"), "Hal'de domatesler satıldı (+%d TL)" % (Net.my_money() - m1))
+	var hm := 1.5 if Events.is_active("harvest") else 1.0
+	check(Net.my_money() == m1 + int(round(got * Farm.sell_price("domates", "summer") * hm)) and not Farm.my_crops.has("domates"), "Hal'de domatesler satıldı (+%d TL)" % (Net.my_money() - m1))
 
 	print("== 0.6: Klan ve sohbet kanalları")
 	Clans.create("Test Klanı", "tst")
@@ -1654,6 +1656,227 @@ func _test_11(w) -> void:
 	Land.sell(rp)
 	Land.sell(hp)
 	await _wait(0.3)
+
+
+## 1.2: dağ (teleferik, maden, kayak), müze, restoran menüsü, konser.
+func _test_12(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 80000)
+	Rpg.add_xp(me, "", 20000)
+	Env.force_weather("clear")
+	await _wait(0.3)
+
+	print("== 1.2: Teleferik ve maden")
+	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(0, 70)
+	await _wait(0.3)
+	var m0 := Net.my_money()
+	w._open_panel()
+	await _wait(0.5)
+	check(Map.MOUNTAIN.has_point(w.my_pos) and w._mount and Net.my_money() == m0 - Mountain.CABLE_PRICE, "teleferikle dağa çıkıldı (%s)" % w.my_pos)
+	Garage.ride("car")
+	await _wait(0.3)
+	check(w.my_ride() == "", "dağda araca binilmiyor")
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[0].rect.get_center() + Vector2(0, 110)
+	await _wait(0.3)
+	Mountain.buy("pickaxe")
+	await _wait(0.3)
+	check(Mountain.has_pickaxe and bool(rec.get("pickaxe", false)), "Dağ Evi'nden kazma alındı")
+	Mountain._spawn_rock()
+	Mountain._broadcast_rocks()
+	await _wait(0.3)
+	check(not Mountain.rocks.is_empty(), "maden ocağında kaya var")
+	var r: Dictionary = Mountain.rocks[0]
+	w.my_pos = Vector2(float(r.x), float(r.y) + 30)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "rock", "kayanın yanında kırma bölgesi")
+	var before := 0
+	for k in Farm.my_crops:
+		if Mountain.ORES.has(k):
+			before += int(Farm.my_crops[k])
+	for _k in 8:
+		Mountain._last_hit.clear()
+		Mountain.hit(int(r.id))
+		await _wait(0.15)
+	var after := 0
+	for k in Farm.my_crops:
+		if Mountain.ORES.has(k):
+			after += int(Farm.my_crops[k])
+	var gone := true
+	for x in Mountain.rocks:
+		if int(x.id) == int(r.id):
+			gone = false
+	check(gone and after == before + 1, "kaya kırıldı, ambara maden girdi")
+	check(Rpg.skill(me, "mining") >= 1 and int(rec.rpg.skills.get("mining", 0)) > 0, "madencilik XP'si arttı")
+	var store := Farm.barn(rec)
+	store["altin"] = int(store.get("altin", 0)) + 2
+	store["f_ammonit"] = int(store.get("f_ammonit", 0)) + 1
+	Farm.send_state(me)
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[0].rect.get_center() + Vector2(0, 110)
+	await _wait(0.3)
+	var m1 := Net.my_money()
+	Mountain.sell_all(false)
+	await _wait(0.3)
+	check(Net.my_money() > m1 + 300 and not Farm.my_crops.has("altin") and Farm.my_crops.has("f_ammonit"), "madenler satıldı, fosil kaldı")
+
+	print("== 1.2: Kayak")
+	w.my_pos = Map.LIFT + Vector2(0, 40)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "lift", "telesiyej bölgesi")
+	rec.ach.got["summit"] = 1
+	var m2 := Net.my_money()
+	w._open_panel()
+	await _wait(0.1)
+	check(w.my_ride() == "ski" and w.my_pos.distance_to(Map.SKI_TOP) < 200 and Net.my_money() == m2 - Mountain.SKI_RENT, "kiralık kayakla zirvede")
+	var gates: Array = Map.ski_gates()
+	var res := {}
+	Mountain.ski_result.connect(func(d): res.merge(d, true), CONNECT_ONE_SHOT)
+	for g in gates:
+		w.my_pos = Vector2(g.x, g.y - 40)
+		await _wait(0.2)
+	w.my_pos = Vector2(Map.SLOPE.get_center().x, Map.SKI_FINISH_Y + 10)
+	await _wait(0.5)
+	check(res.get("ok", false) and int(res.get("missed", -1)) == 0 and int(res.get("pay", 0)) > 0, "pist temiz bitti: %s" % res.get("text", "-"))
+	check(not Mountain.best.is_empty() and rec.ach.got.has("ski_clean"), "pist rekoru yazıldı, Kusursuz İniş başarımı")
+	check(w.my_ride() == "", "finişte kayak çıkarıldı")
+	# kapı kaçırma cezası
+	w.my_pos = Map.LIFT + Vector2(0, 40)
+	await _wait(0.3)
+	Mountain.ski_start()
+	await _wait(0.1)
+	var res2 := {}
+	Mountain.ski_result.connect(func(d): res2.merge(d, true), CONNECT_ONE_SHOT)
+	for gi in gates.size():
+		var g: Vector2 = gates[gi]
+		w.my_pos = Vector2(Map.SLOPE.position.x + 20 if gi == 3 else g.x, g.y - 40)
+		await _wait(0.2)
+	w.my_pos = Vector2(Map.SLOPE.get_center().x, Map.SKI_FINISH_Y + 10)
+	await _wait(0.5)
+	check(int(res2.get("missed", 0)) == 1, "kaçan kapı sayıldı (+3 sn): %s" % res2.get("text", "-"))
+	var ls: Dictionary = League._data().scores.get("ski", {})
+	check(ls.has(Net.my_name), "kayak ligine süre yazıldı")
+	# dağdan dön
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[1].rect.get_center() + Vector2(0, 80)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.5)
+	check(not w._mount and Map.WORLD.has_point(w.my_pos), "teleferikle şehre dönüldü")
+
+	print("== 1.2: Müze")
+	var bag: Array = rec.get("fish", [])
+	for n in ["Sazan", "İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı"]:
+		bag.append({"name": n, "price": 100})
+	Jobs.send_inventory(me)
+	w.my_pos = Map.building("muze").rect.get_center() + Vector2(0, 160)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "muze", "müze kapısında")
+	w._open_panel()
+	await _wait(0.4)
+	var m3 := Net.my_money()
+	Museum.donate("fish:Sazan")
+	await _wait(0.3)
+	check(Museum.view.has("fish:Sazan") and str(Museum.view["fish:Sazan"].by) == Net.my_name and Net.my_money() == m3 + Museum.DONATE_MONEY, "Sazan bağışlandı, ad vitrinde")
+	bag.append({"name": "Sazan", "price": 20})
+	Jobs.send_inventory(me)
+	await _wait(0.2)
+	var m4 := Net.my_money()
+	Museum.donate("fish:Sazan")
+	await _wait(0.3)
+	check(Net.my_money() == m4, "aynı parça ikinci kez bağışlanmıyor")
+	Museum.donate("barn:f_ammonit")
+	await _wait(0.3)
+	check(Museum.view.has("barn:f_ammonit"), "fosil bağışlandı")
+	var m5 := Net.my_money()
+	for n in ["İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı"]:
+		Museum.donate("fish:" + n)
+		await _wait(0.2)
+	await _wait(0.2)
+	check(Net.my_money() >= m5 + 4 * Museum.DONATE_MONEY + Museum.SET_REWARD, "Deniz Hazineleri koleksiyonu tamamlandı, ödül alındı")
+	check(Museum.progress().x == 6, "müze ilerlemesi 6 parça")
+	await get_tree().process_frame
+	w._close_panel()
+
+	print("== 1.2: Restoran menüsü")
+	var bp := -1
+	for i in Land.view.size():
+		if Land.view[i].owner == "":
+			bp = i
+			break
+	w.my_pos = Map.plot_rect(bp).get_center()
+	await _wait(0.3)
+	Land.buy(bp)
+	await _wait(0.3)
+	Land.build_up(bp, "biz")
+	await _wait(0.3)
+	Land.build_up(bp, "biz")
+	await _wait(0.4)
+	check(Biz.is_biz(Land.view[bp]) and int(Land.view[bp].level) == 2, "kafe açıldı")
+	store = Farm.barn(rec)
+	store["domates"] = int(store.get("domates", 0)) + 8
+	store["yumurta"] = int(store.get("yumurta", 0)) + 8
+	Farm.send_state(me)
+	await _wait(0.2)
+	for _k in 3:
+		Kitchen.cook("menemen")
+		await _wait(0.25)
+	check(int(Rpg.sheet.items.get("menemen", 0)) >= 3, "kafenin mutfağında menemen pişti")
+	Biz.menu_add(bp, "menemen")
+	await _wait(0.3)
+	var menu: Dictionary = Biz.menu_of(Land.view[bp])
+	check(menu.has("menemen") and int(menu.menemen.n) >= 3 and int(Rpg.sheet.items.get("menemen", 0)) == 0, "menemen menüye kondu")
+	var v := Kitchen.dish_value("menemen")
+	Biz.menu_price(bp, "menemen", int(v * 0.5))
+	await _wait(0.3)
+	check(int(Biz.menu_of(Land.view[bp]).menemen.price) == int(v * 0.5), "fiyat ayarlandı")
+	w.zone = {"type": "realestate", "label": "x", "plot": bp}
+	w._open_panel()
+	await _wait(0.4)
+	w._close_panel()
+	var cash0 := int(Land.plots[bp].biz.cash)
+	var got := Biz._menu_tick(bp, Land.plots[bp], 6.0)
+	Land.plots[bp].biz["cash"] = int(Land.plots[bp].biz.cash) + got
+	Land._broadcast()
+	await _wait(0.3)
+	check(got > 0 and int(Land.plots[bp].biz.get("menu_sold", 0)) > 0, "NPC müşteriler menüden sipariş verdi (+%d)" % got)
+	if Biz.menu_of(Land.plots[bp]).has("menemen"):
+		Rpg.use_energy(me, 60)
+		await _wait(0.2)
+		var e0 := float(Rpg.sheet.energy)
+		Biz.order(bp, "menemen")
+		await _wait(0.3)
+		check(float(Rpg.sheet.energy) > e0 + 30, "restoranda menemen yendi")
+	Land.sell(bp)
+	await _wait(0.3)
+
+	print("== 1.2: Konser")
+	w.my_pos = Map.STAGE.get_center()
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "stage", "sahne bölgesi")
+	Band.buy("gitar")
+	await _wait(0.3)
+	check("gitar" in Band.owned, "gitar alındı")
+	w._open_panel()
+	await _wait(0.3)
+	Band.play(0, "gitar")
+	await _wait(0.3)
+	check(Band.is_playing() and str(Net.roster[me].get("playing", "")) == "gitar", "sahnede gitar çalınıyor")
+	# testi kısa tutmak için şarkıyı ilk 6 notaya indir (sunucu ve istemci aynı)
+	Band._play[me].notes = Band._play[me].notes.slice(0, 6)
+	Band.session.notes = Band.session.notes.slice(0, 6)
+	var notes: Array = Band.session.notes
+	for i in notes.size():
+		var wait_t: float = float(Band.session.t0) + float(notes[i][0]) - Time.get_ticks_msec() / 1000.0
+		if wait_t > 0.0:
+			await _wait(wait_t)
+		w.panel._lane_pressed(int(notes[i][1]))
+	var endres := {}
+	Band.song_ended.connect(func(d): endres.merge(d, true), CONNECT_ONE_SHOT)
+	await _wait(1.0)
+	check(endres.get("ok", false) and float(endres.get("acc", 0)) >= 0.99 and int(endres.get("pay", 0)) > 0, "şarkı bitti: %s" % endres.get("text", "-"))
+	check(str(Net.roster[me].get("playing", "")) == "", "çalma bitti, kadro güncellendi")
+	w._close_panel()
+	await _wait(0.2)
 
 
 func _finish() -> void:

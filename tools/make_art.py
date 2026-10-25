@@ -862,6 +862,55 @@ def fabrika():
     save("buildings/fabrika.svg", svg(W, H, p, GLASS))
 
 
+# ---------------------------------------------------------------- 1.2: müze, teleferik, dağ evi
+
+def muze():
+    W, H = 420, 280
+    p = [
+        poly([(4, 92), (210, 8), (416, 92)], "#e7e5e4"),
+        poly([(52, 86), (210, 24), (368, 86)], "#d6d3d1", 2),
+        rect(4, 90, W - 8, 186, "#f5f5f4"),
+        rect(4, 252, W - 8, 24, "#a8a29e"), rect(30, 240, W - 60, 14, "#d6d3d1", 0, 2),
+        rect(10, 132, W - 20, 8, "#d6d3d1", 0, 1.5),
+    ]
+    # alınlıkta ammonit
+    p += [circle(210, 62, 18, "#fde68a", 2.5), path("M210 62m-10 0a10 10 0 1 1 10 10a6 6 0 1 1 -6 -6a3 3 0 1 1 3 3", "none", 2, "#92400e")]
+    for x in (24, 74, 124, 274, 324, 374):     # sütunlar
+        p += [rect(x, 140, 22, 100, "#fafaf9", 2, 2), rect(x - 3, 138, 28, 6, "#e7e5e4", 1, 1.5), rect(x - 3, 234, 28, 6, "#e7e5e4", 1, 1.5)]
+    # kapı ve vitrinler
+    p += [path("M178 240V172a32 32 0 0 1 64 0V240Z", "#7c2d12"), path("M210 142v98", "none", 2, "#fdba74"),
+          circle(202, 206, 2.5, "#facc15", 0), circle(218, 206, 2.5, "#facc15", 0),
+          rect(150, 160, 20, 40, "url(#glass)", 2, 2), rect(250, 160, 20, 40, "url(#glass)", 2, 2)]
+    # basamaklar
+    p += [rect(150, 240, 120, 6, "#e7e5e4", 1, 1.5), rect(140, 246, 140, 6, "#d6d3d1", 1, 1.5)]
+    p.append(rect(W / 2 - 92, 96, 184, 32, "#1c1917", 7, 3, "#d6d3d1"))
+    save("buildings/muze.svg", svg(W, H, p, GLASS))
+
+
+def teleferik():
+    W, H = 180, 116
+    p = [rect(10, 40, W - 20, 72, "#e2e8f0", 4), rect(10, 98, W - 20, 14, "#94a3b8"),
+         poly([(2, 44), (90, 8), (178, 44)], "#dc2626"), rect(68, 62, 44, 50, "#334155", 3),
+         rect(22, 58, 36, 26, "url(#glass)", 3, 2), rect(122, 58, 36, 26, "url(#glass)", 3, 2)]
+    p.append(rect(W / 2 - 64, 14, 128, 26, "#1e293b", 6, 2.5, "#fca5a5"))
+    save("buildings/teleferik.svg", svg(W, H, p, GLASS))
+
+
+def dagevi():
+    W, H = 300, 200
+    p = [rect(14, 70, W - 28, 126, "#92400e", 4)]
+    for y in range(80, 190, 16):            # kütük duvar
+        p.append(path(f"M18 {y}H{W - 18}", "none", 2, "#78350f"))
+    p += [poly([(0, 78), (150, 4), (300, 78)], "#7c2d12"),
+          path("M8 74L150 10L292 74", "none", 10, "#f8fafc"),       # çatıda kar
+          rect(214, 20, 26, 46, "#57534e", 3), rect(210, 14, 34, 10, "#f8fafc", 3, 2),
+          rect(122, 120, 56, 76, "#451a03", 4), circle(168, 160, 3, "#facc15", 0),
+          rect(36, 118, 50, 40, "url(#warm)", 3, 2.5), path("M61 118v40M36 138h50", "none", 2, "#78350f"),
+          rect(214, 118, 50, 40, "url(#warm)", 3, 2.5), path("M239 118v40M214 138h50", "none", 2, "#78350f")]
+    p.append(rect(W / 2 - 80, 82, 160, 30, "#292524", 6, 3, "#fdba74"))
+    save("buildings/dagevi.svg", svg(W, H, p, WARM + GLASS))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -887,3 +936,6 @@ if __name__ == "__main__":
     banka()
     carsi()
     fabrika()
+    muze()
+    teleferik()
+    dagevi()

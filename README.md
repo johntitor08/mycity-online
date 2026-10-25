@@ -35,6 +35,36 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.2: Dağ bölgesi, müze, restoran menüsü, konserler
+
+| | |
+|---|---|
+| ![Dağ köyü](docs/ekran/dag_koyu.png) | ![Kayak](docs/ekran/kayak.png) |
+| ![Maden](docs/ekran/maden.png) | ![Müze](docs/ekran/muze.png) |
+| ![Konser](docs/ekran/konser.png) | ![Ritim oyunu](docs/ekran/ritim.png) |
+| ![Restoran menüsü](docs/ekran/restoran_menu.png) | ![Teleferik](docs/ekran/teleferik.png) |
+
+- **Dağ bölgesi:** Plajdaki (arsaların altı) **teleferikle** dağa çık (30 TL). Dağda:
+  - **Maden ocağı:** Dağ Evi'nden kazma al, kayaların yanında **E'yi basılı tut**. Taştan kömür/demir,
+    maden damarından gümüş/altın, kristalden elmas/ametist çıkar; ara sıra **fosil** bulunur.
+    Yeni yetenek **Madencilik** değerli maden şansını artırır. Madenler Dağ Evi'nde satılır,
+    Çarşı ilanlarına da konabilir.
+  - **Kayak pisti:** Telesiyejle zirveye çık (kayak kirası 50 TL ya da kendi takımın), 12 kapıdan
+    geçerek in. Yön tuşlarıyla dön, aşağı hızlan, yukarı yavaşla. Kaçan kapı +3 sn. Süreye göre ödül,
+    pist rekoru ve yeni haftalık **Kayak ligi**.
+  - **Dağ Evi:** kazma, kayak takımı, sıcak çikolata ve dağ gözlemesi, maden alımı.
+- **Şehir Müzesi** (Sanayi bölgesi): balıklar, deniz hazineleri, fosiller, mineraller ve çiftlik ürünleri
+  koleksiyonları. Bir parçayı ilk bağışlayan 200 TL alır, adı vitrine yazılır; bir koleksiyon
+  tamamlanınca katkı veren herkese 1.500 TL.
+- **Restoran menüsü:** Kafe ve restoranda pişirdiğin yemekleri menüye koy (kafe 3, restoran 8 çeşit),
+  fiyatını belirle. NPC müşteriler fiyat makulse sipariş verir; oyuncular gelip yemek yer (enerji ve
+  yemek bonusu hemen gelir). Kafende/restoranında da yemek pişirebilirsin.
+- **Konserler:** Parktaki **sahnede** gitar, davul ya da klavye çal: ritim oyunu (**D F J K**).
+  Çalınan notaları yakındaki herkes duyar. Seyirci ve birlikte çalan oyuncular (grup) kazancı artırır,
+  seyirciler bahşiş verebilir. Yeni yetenek **Müzisyenlik** yeni şarkılar açar.
+- Yeni başarımlar ve unvanlar: Madenci, Paleontolog, Kar Leoparı, Küratör, Koleksiyoncu, Lokantacı,
+  Gurme, Müzisyen, Grup Üyesi, Ritim Ustası.
+
 ## 1.1: Hayvan çiftliği, yemek pişirme, dalgıçlık, özelleştirme
 
 | | |
@@ -271,8 +301,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.1
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.1
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.2
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.2
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

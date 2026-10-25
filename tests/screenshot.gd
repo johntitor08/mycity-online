@@ -10,6 +10,27 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	await _wait(0.5)
 	var w = get_parent().world
+	if "--genel" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		w.hud.visible = false
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		for part in [[Vector2(1400, 900), "genel_kuzey"], [Vector2(1400, 2400), "genel_orta"], [Vector2(1400, 3800), "genel_guney"]]:
+			w.camera.zoom = Vector2(0.45, 0.45)
+			w.camera.limit_bottom = 99999
+			w.my_pos = part[0]
+			await _wait(1.0)
+			w.camera.reset_smoothing()
+			await _wait(0.3)
+			_shot(part[1])
+		get_tree().quit()
+		return
+	if "--sadece12" in OS.get_cmdline_user_args():
+		Net.add_money(1, 300000)
+		Rpg.add_xp(1, "", 20000)
+		await _shots_12(w)
+		get_tree().quit()
+		return
 	if "--sadece11" in OS.get_cmdline_user_args():
 		Net.add_money(1, 200000)
 		Rpg.add_xp(1, "", 15000)
@@ -151,6 +172,193 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_12(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.hour = 12.0
+	Env.force_weather("clear")
+	Env.force_season("autumn")
+	Tutorial.finish()
+	w.camera.zoom = Vector2(1, 1)
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0},
+		{"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4},
+		{"skin": 4, "hair": 4, "hair_color": 0, "shirt": 8, "pants": 5}]
+	var names := ["Ayşe", "Kerem", "Zeynep", "Mehmet"]
+	# teleferik istasyonu (şehir)
+	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(-60, 120)
+	await _wait(1.4)
+	await _clear_toasts(w)
+	_shot("teleferik")
+	# dağ köyü
+	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(0, 70)
+	await _wait(0.3)
+	Mountain.go_up()
+	await _wait(0.5)
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[0].rect.get_center() + Vector2(0, 110)
+	await _wait(0.3)
+	Mountain.buy("pickaxe")
+	Mountain.buy("skis")
+	await _wait(0.3)
+	for _k in 16:
+		Mountain._spawn_rock()
+	Mountain._broadcast_rocks()
+	w.my_pos = Map.MOUNTAIN_SPAWN + Vector2(330, -40)
+	for k in 2:
+		Net.players[9701 + k] = {"name": names[k], "money": 5000, "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 9}
+		Net.positions[9701 + k] = Map.MOUNTAIN_SPAWN + Vector2(420 + k * 70, 10 - k * 30)
+	Net._broadcast_roster()
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("dag_koyu")
+	# maden ocağı
+	var r: Dictionary = Mountain.rocks[0]
+	for x in Mountain.rocks:
+		if x.k == "kristal":
+			r = x
+	w.my_pos = Vector2(float(r.x) + 40, float(r.y) + 20)
+	w.my_facing = "left"
+	Net.positions[9701] = Vector2(float(Mountain.rocks[1].x) + 40, float(Mountain.rocks[1].y) + 20)
+	Mountain._last_hit.clear()
+	Mountain.hit(int(r.id))
+	w.camera.zoom = Vector2(1.3, 1.3)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("maden")
+	w.camera.zoom = Vector2(1, 1)
+	# kayak
+	Env.force_season("winter")
+	w.my_pos = Map.LIFT + Vector2(0, 40)
+	await _wait(0.3)
+	Mountain.ski_start()
+	await _wait(0.2)
+	var g: Array = Map.ski_gates()
+	w.my_pos = Vector2(g[3].x + 10, g[3].y - 140)
+	Net.players[9702]["ride"] = "ski"
+	Net.positions[9702] = Vector2(g[2].x, g[2].y + 60)
+	Net._broadcast_roster()
+	await _wait(0.6)
+	await _clear_toasts(w)
+	_shot("kayak")
+	Mountain.ski_stop()
+	await _wait(0.3)
+	Net.players[9702]["ride"] = ""
+	Env.force_season("autumn")
+	# Dağ Evi paneli
+	var store := Farm.barn(Net.save_data.players["Eren"])
+	for k in ["komur", "demir", "gumus", "f_trilobit"]:
+		store[k] = int(store.get(k, 0)) + 3
+	Farm.send_state(1)
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[0].rect.get_center() + Vector2(0, 110)
+	await _wait(0.4)
+	w._open_panel()
+	await _wait(0.6)
+	_shot("dag_evi")
+	w._close_panel()
+	for id in [9701, 9702]:
+		Net.players.erase(id)
+		Net.positions.erase(id)
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[1].rect.get_center() + Vector2(0, 80)
+	await _wait(0.3)
+	Mountain.go_down()
+	await _wait(0.5)
+	# müze
+	var bag: Array = Net.save_data.players["Eren"].get("fish", [])
+	for n in ["Sazan", "Levrek", "Lüfer", "Kalkan", "İnci", "Altın Balık", "Kızılkanat", "Hamsi"]:
+		bag.append({"name": n, "price": 100})
+	Jobs.send_inventory(1)
+	w.my_pos = Map.building("muze").rect.get_center() + Vector2(0, 160)
+	await _wait(0.4)
+	for n in ["Sazan", "Levrek", "Lüfer", "Kalkan", "Altın Balık"]:
+		Museum.donate("fish:" + n)
+	Museum.donate("barn:f_trilobit")
+	Museum.donate("barn:gumus")
+	Museum._data()["fish:Turna"] = {"by": "Ayşe", "d": "2026-10-25"}
+	Museum._data()["fish:Orkinos"] = {"by": "Kerem", "d": "2026-10-25"}
+	Museum.send_state(1)
+	await _wait(0.5)
+	w.camera.zoom = Vector2(1.1, 1.1)
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("muze_dis")
+	w.camera.zoom = Vector2(1, 1)
+	w._open_panel()
+	await _wait(0.8)
+	_shot("muze")
+	w._close_panel()
+	# restoran menüsü
+	var bp := 5
+	w.my_pos = Map.plot_rect(bp).get_center()
+	await _wait(0.3)
+	Land.buy(bp)
+	await _wait(0.3)
+	for _k in 3:
+		Land.build_up(bp, "biz")
+		await _wait(0.3)
+	store = Farm.barn(Net.save_data.players["Eren"])
+	for k in ["domates", "yumurta", "sut", "bugday", "misir", "lahana", "kabak"]:
+		store[k] = 12
+	Farm.send_state(1)
+	await _wait(0.2)
+	for k in ["menemen", "menemen", "sutlac", "sutlac", "corba", "salata", "borek", "kabak_tatlisi"]:
+		Kitchen.cook(k)
+		await _wait(0.15)
+	for k in ["menemen", "sutlac", "corba", "salata", "borek"]:
+		Biz.menu_add(bp, k)
+		await _wait(0.1)
+	Land.plots[bp].biz["menu_sold"] = 37
+	Land.plots[bp].biz["last_menu"] = 3
+	Land._broadcast()
+	w.zone = {"type": "realestate", "label": "x", "plot": bp}
+	w._open_panel()
+	await _wait(0.8)
+	_shot("restoran_menu")
+	w._close_panel()
+	# konser (akşam)
+	Env.hour = 18.4
+	var s: Rect2 = Map.STAGE
+	w.my_pos = s.get_center() + Vector2(-85, 0)
+	w.my_facing = "down"
+	await _wait(0.3)
+	for k in ["gitar", "davul", "klavye"]:
+		Band.buy(k)
+	await _wait(0.3)
+	for k in 2:
+		Net.players[9801 + k] = {"name": names[k + 2], "money": 5000, "color": Avatar.shirt_color(apps[k + 2]), "appearance": apps[k + 2], "level": 9, "playing": ["davul", "klavye"][k]}
+		Net.positions[9801 + k] = s.get_center() + Vector2(10 + k * 70, -4 + k * 6)
+	Net.players[9803] = {"name": "Ayşe", "money": 5000, "color": Avatar.shirt_color(apps[0]), "appearance": apps[0], "level": 9}
+	Net.positions[9803] = s.get_center() + Vector2(-20, 120)
+	Net._broadcast_roster()
+	Band.play(0, "gitar")
+	await _wait(0.4)
+	w.camera.zoom = Vector2(1.5, 1.5)
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("konser")
+	w.camera.zoom = Vector2(1, 1)
+	w.zone = {"type": "stage", "label": "x"}
+	w._open_panel()
+	await _wait(0.2)
+	w.panel._on_start(Band.session)
+	# yoğun bir bölümün başına kadar bekle, birkaç notaya doğru zamanda bas
+	var st: float = Time.get_ticks_msec() / 1000.0 - float(Band.session.t0)
+	var nts: Array = Band.session.notes
+	var target := 0
+	for i in nts.size():
+		if float(nts[i][0]) > st + 1.0 and i + 4 < nts.size() and float(nts[i + 4][0]) - float(nts[i][0]) < 3.0:
+			target = i
+			break
+	for i in range(target, target + 2):
+		var wt: float = float(Band.session.t0) + float(nts[i][0]) - Time.get_ticks_msec() / 1000.0
+		if wt > 0.0:
+			await _wait(wt)
+		w.panel._lane_pressed(int(nts[i][1]))
+	await _wait(0.12)
+	_shot("ritim")
+	w._close_panel()
 
 
 func _shots_11(w) -> void:

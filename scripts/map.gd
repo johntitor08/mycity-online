@@ -29,6 +29,9 @@ const BUILDINGS := [
 	{"type": "carsi", "label": "Çarşı", "rect": Rect2(2290, 1400, 320, 220), "sign_y": 102},
 	# 1.0: Sanayi bölgesi
 	{"type": "fabrika", "label": "Fabrika", "rect": Rect2(300, 3800, 440, 280), "sign_y": 102},
+	# 1.2: müze (Sanayi) ve teleferik istasyonu (arsaların altı)
+	{"type": "muze", "label": "Müze", "rect": Rect2(860, 3800, 420, 280), "sign_y": 104},
+	{"type": "teleferik", "label": "Teleferik", "rect": Rect2(2050, 1506, 180, 116), "sign_y": 30},
 ]
 
 # Görev veren NPC'ler (sabit duranlar): kimlik -> ad, konum, görünüm
@@ -86,6 +89,7 @@ const FOUNTAIN := Vector2(480, 1540)
 const FOUNTAIN_R := 44.0
 const CLOCK_TOWER := Vector2(790, 1545)
 const CHAMPIONS_WALL := Vector2(620, 1600)      # parkta Şampiyonlar Duvarı
+const STAGE := Rect2(96, 1462, 250, 64)           # 1.2: park sahnesi (konserler)
 # Otobüs: yollarda kapalı güzergâh ve duraklar
 const BUS_ROUTE := [Vector2(120, 425), Vector2(2650, 425), Vector2(2650, 465), Vector2(1030, 465),
 	Vector2(1030, 1570), Vector2(985, 1570), Vector2(985, 465), Vector2(120, 465)]
@@ -127,6 +131,24 @@ const ISLAND_SPOT := Rect2(1460, 2690, 80, 40)  # iskele ucu: ada balıkçılı�
 const LIGHTHOUSE := Vector2(1740, 2930)
 # 1.1: dalış — deniz tabanı harita dışında ayrı bir alan (yüzeydeki x konumuna göre inilir)
 const SEA_BED := Rect2(4300, 2900, 2800, 1000)
+# 1.2: dağ bölgesi (harita dışında; teleferikle gidilir). Üstte zirveler, ortada kayak pisti,
+# solda maden ocağı, altta teleferik istasyonu ve Dağ Evi.
+const MOUNTAIN := Rect2(7900, 0, 2400, 2900)
+const MOUNTAIN_TOP_Y := 180.0                    # bunun üstü sarp kayalık (yürünmez)
+const MOUNTAIN_BUILDINGS := [
+	{"type": "dagevi", "label": "Dağ Evi", "rect": Rect2(8650, 2540, 300, 200), "sign_y": 98},
+	{"type": "teleferik_dag", "label": "Teleferik", "rect": Rect2(8150, 2640, 180, 116), "sign_y": 30},
+]
+const MOUNTAIN_SPAWN := Vector2(8240, 2800)      # teleferikten inince
+const CITY_CABLE_SPAWN := Vector2(2140, 1650)    # şehre dönünce (istasyonun önü, plaj)
+const QUARRY := Rect2(8000, 900, 1000, 1300)     # maden ocağı
+const CAVE := Vector2(8500, 930)
+const SLOPE := Rect2(9330, 260, 500, 2460)        # kayak pisti
+const SKI_TOP := Vector2(9580, 300)
+const SKI_FINISH_Y := 2640.0
+const SKI_GATE_W := 120.0
+const LIFT := Vector2(9930, 2680)                 # telesiyejin alt istasyonu
+const SNOW_LINE := 1300.0                         # bunun üstü her mevsim karlı
 const WRECK := Vector2(6300, 3600)
 const BOAT_RENT_SPOT := Vector2(1530, 1680)    # deniz iskelesinin başı (Kaptan Rüstem'in solunda)
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
@@ -324,6 +346,18 @@ static func interior_spawn(i: int, level: int) -> Vector2:
 
 
 ## Evden çıkınca arsanın önü.
+## Kayak pistindeki kapılar (sırayla; sağ-sol değişir).
+static func ski_gates() -> Array:
+	var out: Array = []
+	for k in 12:
+		out.append(Vector2(SLOPE.get_center().x + (-130.0 if k % 2 == 0 else 130.0) + (k % 3 - 1) * 25.0, 560.0 + k * 180.0))
+	return out
+
+
+static func in_mountain(p: Vector2) -> bool:
+	return MOUNTAIN.has_point(p)
+
+
 static func plot_front(i: int) -> Vector2:
 	var r := plot_rect(i)
 	return Vector2(r.get_center().x, r.end.y - 20)

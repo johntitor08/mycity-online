@@ -9,6 +9,7 @@ extends Node
 
 signal crops_changed
 
+const MountainS = preload("res://scripts/mountain.gd")
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 
@@ -101,7 +102,9 @@ static func is_ranch(p: Dictionary) -> bool:
 static func item_info(k: String) -> Dictionary:
 	if CROPS.has(k):
 		return CROPS[k]
-	return PRODUCTS.get(k, {})
+	if PRODUCTS.has(k):
+		return PRODUCTS[k]
+	return MountainS.ORES.get(k, {})
 
 
 ## Hayvanın biriken ürünü (tok olduğu süre boyunca).

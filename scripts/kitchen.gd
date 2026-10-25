@@ -29,6 +29,29 @@ static func ing_name(k: String) -> String:
 	return str(info.get("name", k))
 
 
+## Yemeğin piyasa değeri (malzemelerin Hal fiyatı + işçilik). Restoran fiyatları buna göre değerlendirilir.
+static func dish_value(k: String) -> int:
+	if not RECIPES.has(k):
+		return 0
+	var sum := 0.0
+	for ing in RECIPES[k].needs:
+		var unit := 60.0 if ing == "balik" else float(Farm.item_info(ing).get("price", 10))
+		sum += unit * int(RECIPES[k].needs[ing])
+	return int(round((sum + 15.0) * 1.6))
+
+
+## Oyuncu kendi kafesinin/restoranının mutfağında mı? (kafe ve restoranda da yemek pişirilir)
+static func at_own_restaurant(id: int) -> int:
+	if not Net.players.has(id):
+		return -1
+	var p: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
+	for i in mini(Land.plots.size(), Map.PLOT_COUNT):
+		var pl: Dictionary = Land.plots[i]
+		if Biz.is_biz(pl) and int(pl.level) >= 2 and pl.owner == Net.players[id].name and Map.plot_rect(i).grow(60).has_point(p):
+			return i
+	return -1
+
+
 ## Bu evde ocak var mı?
 static func has_stove(p: Dictionary) -> bool:
 	for f in p.get("furniture", []):
@@ -50,8 +73,9 @@ func req_cook(d: Dictionary) -> void:
 	if not RECIPES.has(k):
 		return
 	var room := Map.interior_at(Net.positions.get(id, Vector2(-9999, -9999)))
-	if room < 0 or room >= Land.plots.size() or Land.plots[room].owner != Net.players[id].name or not has_stove(Land.plots[room]):
-		Net.notify(id, "Yemek için evinde ocak olmalı (Mobilyacı'da satılır).", false)
+	var at_home: bool = room >= 0 and room < Land.plots.size() and Land.plots[room].owner == Net.players[id].name and has_stove(Land.plots[room])
+	if not at_home and at_own_restaurant(id) < 0:
+		Net.notify(id, "Yemek için evinde ocak olmalı (Mobilyacı'da satılır) ya da kendi kafende/restoranında ol.", false)
 		return
 	var rec: Dictionary = Net.save_data.players[Net.players[id].name]
 	var store := Farm.barn(rec)

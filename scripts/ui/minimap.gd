@@ -13,7 +13,8 @@ var font: Font
 
 const BUILDING_COLORS := {"hospital": "#ef4444", "market": "#22c55e", "casino": "#a855f7", "poker": "#15803d",
 	"realestate": "#3b82f6", "galeri": "#64748b", "pazar": "#f97316", "mobilya": "#a16207", "petshop": "#14b8a6",
-	"muhtarlik": "#b91c1c", "karakol": "#1e3a8a", "banka": "#e7e5e4", "carsi": "#9a3412", "fabrika": "#64748b"}
+	"muhtarlik": "#b91c1c", "karakol": "#1e3a8a", "banka": "#e7e5e4", "carsi": "#9a3412", "fabrika": "#64748b",
+	"muze": "#d6d3d1", "teleferik": "#dc2626"}
 
 
 func _ready() -> void:

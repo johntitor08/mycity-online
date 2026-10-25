@@ -6,7 +6,8 @@ signal settings_changed
 
 const SOUNDS := ["click", "open", "coin", "cash", "lose", "error", "notify", "success", "splash",
 	"splash_small", "bite", "catch", "card", "chip", "tick", "dice", "gallop",
-	"thunder", "bell", "place", "door", "step"]
+	"thunder", "bell", "place", "door", "step",
+	"gitar", "piyano", "davul_0", "davul_1", "davul_2", "davul_3", "pick", "rock_break"]
 const MUSIC := {"city": "res://assets/sounds/music_city.wav", "night": "res://assets/sounds/music_night.wav",
 	"winter": "res://assets/sounds/music_winter.wav", "summer": "res://assets/sounds/music_summer.wav"}
 const SETTINGS_PATH := "user://ayarlar.cfg"

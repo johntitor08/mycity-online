@@ -41,7 +41,8 @@ func _ready() -> void:
 	for t in [["Göl İskelesi", Map.DOCK.get_center()], ["Deniz İskelesi / tekne kirala", Map.BOAT_RENT_SPOT],
 			["Plaj Sahası (futbol)", Football.FIELD.get_center() + Vector2(0, 110)], ["Langırt Masası", Langirt.POS + Vector2(0, 60)],
 			["Yarış Pisti", Map.RACE_FLAG + Vector2(0, 40)], ["Martı Adası (tekneyle)", Map.ISLAND_PIER.get_center()],
-			["Feribot İskelesi (şehir)", Map.FERRY_STOPS.sehir[1]], ["Fabrika (Sanayi, feribotla)", Map.building("fabrika").rect.get_center() + Vector2(0, 160)]]:
+			["Feribot İskelesi (şehir)", Map.FERRY_STOPS.sehir[1]], ["Fabrika (Sanayi, feribotla)", Map.building("fabrika").rect.get_center() + Vector2(0, 160)],
+			["Park Sahnesi (konser)", Map.STAGE.get_center() + Vector2(0, 70)]]:
 		add_button(list, t[0], _go.bind(t[1]))
 	add_button(v, "Hedefi temizle", func(): world.nav_target = null; close())
 

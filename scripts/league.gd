@@ -12,7 +12,7 @@ const U = preload("res://scripts/util.gd")
 
 const CATS := {
 	"wealth": ["Zenginlik", "TL"], "fish": ["Balık", "TL"], "race": ["Yarış", "sn"],
-	"goals": ["Futbol", "gol"], "xp": ["Tecrübe", "XP"],
+	"goals": ["Futbol", "gol"], "xp": ["Tecrübe", "XP"], "ski": ["Kayak", "sn"],
 }
 const PRIZES := [5000, 2500, 1000]
 const HISTORY := 20
@@ -115,7 +115,7 @@ func _board(cat: String) -> Array:
 	for n in src:
 		if float(src[n]) > 0.0:
 			list.append([n, float(src[n])])
-	if cat == "race":
+	if cat in ["race", "ski"]:
 		list.sort_custom(func(a, b): return a[1] < b[1])
 	else:
 		list.sort_custom(func(a, b): return a[1] > b[1])

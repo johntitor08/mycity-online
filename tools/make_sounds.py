@@ -347,6 +347,51 @@ def ambience_more():
     save("step", lowpass(noise(0.07), 900) * env(int(SR * 0.07), 0.002, decay=0.018), 0.5)
 
 
+# ---------------------------------------------------------------- 1.2: çalgılar ve kazma
+
+def karplus(freq, dur, damp=0.996):
+    n = int(SR * dur)
+    period = int(SR / freq)
+    buf = rng.uniform(-1, 1, period)
+    out = np.zeros(n)
+    for i in range(n):
+        out[i] = buf[i % period]
+        buf[i % period] = damp * 0.5 * (buf[i % period] + buf[(i + 1) % period])
+    return out
+
+
+def instruments():
+    f = note(60)
+    g = karplus(f, 1.4) + 0.4 * karplus(f * 2, 1.4, 0.993)
+    save("gitar", lowpass(g, 3500) * env(len(g), 0.002, release=0.1), 0.7)
+    t = t_of(1.6)
+    pn = sum(a * np.sin(2 * np.pi * f * h * t) * np.exp(-t * (2.2 + h * 0.9)) for h, a in ((1, 1.0), (2, 0.5), (3, 0.25), (4, 0.12), (5, 0.06)))
+    pn += 0.05 * highpass(noise(1.6), 2000) * np.exp(-t * 40)
+    save("piyano", pn * env(len(pn), 0.003, release=0.1), 0.7)
+    # davul: bas, trampet, hi-hat, tom
+    tk = t_of(0.45)
+    kick = np.sin(2 * np.pi * np.cumsum(55 + 110 * np.exp(-tk * 25)) / SR) * np.exp(-tk * 8)
+    save("davul_0", kick, 0.8)
+    ts = t_of(0.3)
+    snare = 0.6 * highpass(noise(0.3), 1200) * np.exp(-ts * 16) + 0.5 * np.sin(2 * np.pi * 190 * ts) * np.exp(-ts * 20)
+    save("davul_1", snare, 0.7)
+    th = t_of(0.14)
+    save("davul_2", highpass(noise(0.14), 6000) * np.exp(-th * 35), 0.5)
+    tt = t_of(0.5)
+    tom = np.sin(2 * np.pi * np.cumsum(140 + 60 * np.exp(-tt * 12)) / SR) * np.exp(-tt * 7)
+    save("davul_3", tom, 0.75)
+    # kazma: metalik çınlama + taş tıkırtısı
+    tp = t_of(0.35)
+    pick = 0.6 * np.sin(2 * np.pi * 2350 * tp) * np.exp(-tp * 22) + 0.4 * np.sin(2 * np.pi * 3720 * tp) * np.exp(-tp * 30)
+    pick += 0.7 * lowpass(noise(0.35), 2500) * np.exp(-tp * 45)
+    save("pick", pick, 0.6)
+    tr = t_of(0.7)
+    crumble = np.zeros(len(tr))
+    for k in range(9):
+        mix_at(crumble, lowpass(noise(0.12), 1400) * env(int(SR * 0.12), 0.002, decay=0.03), k * 0.06 + rng.uniform(0, 0.03))
+    save("rock_break", crumble, 0.65)
+
+
 if __name__ == "__main__":
     effects()
     waves()
@@ -354,3 +399,4 @@ if __name__ == "__main__":
     weather_and_more()
     seasonal_music()
     ambience_more()
+    instruments()

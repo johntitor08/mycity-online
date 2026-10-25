@@ -37,7 +37,7 @@ func _show(c: String) -> void:
 
 func _fmt(c: String, v: float) -> String:
 	match c:
-		"race":
+		"race", "ski":
 			return "%.2f sn" % v
 		"wealth", "fish":
 			return U.money(int(v))
@@ -69,7 +69,8 @@ func _refresh() -> void:
 		return
 	var list: Array = v.get("boards", {}).get(cat, [])
 	add_label(board, {"wealth": "Cebindeki para + banka hesabı", "fish": "Bu sezon tutulan balıkların toplam değeri", "race": "Bu sezonun en iyi pist turu",
-		"goals": "Bu sezon plaj sahasında atılan goller", "xp": "Bu sezon kazanılan tecrübe puanı"}[cat], 13, Color("#94a3b8"))
+		"goals": "Bu sezon plaj sahasında atılan goller", "xp": "Bu sezon kazanılan tecrübe puanı",
+		"ski": "Bu sezonun en hızlı kayak inişi (dağ, kaçan kapı +3 sn)"}[cat], 13, Color("#94a3b8"))
 	if list.is_empty():
 		add_label(board, "Bu sezon henüz kimse puan almadı.", 15, Color("#7c859e"))
 	for i in list.size():

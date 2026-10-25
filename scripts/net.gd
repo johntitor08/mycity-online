@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "1.1"
+const VERSION := "1.2"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -247,6 +247,9 @@ func _reset_peer() -> void:
 	League.reset()
 	Factory.reset()
 	Dive.reset()
+	Mountain.reset()
+	Museum.reset()
+	Band.reset()
 
 
 func _on_connected() -> void:
@@ -422,6 +425,8 @@ func _on_peer_disconnected(id: int) -> void:
 	Langirt.on_player_left(id)
 	Factory.on_player_left(id)
 	Dive.on_player_left(id)
+	Mountain.on_player_left(id)
+	Band.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -558,6 +563,9 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Work.send_state(id)
 	League.send_state(id)
 	Dive.send_state(id)
+	Mountain.send_state(id)
+	Museum.send_state(id)
+	Band.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -682,6 +690,13 @@ func send_pos(p: Vector2) -> void:
 	if Dive.is_diving(id):
 		return
 	if Map.JAIL.has_point(p):
+		return
+	# dağa ve dağdan ancak teleferikle (sunucu ışınlar) geçilir
+	var last: Vector2 = positions.get(id, p)
+	if Map.MOUNTAIN.has_point(p) != Map.MOUNTAIN.has_point(last):
+		return
+	if Map.MOUNTAIN.has_point(p):
+		positions[id] = p.clamp(Map.MOUNTAIN.position, Map.MOUNTAIN.end)
 		return
 	var room := Map.interior_at(p)
 	if Map.INTERIOR_AREA.has_point(p):
