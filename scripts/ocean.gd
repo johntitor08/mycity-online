@@ -29,6 +29,7 @@ const UPGRADES := {
 	"motor": {"name": "Motor", "desc": "Tekne hızı +%12", "price": [3000, 7000, 15000]},
 	"tank": {"name": "Yakıt Deposu", "desc": "Menzil +60 L", "price": [2000, 5000, 11000]},
 	"hull": {"name": "Gövde", "desc": "Fırtına ve Kraken hasarı -%20", "price": [2500, 6000, 13000]},
+	"hold": {"name": "Ambar", "desc": "Kargo kapasitesi 10 → 20 → 35 → 50 sandık", "price": [4000, 9000, 18000]},
 }
 const REPAIR_PRICE := 5            # can başına
 const TOW_FEE := 200
@@ -212,7 +213,7 @@ func _data(rec: Dictionary) -> Dictionary:
 	if not o.get("chest") is Dictionary:
 		o["chest"] = {}
 	if not o.get("up") is Dictionary:
-		o["up"] = {"motor": 0, "tank": 0, "hull": 0}
+		o["up"] = {"motor": 0, "tank": 0, "hull": 0, "hold": 0}
 	if not o.has("fuel"):
 		o["fuel"] = BASE_FUEL
 	if not o.has("hp"):
@@ -314,7 +315,7 @@ func _near_island_feature(id: int, key: String) -> int:
 func req_refuel(_d: Dictionary) -> void:
 	var id := Net.sender()
 	var rec := _rec(id)
-	if rec.is_empty() or _near_island_feature(id, "fuel") < 0:
+	if rec.is_empty() or _near_island_feature(id, "fuel") < 0 and not Isles.has_pump_near(_pos(id)):
 		return
 	var o := _data(rec)
 	var need := max_fuel(o.up) - float(o.fuel)
@@ -434,8 +435,15 @@ func req_chest(d: Dictionary) -> void:
 	var o := _data(rec)
 	var now := Time.get_unix_time_from_system()
 	var last := float(o.chest.get(str(i), 0.0))
-	if now - last < CHEST_COOLDOWN:
-		Net.notify(id, "Bu sandık boş; %d dk sonra yine dolu olur." % int(ceil((CHEST_COOLDOWN - (now - last)) / 60.0)), false)
+	var cool := CHEST_COOLDOWN
+	var rule := Isles.chest_rule(id, i)
+	if rule == -1.0:
+		Net.notify(id, "Bu özel bir ada; sandığını sadece sahibi açabilir.", false)
+		return
+	if rule > 0.0:
+		cool = rule                          # kendi adanın sandığı daha sık dolar
+	if now - last < cool:
+		Net.notify(id, "Bu sandık boş; %d dk sonra yine dolu olur." % int(ceil((cool - (now - last)) / 60.0)), false)
 		return
 	o.chest[str(i)] = now
 	var tier := int(isl.tier)
@@ -588,6 +596,10 @@ func _broadcast_world() -> void:
 
 func _sink(id: int, o: Dictionary) -> void:
 	o["hp"] = 40.0
+	if o.get("cargo") is Dictionary and not o.cargo.is_empty():
+		o["cargo"] = {}
+		Cargo.send_state(id)
+		Net.notify(id, "Kargon denizin dibini boyladı!", false)
 	o["fuel"] = maxf(float(o.fuel), max_fuel(o.up) * 0.5)
 	Net.try_spend(id, mini(TOW_FEE, int(Net.players[id].money)))
 	Garage.set_ride(id, "boat")

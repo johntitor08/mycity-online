@@ -11,6 +11,7 @@ var _phase := "main"        # main -> wrong_pass -> right_pass
 var _port := 7777
 var _chats: Array = []
 const PASS := "test1234"
+const U = preload("res://scripts/util.gd")
 
 
 var _addr := "127.0.0.1"
@@ -292,6 +293,7 @@ func _on_ok() -> void:
 		await _test_14(get_parent().world)
 		await _test_15(get_parent().world)
 		await _test_16(get_parent().world)
+		await _test_17(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -2632,6 +2634,10 @@ func _test_16(w) -> void:
 	check(w.zone.get("type", "") == "ocean_fuel", "yakıt iskelesi")
 	var m0 := Net.my_money()
 	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "liman paneli açıldı")
+	w._close_panel()
+	Ocean.refuel()
 	await _wait(0.4)
 	check(absf(float(Ocean.my.fuel) - Ocean.max_fuel(Ocean.my.up)) < 0.5 and Net.my_money() < m0, "depo dolduruldu")
 	w._toggle_vehicle()
@@ -2726,6 +2732,308 @@ func _test_16(w) -> void:
 	check(not w._ocean and w.my_pos.distance_to(Ocean.CITY_RETURN) < 50.0 and w.my_ride() == "boat", "şehrin açıklarına dönüldü")
 	Garage.ride("")
 	await _wait(0.2)
+
+
+func _rail_stop() -> void:
+	var Map = preload("res://scripts/map.gd")
+	Map.rail_shift = 0.0
+	Map.rail_shift = 15.0 - fposmod(Time.get_unix_time_from_system(), Map.RAIL_PERIOD)
+
+
+func _test_17(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var OM = preload("res://scripts/ocean_map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 200000)
+	Env.force_weather("clear")
+	Holidays.force("yok")
+	Garage.ride("")
+	await _wait(0.3)
+
+	print("== 1.7: Tren")
+	var st0 := Map.train_state(1000.0)
+	check(Map.RAIL.size() == 3 and st0.has("stopped"), "3 istasyon, tarife")
+	w.my_pos = Map.RAIL.sehir.booth + Vector2(0, 20)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "rail" and w.zone.get("here", "") == "sehir", "Şehir Garı gişesi")
+	Map.rail_shift = 50.0 - fposmod(Time.get_unix_time_from_system(), Map.RAIL_PERIOD)      # tren yok
+	var m0 := Net.my_money()
+	Rail.board("dag")
+	await _wait(0.4)
+	check(Net.my_money() == m0 and w.my_ride() != "train", "tren peronda değilken binilmez")
+	_rail_stop()
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "gişe paneli açıldı")
+	w._close_panel()
+	Rail.board("dag")
+	await _wait(0.5)
+	check(w.my_ride() == "train" and Net.my_money() in [m0 - Rail.PRICE, m0 - Rail.PRICE + 300], "trene binildi (%s)" % U.money(Rail.PRICE))
+	await _wait(Rail.TRIP_TIME + 0.8)
+	check(w._mount and w.my_pos.distance_to(Rail.arrive_pos("dag")) < 40.0 and w.my_ride() == "", "Dağ İstasyonu'na varıldı")
+	check(rec.ach.got.has("train"), "Yolcu başarımı")
+	w.my_pos = Map.RAIL.dag.booth + Vector2(0, -10)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "rail", "dağ istasyonu gişesi")
+	_rail_stop()
+	Rail.board("fuar")
+	await _wait(Rail.TRIP_TIME + 1.2)
+	check(w._fair and w.my_pos.distance_to(Rail.arrive_pos("fuar")) < 40.0, "Lunapark İstasyonu'na varıldı")
+	Map.rail_shift = 0.0
+
+	print("== 1.7: Sinema")
+	w.my_pos = Vector2(Map.CINEMA.rect.get_center().x, Map.CINEMA.rect.end.y + 10)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "sinema", "sinema kapısı")
+	var now := Time.get_unix_time_from_system()
+	Cinema.shift = 0.0
+	Cinema.shift = 5.0 - fposmod(now, Cinema.SESSION)          # film yeni başladı
+	var m1 := Net.my_money()
+	Cinema.buy_ticket()
+	await _wait(0.4)
+	var ses := Cinema.session_at(Time.get_unix_time_from_system())
+	check(Cinema.has_ticket(int(ses.n)) and Net.my_money() == m1 - Cinema.TICKET, "bilet alındı (bu seans)")
+	w._open_panel()
+	await _wait(0.5)
+	check(w.panel != null and Net.my_name in Cinema.viewers, "salonda izleyici listesinde")
+	var got_react := [false]
+	var cb := func(_d): got_react[0] = true
+	Cinema.reaction.connect(cb)
+	Cinema.react("alkis")
+	await _wait(0.4)
+	Cinema.reaction.disconnect(cb)
+	check(got_react[0], "tepki salona yayıldı")
+	var e0 := float(Rpg.sheet.get("energy", 0))
+	Cinema.buy_popcorn()
+	await _wait(0.4)
+	check(float(Rpg.sheet.get("energy", 0)) >= e0, "patlamış mısır")
+	Cinema.shift += Cinema.FILM_LEN                           # film bitti
+	await _wait(0.6)
+	check(int(Cinema.my.get("films", 0)) == 1, "film izlendi (+XP)")
+	w._close_panel()
+	await _wait(0.3)
+	check(not Net.my_name in Cinema.viewers or Cinema.viewers.is_empty(), "salondan çıkıldı")
+	Cinema.shift = 0.0
+	print("== 1.7: Karaoke")
+	var bs := Cinema.beats(0)
+	check(bs.size() > 20 and float(bs[0].t) == 3.0, "şarkı vuruşları (%d hece)" % bs.size())
+	var perfect: Array = []
+	for b in bs:
+		perfect.append(float(b.t) + 0.02)
+	var sc := Cinema.score_hits(0, perfect)
+	check(int(sc.score) == int(sc.max), "tam isabet = tam puan")
+	var spam: Array = []
+	for k in 200:
+		spam.append(k * 0.15)
+	check(int(Cinema.score_hits(0, spam).score) < int(sc.max) / 2, "rastgele basmak işe yaramaz")
+	Cinema.karaoke_start(0)
+	await _wait(0.4)
+	check(not Cinema.karaoke.is_empty(), "karaoke başladı")
+	Cinema._kara[me].t0 -= Cinema.song_length(0)              # şarkı bitti say
+	var m2 := Net.my_money()
+	var res := [{}]
+	var cb2 := func(d): res[0] = d
+	Cinema.karaoke_result.connect(cb2)
+	Cinema.karaoke_finish(perfect)
+	await _wait(0.5)
+	Cinema.karaoke_result.disconnect(cb2)
+	check(int(res[0].get("score", 0)) == int(sc.max) and Net.my_money() > m2, "karaoke puanı %d, ödül alındı" % int(res[0].get("score", 0)))
+	check(rec.ach.got.has("karaoke_star") and int(Cinema.kara_best.best) == int(sc.max), "Karaoke Yıldızı, günün rekoru")
+
+	print("== 1.7: Paintball")
+	w.my_pos = Map.ARENA_BOOTH + Vector2(0, 20)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "paint", "arena gişesi")
+	check(not w._can_stand(Map.ARENA.get_center(), ""), "maç dışında arenaya girilmez")
+	Paint.join("kirmizi")
+	await _wait(0.4)
+	check(Paint.my_team() == "kirmizi", "Kırmızı takıma girildi")
+	Paint.start()
+	await _wait(0.6)
+	check(Paint.in_match() and Map.ARENA.has_point(w.my_pos) and Paint.st.bots.size() == 5, "maç başladı, 5 bot")
+	check(Paint.st.mode == "hits", "mod: vuruş")
+	var b0 := Paint._balls.size()
+	Paint.fire(Vector2.RIGHT)
+	await _wait(0.1)
+	check(Paint._balls.size() > b0 or Paint.balls.size() > 0, "boya topu atıldı")
+	await _wait(6.0)
+	check(int(Paint._score.kirmizi) + int(Paint._score.mavi) > 0, "vuruşlar sayılıyor (%d – %d)" % [int(Paint._score.kirmizi), int(Paint._score.mavi)])
+	var m3 := Net.my_money()
+	Paint._finish("kirmizi")
+	await _wait(0.6)
+	check(not Paint.in_match() and Net.my_money() >= m3 + 250 and rec.ach.got.has("paint_win"), "maç kazanıldı, ödül")
+	check(w.my_pos.distance_to(Map.ARENA_BOOTH) < 120.0, "arenadan çıkıldı")
+	Paint.start()
+	await _wait(0.5)
+	check(Paint._mode == "flag", "ikinci maç: bayrak modu")
+	for bt in Paint._bots:
+		Paint._out[bt.name] = Time.get_ticks_msec() / 1000.0 + 30.0        # botlar beklesin
+	w.my_pos = Map.ARENA_BASE.mavi + Vector2(-30, 0)
+	await _wait(0.5)
+	check(str(Paint._flags.mavi.carrier) == Net.my_name, "mavi bayrak alındı")
+	w.my_pos = Map.ARENA_BASE.kirmizi + Vector2(20, 0)
+	await _wait(0.5)
+	check(int(Paint._score.kirmizi) == 1, "bayrak üsse getirildi")
+	Paint._finish("")
+	await _wait(0.4)
+	Paint.leave_team()
+	await _wait(0.2)
+
+	print("== 1.7: Özel ada")
+	var sale: Array = Isles.for_sale()
+	check(sale.size() >= 6, "%d satılık ada" % sale.size())
+	var bad := 0
+	for i in sale:
+		var sp: Dictionary = Isles.spots(OM.islands()[i])
+		for k in ["house", "pool", "garden", "light"]:
+			if not OM.is_land(sp[k]):
+				bad += 1
+		if not OM.is_land(sp.sign) and not OM.on_pier(sp.sign):
+			bad += 1
+	check(bad == 0, "ada yapılarının yerleri karada")
+	var ii: int = sale[0]
+	var isl: Dictionary = OM.islands()[ii]
+	var sp0: Dictionary = Isles.spots(isl)
+	if not "boat" in rec.vehicles:
+		rec.vehicles.append("boat")
+	Garage.send_state(me)
+	Homes._teleport(me, sp0.sign + Vector2(0, 10))
+	await _wait(0.5)
+	check(w._ocean and w.zone.get("type", "") == "isle", "satılık ada tabelası")
+	var m4 := Net.my_money()
+	Isles.buy(ii)
+	await _wait(0.5)
+	check(Isles.owner_of(ii) == Net.my_name and Net.my_money() in [m4 - Isles.price_of(isl), m4 - Isles.price_of(isl) + 3000], "ada satın alındı (%s)" % U.money(Isles.price_of(isl)))
+	check(rec.ach.got.has("island"), "Ada Sahibi başarımı")
+	Isles.build(ii, "bahce")
+	await _wait(0.3)
+	check(int(Isles.view[str(ii)].b.bahce) == 0, "evsiz bahçe kurulmaz")
+	for k in ["ev", "bahce", "havuz", "fener", "iskele"]:
+		Isles.build(ii, k)
+		await _wait(0.25)
+	var bb: Dictionary = Isles.view[str(ii)].b
+	check(int(bb.ev) == 1 and int(bb.bahce) == 1 and int(bb.havuz) == 1 and int(bb.fener) == 1 and int(bb.iskele) == 1, "ev, bahçe, havuz, fener, iskele kuruldu")
+	w.my_pos = sp0.house + Vector2(0, 30)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "isle_rest", "evde dinlen bölgesi")
+	w._open_panel()
+	await _wait(0.4)
+	check(float(Net.save_data.isles[str(ii)].rest_t) > 0.0, "evde dinlenildi")
+	w.my_pos = sp0.garden + Vector2(0, 20)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "isle_harvest", "bahçe hasadı bölgesi")
+	var m5 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.my_money() > m5, "bahçe hasat edildi")
+	Isles.set_open(ii, false)
+	await _wait(0.3)
+	check(not Isles.view[str(ii)].open, "ada özel yapıldı")
+	check(Isles.chest_rule(me, ii) == Isles.OWNER_CHEST, "sahibin sandığı 10 dk'da bir dolar")
+	w.my_pos = Vector2(isl.chest) + Vector2(0, 12)
+	await _wait(0.3)
+	Ocean.open_chest(ii)
+	await _wait(0.3)
+	rec.ocean.chest[str(ii)] = Time.get_unix_time_from_system() - Isles.OWNER_CHEST - 5.0
+	var m6 := Net.my_money()
+	Ocean.open_chest(ii)
+	await _wait(0.4)
+	check(Net.my_money() > m6, "11 dk sonra sahip yine açtı")
+
+	print("== 1.7: Ticaret")
+	rec.ocean.fuel = 100.0
+	var home: Dictionary = OM.islands()[0]
+	Homes._teleport(me, OM.pier_end(home) + Vector2(home.dock_dir) * 60.0)
+	await _wait(0.3)
+	Garage.set_ride(me, "boat")
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "ocean_fuel" and int(w.zone.get("port", -2)) == 0, "Liman Adası limanı")
+	w._open_panel()
+	await _wait(0.4)
+	check(w.panel != null, "liman paneli (yakıt + ticaret)")
+	w._close_panel()
+	var lg := Cargo.local_good(0)
+	Cargo.buy(lg, 50)
+	await _wait(0.4)
+	check(Cargo.used() == Cargo.capacity(Ocean.my.up), "ambar doldu (%d sandık %s)" % [Cargo.used(), Cargo.GOODS[lg].name])
+	var other := -1
+	for pi in Cargo.ports():
+		if Cargo.local_good(pi) != lg:
+			other = pi
+			break
+	check(other >= 0, "başka mal satan liman var")
+	var oi: Dictionary = OM.islands()[other]
+	Homes._teleport(me, OM.pier_end(oi) + Vector2(oi.dock_dir) * 60.0)
+	await _wait(0.5)
+	var m7 := Net.my_money()
+	var n0 := Cargo.used()
+	Cargo.sell(lg, n0)
+	await _wait(0.4)
+	check(Cargo.used() == 0 and Net.my_money() > m7 and Cargo.profit > 0, "kargo kârla satıldı (+%s, kâr %s)" % [U.money(Net.my_money() - m7), U.money(Cargo.profit)])
+	Cargo.buy(Cargo.local_good(other), 10)
+	await _wait(0.4)
+	var before := Cargo.used()
+	Cargo.start_raid(me)
+	Cargo._raids[me].p = w.my_pos + Vector2(60, 0)
+	await _wait(2.5)
+	check(Cargo.used() < before and Cargo.raids.is_empty(), "korsanlar kargonun bir kısmını aldı (%d → %d)" % [before, Cargo.used()])
+	Cargo._raid_cool.erase(me)
+	Cargo.start_raid(me)
+	await _wait(0.2)
+	Cargo._raids[me].p = w.my_pos + Vector2(300, 0)
+	Cargo._broadcast_raids()
+	await _wait(0.3)
+	var m8 := Net.my_money()
+	for k in Cargo.RAID_HITS:
+		Cargo._raids[me].p = w.my_pos + Vector2(300, 0) if Cargo._raids.has(me) else Vector2.ZERO
+		Cargo._harp_t.erase(me)
+		Cargo.harpoon_raid(Net.my_name)
+		await _wait(0.3)
+	check(not Cargo._raids.has(me) and Net.my_money() >= m8 + Cargo.RAID_REWARD, "korsan gemisi zıpkınla batırıldı")
+
+	print("== 1.7: Göl: yüzme ve kayık")
+	Homes._teleport(me, Map.DOCK.position + Vector2(30, 40))
+	Garage.set_ride(me, "")
+	await _wait(0.5)
+	var lc: Vector2 = Map.LAKE.get_center()
+	var shallow := lc + Vector2(-Map.LAKE.size.x / 2.0 * 0.8, 0)
+	check(Map.in_lake(shallow) and not Map.lake_deep(shallow) and Map.lake_deep(lc), "göl: sığ kıyı, derin orta")
+	check(w._can_stand(shallow, ""), "gölün sığ kısmında yüzülür")
+	var keep: Vector2 = w.my_pos
+	w.my_pos = shallow
+	check(not w._can_stand(lc, ""), "derin ortaya yüzerek girilmez")
+	w.my_pos = keep
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "kayik", "iskelede bağlı kayık")
+	w._open_panel()
+	await _wait(0.5)
+	check(w.my_ride() == "kayik" and w.my_pos.distance_to(Map.KAYIK_SPOT) < 5.0, "kayığa binildi")
+	check(w._can_stand(lc, "kayik") and not w._can_stand(Map.DOCK.get_center(), "kayik"), "kayık gölde gezer, karaya/iskeleye çıkmaz")
+	w.my_pos = lc
+	await _wait(0.5)
+	check(w.zone.get("type", "") == "fishing" and w.zone.get("spot", "") == "lake", "kayıktan balık tutma bölgesi")
+	Jobs.cast()
+	await _wait(0.4)
+	check(Jobs._fish.has(me) and bool(Jobs._fish[me].get("deep", false)), "gölün ortasında olta atıldı (nadir şansı yüksek)")
+	Jobs._fish.erase(me)
+	w.my_pos = Map.KAYIK_SPOT
+	await _wait(0.4)
+	w._toggle_vehicle()
+	await _wait(0.4)
+	check(w.my_ride() == "" and not Map.in_water(w.my_pos), "kayıktan iskeleye inildi")
+	check(rec.ach.got.has("kayik"), "Kürekçi başarımı")
+
+	print("== 1.7: Ada satışı ve dönüş")
+	Homes._teleport(me, sp0.sign + Vector2(0, 10))
+	Garage.set_ride(me, "")
+	await _wait(0.4)
+	var m9 := Net.my_money()
+	Isles.sell(ii)
+	await _wait(0.4)
+	check(Isles.owner_of(ii) == "" and Net.my_money() > m9, "ada satıldı (%s geri)" % U.money(Net.my_money() - m9))
+	Homes._teleport(me, Map.SPAWN + Vector2(0, 60))
+	await _wait(0.5)
 
 
 func _finish() -> void:

@@ -9,7 +9,8 @@ klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri,
 mini harita, açık deniz ve Martı Adası, mevsimlik eğlence, plaj futbolu ve langırt (0.8); taksi, kargo,
 itfaiye ve çöpçülük meslekleri, nehir/park/otobüs, ev partileri, ayarlar ve eğitim turu (0.9); Sanayi Limanı,
 feribot ve fabrika, haftalık lig, mevsim/gece müzikleri, yönetici komutları ve otomatik yedekler (1.0);
-30 adalı Açık Okyanus: hazineler, keşif haritası, fenerler, yakıt ve tekne geliştirme, fırtınalar ve Kraken (1.6).
+30 adalı Açık Okyanus: hazineler, keşif haritası, fenerler, yakıt ve tekne geliştirme, fırtınalar ve Kraken (1.6);
+tren hattı, sinema ve karaoke, paintball arenası, özel adalar ve okyanus ticareti (1.7).
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 **Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
@@ -35,6 +36,45 @@ Menüde:
 - **Sunucuya Katıl**: Arkadaşının IP adresini ve portunu yazıp bağlan.
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
+
+## 1.7: Tren ve sinema, paintball, özel ada, okyanus ticareti, gölde kayık
+
+| | |
+|---|---|
+| ![Şehir Garı](docs/ekran/tren_sehir.png) | ![Tren yolculuğu](docs/ekran/tren_yolculuk.png) |
+| ![Sinema](docs/ekran/sinema_film.png) | ![Karaoke](docs/ekran/karaoke.png) |
+| ![Paintball](docs/ekran/paintball.png) | ![Özel ada](docs/ekran/ozel_ada.png) |
+| ![Liman ve ticaret](docs/ekran/liman_ticaret.png) | ![Korsan baskını](docs/ekran/korsan_baskini.png) |
+| ![Gölde kayık](docs/ekran/gol_kayik.png) | ![Lunapark İstasyonu ve sinema](docs/ekran/sinema_dis.png) |
+
+- **Tren hattı:** Şehir Garı (kuzey kenarı, Emlak Ofisi ile Pet Shop arası), Dağ İstasyonu ve Lunapark İstasyonu.
+  - Tren her istasyona 80 saniyede bir girer, 20 saniye bekler; herkes treni görür.
+  - Gişeden bilet (60 TL), pencereden manzaralı kısa yolculuk, hedef perona iniş.
+- **Sinema** (fuar, akvaryumun güneyi):
+  - Her 2 dakikada bir 90 saniyelik kısa animasyon filmi; herkes aynı sahneyi izler.
+  - Filmler: Uzay Kedisi, Korsanın Altını, Robotun Dostu, Dev Kaplumbağa. Bilet 40 TL.
+  - Patlamış mısır (+12 enerji). Tepkiler (alkış, kahkaha...) salondakilere görünür.
+  - **Karaoke:** sözler perdede akar, her heceyi tam vaktinde Boşluk'la söyle (notalar çalar).
+    Puanı sunucu hesaplar, günün rekoru duyurulur.
+- **Paintball arenası** (fuar, havalimanının kuzeyi):
+  - Kırmızı ve Mavi takım; eksik oyuncuları botlar doldurur, tek başına da oynanır.
+  - Sol tıkla fareye doğru boya topu at; vurulan 3 sn oyun dışı kalır.
+  - Modlar sırayla: ilk 10 vuruş / bayrak kapma (3).
+  - Kazanan 250 TL, kaybeden 80 TL. Vuruşlar yeni **Paintball ligine** yazılır.
+- **Özel ada:** okyanustaki büyük boş adalardan birini satın al (iskelede "SATILIK" tabelası).
+  - Kurulabilecek yapılar: ev (kulübe → villa → malikâne), tropik bahçe, havuz, deniz feneri, yakıt pompalı büyük iskele.
+  - Evde dinlen: enerji dolar; havuz varsa XP de gelir. Bahçeden günlük hasat alınır.
+  - Kendi adanın sandığı 10 dakikada bir dolar. Adayı özel yaparsan sandığı başkası açamaz.
+  - Satınca harcadığının %60'ı geri gelir.
+- **Okyanus ticareti:** yakıt iskeleli adalar limandır.
+  - Her liman kendi ada tipinin malını ucuza satar: muz, kaya tuzu, mangrov balı, kükürt, buz kalıbı, antika vazo.
+  - Diğer malları pahalıya alır; fiyatlar dalgalanır.
+  - Tersanede yeni **Ambar** yükseltmesi: 10 → 50 sandık.
+  - **Korsan baskını:** kargo taşırken kara bayraklı gemi peşine düşebilir.
+    Kaçarsan kurtulursun; yakalanırsan kargonun %40'ı gider; 3 zıpkınla batırırsan ödül alırsın.
+- **Göl:** kıyıya yakın sığ kısımda yüzülür; gölün derin ortasına Göl İskelesi'ndeki **bedava kayıkla** gidilir.
+  Kayıktan balık tutulur (ortada nadir balık şansı daha yüksek); evcil hayvan da kayığa biner.
+- Bina tabelalarında Türkçe büyük harf düzeltildi (EMLAK OFİSİ, SİNEMA).
 
 ## 1.6: Açık Okyanus
 
@@ -438,8 +478,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.6.1
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.6.1
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.7
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.7
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -576,6 +616,11 @@ scripts/
   factory.gd  (autoload) fabrika üretim bandı işi
   ocean.gd    (autoload) Açık Okyanus: yakıt, tersane, sandıklar, fenerler, keşif sisi, fırtınalar, Kraken
   ocean_map.gd okyanus adaları (sabit tohumla üretilir; sunucu ve istemci aynı adaları görür)
+  rail.gd     (autoload) tren hattı: tarife, bilet, yolculuk
+  cinema.gd   (autoload) sinema seansları, tepkiler, karaoke puanlama
+  paint.gd    (autoload) paintball: takımlar, botlar, toplar, bayraklar (sunucu fiziği)
+  isles.gd    (autoload) özel adalar ve yapıları
+  cargo.gd    (autoload) okyanus ticareti, korsan baskınları
   npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)

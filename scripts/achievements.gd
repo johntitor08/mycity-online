@@ -149,6 +149,19 @@ const LIST := {
 	"lights5": ["lighthouses", 5, "Fenerci", "5 deniz fenerini yak.", 2000, "Fenerci"],
 	"boat_up": ["boat_up", 9, "Usta Kaptan", "Teknenin bütün yükseltmelerini tamamla.", 6000, "Usta Kaptan"],
 	"kraken": ["kraken", 1, "Kraken Avcısı", "Kraken'i yenmeye katıl.", 3000, "Kraken Avcısı"],
+	# 1.7
+	"train": ["train", 1, "Yolcu", "Trenle yolculuk yap.", 300, ""],
+	"films5": ["films", 5, "Sinemasever", "Sinemada 5 film izle.", 1500, "Sinemasever"],
+	"karaoke": ["karaoke", 1, "Mikrofon Bende", "Karaokede şarkı söyle.", 300, ""],
+	"karaoke_star": ["karaoke_star", 1, "Karaoke Yıldızı", "Karaokede %80 üstü puan al.", 2000, "Karaoke Yıldızı"],
+	"island": ["island", 1, "Ada Sahibi", "Okyanusta bir ada satın al.", 3000, "Ada Sahibi"],
+	"island_build": ["island_build", 7, "Ada Kralı", "Adandaki bütün yapıları kur.", 10000, "Ada Kralı"],
+	"trader": ["trade_profit", 10000, "Tüccar", "Ticaretten toplam 10.000 TL kâr et.", 3000, "Tüccar"],
+	"raid_sunk": ["raid_sunk", 1, "Korsan Avcısı", "Bir korsan gemisini batır.", 1500, ""],
+	"paint_win": ["paint_wins", 1, "Boya Savaşçısı", "Bir paintball maçı kazan.", 500, ""],
+	"paint_hits": ["paint_hits", 100, "Keskin Nişancı", "Paintballda 100 vuruş yap.", 3000, "Keskin Nişancı"],
+	"paint_flags": ["paint_flags", 5, "Bayrak Avcısı", "Rakip bayrağı 5 kez üssüne getir.", 2000, ""],
+	"kayik": ["kayik", 1, "Kürekçi", "Gölde kayığa bin.", 200, ""],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

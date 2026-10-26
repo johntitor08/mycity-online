@@ -39,6 +39,11 @@ const PANELS := {
 	"korsan": preload("res://scripts/ui/pirate_panel.gd"),
 	"akvaryum": preload("res://scripts/ui/aquarium_panel.gd"),
 	"bayram": preload("res://scripts/ui/holiday_panel.gd"),
+	"rail": preload("res://scripts/ui/rail_panel.gd"),
+	"sinema": preload("res://scripts/ui/cinema_panel.gd"),
+	"paint": preload("res://scripts/ui/paint_panel.gd"),
+	"isle": preload("res://scripts/ui/isle_panel.gd"),
+	"port": preload("res://scripts/ui/port_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -73,6 +78,7 @@ const BUILDING_TEX := {
 	"terminal": preload("res://assets/buildings/terminal.svg"),
 	"spor": preload("res://assets/buildings/spor.svg"),
 	"akvaryum": preload("res://assets/buildings/akvaryum.svg"),
+	"sinema": preload("res://assets/buildings/sinema.svg"),
 	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
 	"karakol": preload("res://assets/buildings/karakol.svg"),
 	"banka": preload("res://assets/buildings/banka.svg"),
@@ -279,6 +285,8 @@ func _ready() -> void:
 	Holidays.changed.connect(_rebuild_blockers)
 	Zoo.changed.connect(_rebuild_blockers)
 	Airport.flight.connect(_on_flight)
+	Rail.trip.connect(_on_trip)
+	Paint.hit.connect(_on_paint_hit)
 	Airport.takeoff.connect(func(): _takeoff_t = _t)
 	Airport.balloon_changed.connect(func():
 		if Airport.in_balloon():
@@ -316,6 +324,8 @@ func _process(delta: float) -> void:
 		if Airport.in_balloon():
 			my_pos = Map.balloon_at(Airport.balloon_elapsed())
 			my_moving = true
+	elif my_ride() == "train" or Paint.in_match() and Paint.is_out(Net.my_name):
+		pass                                   # trende ya da boyanıp oyun dışıyken yürünmez
 	elif panel == null and not hud.is_typing():
 		var dir := Vector2.ZERO
 		if Settings.held("up"):
@@ -334,7 +344,7 @@ func _process(delta: float) -> void:
 				mult *= 1.1                            # sürücü diploması
 			if ride == "":
 				mult *= Gym.walk_mult()                # kondisyon
-			if ride == "" and Map.in_sea(my_pos):
+			if ride == "" and (Map.in_sea(my_pos) or Map.in_water(my_pos)):
 				mult = 0.55
 			if _ocean and ride == "boat":
 				mult *= Ocean.speed_mult(Ocean.my.up, float(Ocean.my.fuel)) * (0.6 if Ocean.storm_at(my_pos) else 1.0)
@@ -373,7 +383,7 @@ func _process(delta: float) -> void:
 			Tutorial.note("move")
 	camera.position = my_pos
 	_update_area()
-	var swimming := Map.in_sea(my_pos) and my_ride() == ""
+	var swimming := (Map.in_sea(my_pos) or Map.in_water(my_pos)) and my_ride() == ""
 	if swimming and not _was_swimming:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
@@ -421,6 +431,8 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 		var fr := Map.FAIR.grow(-20)
 		if my_ride() == "bumper":
 			fr = Map.BUMPER.grow(-24)
+		elif Paint.in_match():
+			fr = Map.ARENA.grow(-16)
 		return p.clamp(fr.position, fr.end)
 	if _mount:
 		var m := Map.MOUNTAIN.grow(-20)
@@ -448,12 +460,20 @@ func _can_stand(p: Vector2, ride: String) -> bool:
 		return true
 	if _ocean:
 		return _ocean_can_stand(p, ride)
+	if _fair and Paint.in_match():
+		return Paint.free_at(p) or not Paint.free_at(my_pos)
+	if _fair and Map.ARENA.has_point(p) and not Map.ARENA.has_point(my_pos):
+		return false                           # arena çitle çevrili: maça gişeden girilir
 	if _mount or _fair:
 		return not (_blocked(p) and not _blocked(my_pos))
 	if _blocked(p) and not _blocked(my_pos):
 		return false              # bina, ev ya da araba (içindeysen çıkabilirsin)
+	if my_ride() == "kayik" or ride == "kayik":
+		return Map.in_lake(p)     # kayık gölde kalır (karaya ve iskeleye çıkmaz)
 	if Map.in_water(p):
-		return false              # göl
+		if ride != "" or not Map.in_lake(p):
+			return false          # göle araçla girilmez; nehirde yüzülmez (köprü var)
+		return not (Map.lake_deep(p) and not Map.lake_deep(my_pos))     # yüzerek gölün derin ortasına girilmez
 	if ride == "boat":
 		# tekne karaya çıkamaz; gövdesi adanın kumsalına ve iskelelere de giremez
 		return Map.in_sea(p) and not (Map.boat_blocked(p) and not Map.boat_blocked(my_pos))
@@ -525,6 +545,17 @@ func _toggle_vehicle() -> void:
 		return
 	if _fair or ride in ["ferris", "bumper", "balloon"]:
 		return
+	if ride == "kayik":
+		var land = _lake_land_near(my_pos)
+		if land == null:
+			hud.show_toast("Kayıktan inmek için kıyıya ya da iskeleye yanaş.", false)
+			return
+		my_pos = land
+		Garage.ride("")
+		return
+	if ride == "" and my_pos.distance_to(Map.KAYIK_SPOT) < 150.0:
+		_board_kayik()
+		return
 	if ride != "":
 		if ride == "boat" and not _near_shore():
 			hud.show_toast("Tekneden inmek için kıyıya ya da iskeleye yaklaş.", false)
@@ -554,6 +585,22 @@ func _toggle_vehicle() -> void:
 			Sfx.play("bell" if k == "bike" else "door")
 			return
 	hud.show_toast("Aracın yok. Galeri'den bisiklet ya da araba alabilirsin.", false)
+
+
+func _board_kayik() -> void:
+	my_pos = Map.KAYIK_SPOT
+	Garage.ride("kayik", Map.KAYIK_SPOT)
+	Sfx.play("splash_small")
+
+
+## Kayıktan inerken yakındaki kara (kıyı ya da iskele).
+func _lake_land_near(p: Vector2) -> Variant:
+	for dist in [40.0, 70.0, 100.0, 130.0]:
+		for k in 16:
+			var q: Vector2 = p + Vector2.RIGHT.rotated(TAU * k / 16.0) * dist
+			if not Map.in_water(q) and not _blocked(q) and Map.WORLD.has_point(q):
+				return q
+	return null
 
 
 ## Kıyıya/iskeleye yakın bir deniz noktası (tekneye binmek için).
@@ -603,6 +650,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				camera.zoom = (camera.zoom / 1.1).clamp(Vector2(0.5, 0.5), Vector2(3, 3))
 		elif event is InputEventKey and event.pressed and not event.echo:
 			_photo_input(event)
+		return
+	if event is InputEventMouseButton and event.pressed and panel == null and Paint.in_match() \
+			and event.button_index == MOUSE_BUTTON_LEFT:
+		if not Paint.is_out(Net.my_name):
+			Paint.fire(get_global_mouse_position() - (my_pos + Vector2(0, -16)))
+			Sfx.play("splash_small", -10.0, randf_range(1.8, 2.2))
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton and event.pressed and panel == null:
 		if _room >= 0 and _room < Land.view.size() and Land.view[_room].owner == Net.my_name:
@@ -751,6 +805,8 @@ func _update_zone() -> void:
 	var spot := Map.fishing_spot(my_pos)
 	if spot == "" and my_ride() == "boat" and Map.in_sea(my_pos):
 		spot = "boat"
+	if spot == "" and my_ride() == "kayik" and Map.in_lake(my_pos):
+		spot = "lake"
 	if spot != "":
 		var where: String = {"lake": "Göl", "sea": "Deniz İskelesi", "island": "Martı Adası", "boat": "Tekne"}.get(spot, "")
 		z = {"type": "fishing", "label": "%s — Balık Tut%s" % [where, ("   ·   [%s] Dal" % Settings.key_name("dive")) if spot == "boat" else ""], "spot": spot}
@@ -799,6 +855,8 @@ func _update_zone() -> void:
 			if my_pos.distance_to(Vector2(float(t.x), float(t.y))) < 60.0:
 				z = {"type": "trash", "label": "Çöp torbasını topla", "id": int(t.id)}
 				break
+	if my_ride() == "" and my_pos.distance_to(Map.KAYIK_SPOT) < 110.0:
+		z = {"type": "kayik", "label": "Kayığa bin (bedava) — gölün ortasında balık daha nadir"}
 	for mb in Map.MOORED_BOATS:
 		if my_pos.distance_to(mb) < 100.0 and my_ride() == "":
 			z = {"type": "moored", "pos": mb, "label": "Tekneye bin" if Garage.has_boat() else "Tekne kirala ve bin (%s / %d dk)" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
@@ -806,6 +864,7 @@ func _update_zone() -> void:
 		z = {"type": "boatrent", "label": "Tekne kirala (%s / %d dk) — F: bin" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
 	if my_pos.distance_to(Map.RACE_FLAG) < 80.0 or my_pos.distance_to(Map.RACE_START) < 60.0:
 		z = {"type": "race", "label": "Yarış Pisti — tur başlat"}
+	z = _rail_zone(z)
 	if my_ride() == "boat" and Ocean.GATE.has_point(my_pos):
 		z = {"type": "ocean_gate", "label": "AÇIK OKYANUS'a açıl (30 ada, hazineler, Kraken!)"}
 	z = _holiday_zone(z)
@@ -890,7 +949,12 @@ func _open_panel() -> void:
 	if zone.type == "boatrent":
 		Garage.rent_boat()
 		return
+	if zone.type == "kayik":
+		_board_kayik()
+		return
 	if _ocean_interact():
+		return
+	if _isle_interact():
 		return
 	if zone.type == "moored":
 		if Garage.has_boat():
@@ -1058,6 +1122,8 @@ func _open_panel() -> void:
 		panel.at_track = true
 	if zone.has("plot"):
 		panel.focus_plot = zone.plot
+	if zone.type == "rail":
+		panel.here = str(zone.get("here", "sehir"))
 	if zone.type == "fishing":
 		panel.spot = str(zone.get("spot", "lake"))
 	if panel.has_signal("place_requested"):
@@ -1133,7 +1199,7 @@ func _rebuild_blockers() -> void:
 	for k in Map.ZOO_PENS:
 		_blockers.append(Map.ZOO_PENS[k].grow(-4))
 	_blockers.append(Rect2(Map.KORSAN_SHIP.x - 120, Map.KORSAN_SHIP.y - 40, 220, 50))
-	for b in Map.FAIR_BUILDINGS:
+	for b in Map.FAIR_BUILDINGS + [Map.CINEMA]:
 		var fr: Rect2 = b.rect
 		_blockers.append(Rect2(fr.position.x + 6, fr.position.y + 16, fr.size.x - 12, fr.size.y - 26))
 	var fs: Rect2 = Map.FIRE_STATION
@@ -1926,6 +1992,8 @@ func _draw() -> void:
 	_draw_zoo()
 	_draw_korsan()
 	_draw_ocean_gate()
+	_draw_rails()
+	_draw_arena()
 	_draw_city_extras()
 	_draw_holiday()
 	_draw_marathon()
@@ -1948,14 +2016,15 @@ func _draw() -> void:
 		items.append([n[0].y, "n", n])
 	for id in shown:
 		var info = Net.roster.get(id)
-		if info:
+		if info and str(info.get("ride", "")) != "train":
 			var a: Dictionary = anim.get(id, {"facing": "down", "moving": false})
 			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), _name_of(info), false, a.facing, a.moving, str(info.get("ride", "")), info.get("color", Color.WHITE), info]])
 	var mine = Net.roster.get(Net.my_id())
 	var my_app = mine.get("appearance", {}) if mine else Net.my_appearance
 	var my_level: int = int(mine.get("level", 1)) if mine else 1
 	var my_col: Color = mine.get("color", Color.WHITE) if mine else Color.WHITE
-	items.append([my_pos.y, "p", [my_pos, my_app, _name_of(mine) if mine else "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving, my_ride(), my_col, mine if mine else {}]])
+	if my_ride() != "train":
+		items.append([my_pos.y, "p", [my_pos, my_app, _name_of(mine) if mine else "%s · Sv.%d" % [Net.my_name, my_level], true, my_facing, my_moving, my_ride(), my_col, mine if mine else {}]])
 	if _room < 0:
 		for w in npc.visible_walkers():
 			items.append([w.pos.y, "w", w])
@@ -1995,8 +2064,10 @@ func _draw() -> void:
 			for s in cs.suspects:
 				items.append([s.pos.y, "susp", s])
 	if _fair:
-		for b in Map.FAIR_BUILDINGS + Map.ZOO_BUILDINGS:
+		for b in Map.FAIR_BUILDINGS + Map.ZOO_BUILDINGS + [Map.CINEMA]:
 			_draw_building(b)
+		for bt in Paint.st.get("bots", []):
+			items.append([float(bt.y), "pbot", bt])
 		for k in Map.ZOO_PENS:
 			for a in _zoo_animals(k):
 				items.append([a[0].y, "zooa", [k, a]])
@@ -2089,6 +2160,8 @@ func _draw() -> void:
 			_draw_snowman(Vector2(float(it[2].x), float(it[2].y)), int(it[2].get("style", 0)))
 		elif it[1] == "pet":
 			_draw_pet(it[2][0], it[2][1])
+		elif it[1] == "pbot":
+			_draw_paint_bot(it[2])
 		else:
 			var a: Array = it[2]
 			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
@@ -2138,7 +2211,10 @@ func _ellipse(r: Rect2, n: int = 64) -> PackedVector2Array:
 func _draw_lake() -> void:
 	draw_colored_polygon(_ellipse(Map.LAKE.grow(18)), Color("#d9c38c"))
 	draw_colored_polygon(_ellipse(Map.LAKE), Color("#2f7fc1"))
-	draw_colored_polygon(_ellipse(Map.LAKE.grow(-90)), Color("#2a6fab"))
+	draw_colored_polygon(_ellipse(Map.LAKE.grow(-30)), Color("#2a78b8"))
+	var c := Map.LAKE.get_center()
+	var hs := Map.LAKE.size / 2.0 * Map.LAKE_DEEP_K
+	draw_colored_polygon(_ellipse(Rect2(c - hs, hs * 2.0)), Color("#1e5f99"))          # derin orta (kayıkla)
 	for i in 6:
 		var y := Map.LAKE.position.y + 160 + i * 90
 		var x := Map.LAKE.position.x + 180 + sin(_t + i) * 30.0
@@ -2156,6 +2232,7 @@ func _draw_lake() -> void:
 	for px in [d.position.x + 8, d.position.x + 70]:
 		draw_circle(Vector2(px, d.end.y + 2), 6, Color("#6b4423"))
 	_text(d.position + Vector2(0, -10), "İSKELE", 18, Color.WHITE, d.size.x)
+	_draw_moored_kayik()
 
 
 func _draw_building(b: Dictionary) -> void:
@@ -2163,7 +2240,7 @@ func _draw_building(b: Dictionary) -> void:
 	draw_rect(Rect2(r.position + Vector2(10, 14), r.size), Color(0, 0, 0, 0.22))
 	draw_texture_rect(BUILDING_TEX[b.type], r, false)
 	# Tabela SVG'de boş bırakıldı (eski binalarda y=86..118, yenilerde sign_y).
-	_text(r.position + Vector2(0, float(b.get("sign_y", 110))), b.label.to_upper(), 22, Color.WHITE, r.size.x)
+	_text(r.position + Vector2(0, float(b.get("sign_y", 110))), U.upper_tr(b.label), 22, Color.WHITE, r.size.x)
 	if b.type in ["teleferik", "teleferik_dag"]:
 		_draw_cable(r, b.type == "teleferik")
 
@@ -2937,6 +3014,13 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 			Avatar.draw(self, p, app, facing, [1, 0, 2, 0][int(_t * 8.0) % 4] if moving else 0)
 			_name(p, -56, pname, name_col, extra)
 			return
+		"kayik":
+			_draw_kayik(p, facing, moving)
+			Avatar.draw(self, p + Vector2(0, -4), app, facing, 0, 1.0, true)
+			if str(extra.get("fishing", "")) != "":
+				_draw_rod(p + Vector2(0, -4), facing, extra)
+			_name(p, -42, pname, name_col, extra)
+			return
 		"boat":
 			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
 			Avatar.draw(self, p + Vector2(0, -6), app, facing, 0, 1.0, true)
@@ -2944,7 +3028,7 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 				_draw_rod(p + Vector2(0, -6), facing, extra)
 			_name(p, -44, pname, name_col, extra)
 			return
-	var swim := Map.in_sea(p)
+	var swim := Map.in_sea(p) or Map.in_water(p)
 	if swim:
 		var r := 18.0 + sin(_t * 4.0) * 2.0
 		draw_set_transform(p + Vector2(0, 4), 0, Vector2(1, 0.4))
@@ -3019,6 +3103,7 @@ func _update_mountain_zone() -> void:
 			best_d = d
 			mz = {"type": "rock", "id": int(r.id), "label": "Kayayı kır (basılı tut)" if Mountain.has_pickaxe else "Kaya — kazma Dağ Evi'nde"}
 	mz = _camp_zone(mz)
+	mz = _rail_zone(mz)
 	mz = _detective_zone(mz)
 	zone = mz
 	var hint := ""
@@ -3035,7 +3120,7 @@ func _make_mountain_nature() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1212
 	var m: Rect2 = Map.MOUNTAIN
-	var keep_out: Array = [Map.QUARRY.grow(40), Map.SLOPE.grow(70), Rect2(Map.LIFT.x - 50, Map.MOUNTAIN_TOP_Y, 100, Map.LIFT.y - Map.MOUNTAIN_TOP_Y + 80), Map.CAMP.grow(30)]
+	var keep_out: Array = [Rect2(m.position.x, Map.RAIL.dag.y - 110.0, m.size.x, 200), Map.QUARRY.grow(40), Map.SLOPE.grow(70), Rect2(Map.LIFT.x - 50, Map.MOUNTAIN_TOP_Y, 100, Map.LIFT.y - Map.MOUNTAIN_TOP_Y + 80), Map.CAMP.grow(30)]
 	for b in Map.MOUNTAIN_BUILDINGS:
 		keep_out.append(b.rect.grow(60))
 	for seg in _mountain_paths():
@@ -4069,7 +4154,16 @@ func _update_fair_zone() -> void:
 	if my_pos.distance_to(Map.BALLOON_FIELD) < 140.0:
 		z = {"type": "balloon", "label": "Sıcak hava balonu turu (%s, 45 sn)" % U.money(Airport.BALLOON_PRICE)}
 	z = _zoo_zone(z)
+	if Map.CINEMA.rect.grow(26).has_point(my_pos):
+		z = {"type": "sinema", "label": "Sinema — film ve karaoke"}
+	if my_pos.distance_to(Map.ARENA_BOOTH) < 110.0:
+		z = {"type": "paint", "label": "Paintball Arenası — takım seç"}
+	z = _rail_zone(z)
 	zone = z
+	if Paint.in_match():
+		zone = {}
+		hud.set_hint("" if panel != null else _paint_hint())
+		return
 	hud.set_hint("" if panel != null or z.is_empty() else "[%s]  %s" % [Settings.key_name("interact"), z.label])
 
 
@@ -4637,7 +4731,7 @@ func _draw_holiday() -> void:
 	draw_rect(Rect2(st.x - 60, st.y - 60, 120, 56), Color("#fef3c7"))
 	for k in 6:
 		draw_rect(Rect2(st.x - 64 + k * 21, st.y - 80, 21, 22), col if k % 2 == 0 else Color.WHITE)
-	_text(Vector2(st.x - 70, st.y - 34), Holidays.NAMES[h].to_upper(), 11, Color("#7c2d12"), 140, false)
+	_text(Vector2(st.x - 70, st.y - 34), U.upper_tr(Holidays.NAMES[h]), 11, Color("#7c2d12"), 140, false)
 	match h:
 		"cadilar":
 			for b in Map.BUILDINGS:
@@ -4800,9 +4894,9 @@ func _update_ocean_zone() -> void:
 			z = {"type": "ocean_chest", "i": int(isl.id), "label": ("%s sandığını aç" % isl.name) if left <= 0.0 else "Sandık boş (%d dk sonra dolar)" % int(ceil(left / 60.0))}
 		if isl.lighthouse and not boat and my_pos.distance_to(Ocean.lighthouse_pos(isl)) < 100.0:
 			z = {"type": "ocean_light", "i": int(isl.id), "label": "Feneri yak (çevre haritada açılır)" if not int(isl.id) in Ocean.my.lit else "Fener yanıyor ✓"}
-		if isl.fuel and my_pos.distance_to(isl.dock) < 200.0:
-			var need := Ocean.max_fuel(Ocean.my.up) - float(Ocean.my.fuel)
-			z = {"type": "ocean_fuel", "label": "Yakıt al (%d L, %s)" % [int(ceil(need)), U.money(int(ceil(need)) * Ocean.FUEL_PRICE)] if need >= 1.0 else "Yakıt iskelesi (depo dolu)"}
+		if (isl.fuel or isl.shipyard) and my_pos.distance_to(isl.dock) < 200.0:
+			z = {"type": "ocean_fuel", "port": int(isl.id), "label": "Liman: yakıt ve ticaret (%s satılır)" % Cargo.GOODS[Cargo.local_good(int(isl.id))].name}
+		z = _isle_zone(isl, z, boat)
 		if isl.shipyard and my_pos.distance_to(_shipyard_pos()) < 150.0:
 			z = {"type": "tersane", "label": "Tersane — yükseltme ve tamir"}
 		if isl.shipyard and not boat and my_pos.distance_to(Airport.AIRSTRIP) < 110.0:
@@ -4810,7 +4904,11 @@ func _update_ocean_zone() -> void:
 	if boat and my_pos.distance_to(OM.ARRIVE) < 240.0:
 		z = {"type": "ocean_exit", "label": "Şehrin açıklarına dön"}
 	if boat and not Ocean.kraken.is_empty() and my_pos.distance_to(_kraken_pos()) < Ocean.HARPOON_RANGE:
-		z = {"type": "ocean_harpoon", "label": "ZIPKIN AT! (basılı tut)"}
+		z = {"type": "ocean_harpoon", "target": "kraken", "label": "ZIPKIN AT! (basılı tut)"}
+	if boat:
+		for o in Cargo.raids:
+			if my_pos.distance_to(_raid_pos(o)) < Ocean.HARPOON_RANGE:
+				z = {"type": "ocean_harpoon", "target": "raid", "owner": o, "label": "Korsan gemisine zıpkın! (%d/%d)" % [int(Cargo.raids[o].hits), Cargo.RAID_HITS]}
 	zone = z
 	var o: Dictionary = Ocean.my
 	var st := "Yakıt %d/%d L   ·   Gövde %d%%" % [int(o.fuel), int(Ocean.max_fuel(o.up)), int(o.hp)]
@@ -4820,6 +4918,10 @@ func _update_ocean_zone() -> void:
 		st += "   ·   FIRTINA!"
 	if not Ocean.kraken.is_empty():
 		st += "   ·   KRAKEN %d/%d" % [int(Ocean.kraken.hp), int(Ocean.kraken.max)]
+	if Cargo.used() > 0:
+		st += "   ·   Ambar %d/%d" % [Cargo.used(), Cargo.capacity(o.up)]
+	if Cargo.raids.has(Net.my_name):
+		st += "   ·   KORSANLAR PEŞİNDE!"
 	var hint := st if z.is_empty() else "[%s]  %s\n%s" % [Settings.key_name("interact"), z.label, st]
 	hud.set_hint("" if panel != null else hint)
 
@@ -4843,8 +4945,11 @@ func _ocean_interact() -> bool:
 			Ocean.leave()
 			Sfx.play("splash")
 		"ocean_fuel":
-			Ocean.refuel()
-			Sfx.play("coin", -6.0)
+			if panel == null:
+				panel = PANELS["port"].new()
+				panel.port = int(zone.get("port", -1))
+				panel.closed.connect(_close_panel)
+				ui_layer.add_child(panel)
 		"ocean_chest":
 			Ocean.open_chest(int(zone.i))
 			Sfx.play("open")
@@ -4867,8 +4972,12 @@ func _harpoon() -> void:
 	if _t - _harp_t < Ocean.HARPOON_COOLDOWN:
 		return
 	_harp_t = _t
-	Ocean.harpoon()
 	var kp := _kraken_pos()
+	if str(zone.get("target", "")) == "raid":
+		Cargo.harpoon_raid(str(zone.owner))
+		kp = _raid_pos(str(zone.owner))
+	else:
+		Ocean.harpoon()
 	add_fx("harpoon", my_pos + Vector2(0, -20), 0.35, {"to": kp})
 	add_fx("water", kp + Vector2(randf_range(-40, 40), randf_range(-20, 20)), 0.7)
 	Sfx.play("splash_small", -4.0, 1.4)
@@ -4942,11 +5051,15 @@ func _draw_ocean_world() -> void:
 			draw_line(rp, rp + Vector2(-6, 18), Color(0.75, 0.85, 1.0, 0.45), 1.5)
 		if fmod(_t + sp.x * 0.001, 6.0) < 0.12:
 			draw_circle(sp, sr, Color(1, 1, 1, 0.12))       # şimşek
-	# Kraken
+	# Kraken ve korsan gemileri
 	if not Ocean.kraken.is_empty():
 		var kp := _kraken_pos()
 		if view.grow(300).has_point(kp):
 			items.append([kp.y, "kraken", kp])
+	for o in Cargo.raids:
+		var rp := _raid_pos(o)
+		if view.grow(200).has_point(rp):
+			items.append([rp.y, "raid", [rp, o]])
 	# oyuncular
 	for id in shown:
 		var info = Net.roster.get(id)
@@ -4990,6 +5103,12 @@ func _draw_ocean_world() -> void:
 				_draw_fuel_pump(it[2])
 			"kraken":
 				_draw_kraken(it[2])
+			"raid":
+				_draw_raid_ship(it[2][0], it[2][1])
+			"house":
+				_draw_isle_house(it[2][0], int(it[2][1]), str(it[2][2]))
+			"isign":
+				_draw_isle_sign(it[2])
 			"pet":
 				_draw_pet(it[2][0], it[2][1])
 			"p":
@@ -5075,10 +5194,19 @@ func _draw_ocean_island(isl: Dictionary, items: Array) -> void:
 				var d := rng.randf_range(0.2, 0.75)
 				var kp := c + Vector2(cos(a) * r * d, sin(a) * r * d * sq)
 				items.append([kp.y, "rock", [kp, rng.randf_range(14, 32), Color("#8b8578")]])
+	var own: Dictionary = Isles.view.get(str(int(isl.id)), {})
+	var spots := {}
+	if int(isl.id) in _sale_ids():
+		spots = Isles.spots(isl)
+		items.append([spots.sign.y, "isign", isl])
+		if not own.is_empty():
+			_draw_isle_ground(isl, own, spots, items)
 	var tree: int = ISLAND_TREE[t]
 	if tree >= 0:
 		for k in isl.deco.size():
 			var dp: Vector2 = isl.deco[k]
+			if not own.is_empty() and (dp.distance_to(spots.house) < 110.0 or dp.distance_to(spots.pool) < 80.0 or dp.distance_to(spots.garden) < 70.0):
+				continue
 			if dp.distance_to(isl.chest) < 50.0 or isl.lighthouse and dp.distance_to(Ocean.lighthouse_pos(isl)) < 60.0:
 				continue
 			if isl.shipyard and (dp.distance_to(_shipyard_pos()) < 130.0 or dp.distance_to(Airport.AIRSTRIP) < 120.0):
@@ -5205,3 +5333,441 @@ func _draw_ocean_gate() -> void:
 	draw_rect(Rect2(sp.x - 80, sp.y - 104, 160, 48), Color("#f8fafc"), false, 3)
 	_text(Vector2(sp.x - 80, sp.y - 86), "AÇIK OKYANUS →", 14, Color.WHITE, 160, false)
 	_text(Vector2(sp.x - 80, sp.y - 68), "kendi teknenle (E)", 12, Color("#fde68a"), 160, false)
+
+
+# ================================================================== 1.7: tren, sinema, paintball, özel ada, ticaret
+
+func _rail_zone(z: Dictionary) -> Dictionary:
+	var k := Rail.station_at(my_pos)
+	if k == "":
+		return z
+	var ts := Map.train_state(Land.server_now())
+	var when := "tren peronda!" if ts.stopped else "tren %d sn sonra" % int(ceil(float(ts.get("next", 0.0))))
+	return {"type": "rail", "here": k, "label": "%s — bilet (%s)" % [Map.RAIL[k].name, when]}
+
+
+func _draw_rails() -> void:
+	var view := _view_rect().grow(300)
+	var ts := Map.train_state(Land.server_now())
+	for k in Map.RAIL:
+		var st: Dictionary = Map.RAIL[k]
+		var y := float(st.y)
+		if y < view.position.y - 80 or y > view.end.y + 80:
+			continue
+		var x0 := maxf(float(st.x0), view.position.x)
+		var x1 := minf(float(st.x1), view.end.x)
+		if x0 >= x1:
+			continue
+		# traversler ve raylar
+		draw_rect(Rect2(x0, y - 10, x1 - x0, 22), Color("#8b8178"))
+		for x in range(int(x0 / 26.0) * 26, int(x1), 26):
+			draw_rect(Rect2(x, y - 12, 10, 26), Color("#5b3a1e"))
+		draw_line(Vector2(x0, y - 6), Vector2(x1, y - 6), Color("#9ca3af"), 3)
+		draw_line(Vector2(x0, y + 8), Vector2(x1, y + 8), Color("#9ca3af"), 3)
+		# peron ve gişe
+		var b: Vector2 = st.booth
+		draw_rect(Rect2(float(st.stop) - 260, y + 16, 520, 30), Color("#d6d3d1"))
+		draw_rect(Rect2(float(st.stop) - 260, y + 16, 520, 4), Color("#facc15"))
+		draw_rect(Rect2(b.x - 34, b.y - 30, 68, 40), Color("#7c2d12"))
+		draw_rect(Rect2(b.x - 26, b.y - 22, 52, 18), Color("#fde68a"))
+		draw_colored_polygon(PackedVector2Array([b + Vector2(-42, -30), b + Vector2(42, -30), b + Vector2(0, -50)]), Color("#991b1b"))
+		_text(b + Vector2(-110, 30), U.upper_tr(st.name), 14, Color.WHITE, 220)
+		# tren
+		if ts.visible:
+			_draw_train(Map.train_x(st, float(ts.k)), y, k)
+
+
+func _draw_train(cx: float, y: float, key: String) -> void:
+	var cars := 4
+	var car := Map.TRAIN_LEN / cars
+	var left := cx - Map.TRAIN_LEN / 2.0
+	var cols := {"sehir": Color("#dc2626"), "dag": Color("#2563eb"), "fuar": Color("#9333ea")}
+	var col: Color = cols.get(key, Color("#dc2626"))
+	for i in cars:
+		var x := left + i * car
+		var r := Rect2(x + 4, y - 40, car - 8, 44)
+		draw_rect(Rect2(r.position + Vector2(4, 6), r.size), Color(0, 0, 0, 0.25))
+		draw_rect(r, Color("#f8fafc") if i > 0 else col)
+		draw_rect(Rect2(r.position.x, r.position.y + 30, r.size.x, 8), col)
+		for w in 4:
+			draw_rect(Rect2(r.position.x + 10 + w * (r.size.x - 20) / 4.0, r.position.y + 8, (r.size.x - 20) / 4.0 - 6, 14), Color("#7dd3fc"))
+		draw_rect(r, Color("#1f2937"), false, 2)
+		draw_circle(Vector2(r.position.x + 16, y + 6), 6, Color("#111827"))
+		draw_circle(Vector2(r.end.x - 16, y + 6), 6, Color("#111827"))
+	# lokomotif burnu
+	var nose := left + Map.TRAIN_LEN
+	draw_colored_polygon(PackedVector2Array([Vector2(nose - 4, y - 40), Vector2(nose + 26, y - 14), Vector2(nose + 26, y + 4), Vector2(nose - 4, y + 4)]), col)
+	draw_circle(Vector2(nose + 18, y - 8), 4, Color("#fef08a"))
+
+
+func _on_trip(d: Dictionary) -> void:
+	if panel != null:
+		_close_panel()
+	var layer := CanvasLayer.new()
+	layer.layer = 6
+	add_child(layer)
+	var art := TrainArt.new()
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.dest = str(d.get("name", ""))
+	art.to = str(d.get("to", ""))
+	layer.add_child(art)
+	Sfx.play("bell", -6.0, 0.7)
+	var tw := create_tween()
+	tw.tween_interval(float(d.get("time", 6.0)))
+	tw.tween_property(art, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(layer.queue_free)
+
+
+## Tren penceresinden manzara: hedefe göre (dağ: karlı zirveler, fuar: dönme dolap, şehir: binalar).
+class TrainArt extends Control:
+	var dest := ""
+	var to := ""
+	var t0 := Time.get_ticks_msec() / 1000.0
+	func _process(_d: float) -> void:
+		queue_redraw()
+	func _draw() -> void:
+		var t := Time.get_ticks_msec() / 1000.0 - t0
+		var w := size.x
+		var h := size.y
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#7dd3fc"))
+		# uzak tepeler (yavaş), yakın tepeler (hızlı)
+		for layer in 2:
+			var sp := 60.0 if layer == 0 else 220.0
+			var base_y := h * (0.55 if layer == 0 else 0.68)
+			var col := Color("#86b98a") if layer == 0 else Color("#5d9c4a")
+			if to == "dag" and layer == 0:
+				col = Color("#94a3b8")
+			var pts := PackedVector2Array([Vector2(0, h)])
+			for i in 41:
+				var x := w * i / 40.0
+				var wx := x + t * sp
+				var hh := 40.0 + 30.0 * sin(wx / 140.0) + 20.0 * sin(wx / 53.0 + layer)
+				if to == "dag" and layer == 0:
+					hh *= 2.4
+				pts.append(Vector2(x, base_y - hh))
+			pts.append(Vector2(w, h))
+			draw_colored_polygon(pts, col)
+			if to == "dag" and layer == 0:
+				for i in 41:
+					var x2 := w * i / 40.0
+					var wx2 := x2 + t * sp
+					var hh2 := (40.0 + 30.0 * sin(wx2 / 140.0) + 20.0 * sin(wx2 / 53.0)) * 2.4
+					if hh2 > 150.0:
+						draw_circle(Vector2(x2, base_y - hh2 + 8), 10, Color.WHITE)
+		# direkler
+		for i in 6:
+			var px := fposmod(w - (t * 520.0 + i * 260.0), w + 200.0) - 100.0
+			draw_rect(Rect2(px, h * 0.3, 8, h * 0.5), Color("#57534e"))
+		if to == "fuar":
+			var fx := fposmod(w * 0.8 - t * 60.0, w + 400.0) - 200.0
+			draw_arc(Vector2(fx, h * 0.38), 90, 0, TAU, 32, Color.WHITE, 4)
+			for k in 8:
+				var a := TAU * k / 8.0 + t * 0.4
+				draw_line(Vector2(fx, h * 0.38), Vector2(fx, h * 0.38) + Vector2(cos(a), sin(a)) * 90, Color(1, 1, 1, 0.8), 2)
+		elif to == "sehir":
+			for k in 8:
+				var bx := fposmod(k * 210.0 - t * 90.0, w + 300.0) - 150.0
+				var bh := 90.0 + float((k * 53) % 90)
+				draw_rect(Rect2(bx, h * 0.6 - bh, 90, bh), Color("#64748b"))
+				for wy in 3:
+					draw_rect(Rect2(bx + 14, h * 0.6 - bh + 14 + wy * 26, 60, 10), Color("#fde68a"))
+		# pencere çerçevesi
+		var fr := Color("#7c2d12")
+		draw_rect(Rect2(0, 0, w, 70), fr)
+		draw_rect(Rect2(0, h - 110, w, 110), fr)
+		draw_rect(Rect2(0, 0, 50, h), fr)
+		draw_rect(Rect2(w - 50, 0, 50, h), fr)
+		draw_rect(Rect2(w / 2.0 - 14, 0, 28, h), fr)
+		draw_string(ThemeDB.fallback_font, Vector2(0, h - 48), "Tren yolculuğu: %s" % dest, HORIZONTAL_ALIGNMENT_CENTER, w, 28, Color("#fde68a"))
+
+
+func _paint_hint() -> String:
+	var st: Dictionary = Paint.st
+	var sc: Dictionary = st.get("score", {})
+	var mode := "ilk %d vuruş" % Paint.WIN_HITS if st.get("mode", "") == "hits" else "bayrak: %d" % Paint.WIN_FLAGS
+	var left := float(st.get("left", 0.0))
+	var line := "PAINTBALL (%s)   Kırmızı %d – %d Mavi   ·   %d:%02d" % [mode, int(sc.get("kirmizi", 0)), int(sc.get("mavi", 0)), int(left) / 60, int(left) % 60]
+	if Paint.is_out(Net.my_name):
+		return line + "\nBOYANDIN! %d sn sonra üssünde doğarsın" % int(ceil(float(st.out[Net.my_name])))
+	return line + "\nSol tık: boya topu at (fareye doğru)"
+
+
+func _on_paint_hit(d: Dictionary) -> void:
+	var p: Vector2 = d.p
+	if _view_rect().grow(200).has_point(p):
+		add_fx("water", p, 0.5)
+		Sfx.play("splash_small", -8.0, 1.6)
+	if str(d.get("victim", "")) == Net.my_name:
+		hud.show_toast("%s seni boyadı!" % d.by, false)
+
+
+func _draw_arena() -> void:
+	var a: Rect2 = Map.ARENA
+	if not _view_rect().grow(300).intersects(a):
+		return
+	draw_rect(a.grow(14), Color("#3f3f46"))
+	draw_rect(a, Color("#a3b18a"))
+	for gx in range(int(a.position.x), int(a.end.x), 40):
+		draw_line(Vector2(gx, a.position.y), Vector2(gx, a.end.y), Color(0, 0, 0, 0.05), 1)
+	# çit
+	for x in range(int(a.position.x) - 14, int(a.end.x) + 14, 24):
+		draw_rect(Rect2(x, a.position.y - 14, 6, 14), Color("#78716c"))
+		draw_rect(Rect2(x, a.end.y, 6, 14), Color("#78716c"))
+	# üsler
+	for t in Paint.TEAMS:
+		var bp: Vector2 = Map.ARENA_BASE[t]
+		draw_circle(bp, 52, Color(Paint.TEAM_COLOR[t], 0.25))
+		draw_arc(bp, 52, 0, TAU, 32, Paint.TEAM_COLOR[t], 3)
+	# lekeler
+	for sp in Paint.splats:
+		var c: Color = Paint.TEAM_COLOR.get(sp.team, Color.WHITE)
+		var sp_p: Vector2 = sp.p
+		draw_circle(sp_p, 9, c)
+		for k in 5:
+			draw_circle(sp_p + Vector2.RIGHT.rotated(k * 1.3 + sp_p.x) * 11.0, 3.5, c)
+	# engeller (saman balyası ve tahta)
+	for c in Map.ARENA_COVER:
+		var r: Rect2 = c
+		draw_rect(Rect2(r.position + Vector2(4, 6), r.size), Color(0, 0, 0, 0.25))
+		draw_rect(r, Color("#d4a656"))
+		for k in range(int(r.position.y) + 6, int(r.end.y), 10):
+			draw_line(Vector2(r.position.x + 2, k), Vector2(r.end.x - 2, k), Color("#b7852f"), 1.5)
+		draw_rect(r, Color("#7c5a2b"), false, 2)
+	# bayraklar
+	var fl: Dictionary = Paint.st.get("flags", {})
+	for t in fl:
+		var fp := Vector2(float(fl[t].x), float(fl[t].y))
+		draw_line(fp, fp + Vector2(0, -44), Color("#1f2937"), 3)
+		draw_colored_polygon(PackedVector2Array([fp + Vector2(0, -44), fp + Vector2(30, -36), fp + Vector2(0, -28)]), Paint.TEAM_COLOR[t])
+	# toplar
+	var now := Time.get_ticks_msec() / 1000.0
+	var keep: Array = []
+	for b in Paint.balls:
+		var age := now - float(b.t0)
+		if age > Paint.BALL_LIFE:
+			continue
+		keep.append(b)
+		var bp2: Vector2 = b.p + b.v * age
+		draw_circle(bp2, Paint.BALL_R, Paint.TEAM_COLOR.get(b.team, Color.WHITE))
+		draw_circle(bp2 + Vector2(-2, -2), 2, Color(1, 1, 1, 0.7))
+	Paint.balls = keep
+	# takım halkaları (oyuncuların ayağında)
+	var teams: Dictionary = Paint.st.get("teams", {})
+	if Paint.st.get("phase", "") == "play":
+		for id in Net.roster:
+			var nm: String = Net.roster[id].name
+			if teams.has(nm):
+				var pp: Vector2 = my_pos if id == Net.my_id() else shown.get(id, Vector2(-9999, -9999))
+				draw_set_transform(pp + Vector2(0, 8), 0, Vector2(1, 0.4))
+				draw_arc(Vector2.ZERO, 22, 0, TAU, 24, Paint.TEAM_COLOR[teams[nm]], 4)
+				draw_set_transform(Vector2.ZERO)
+	var bp3 := Map.ARENA_BOOTH
+	draw_rect(Rect2(bp3.x - 50, bp3.y - 40, 100, 44), Color("#1f2937"))
+	draw_rect(Rect2(bp3.x - 50, bp3.y - 40, 50, 8), Paint.TEAM_COLOR.kirmizi)
+	draw_rect(Rect2(bp3.x, bp3.y - 40, 50, 8), Paint.TEAM_COLOR.mavi)
+	_text(bp3 + Vector2(-110, -54), "PAINTBALL", 18, Color("#fde68a"), 220)
+	_text(Vector2(a.position.x, a.position.y - 40), "PAINTBALL ARENASI", 20, Color.WHITE, a.size.x)
+
+
+func _draw_paint_bot(bt: Dictionary) -> void:
+	var p := Vector2(float(bt.x), float(bt.y))
+	var outd: bool = Paint.is_out(str(bt.name))
+	draw_set_transform(p + Vector2(0, 8), 0, Vector2(1, 0.4))
+	draw_arc(Vector2.ZERO, 22, 0, TAU, 24, Paint.TEAM_COLOR[bt.team], 4)
+	draw_set_transform(Vector2.ZERO)
+	var app: Dictionary = bt.get("app", {})
+	Avatar.draw(self, p, app, "right" if bt.get("f", "right") == "right" else "left", [1, 0, 2, 0][int(_t * 7.0 + p.x * 0.01) % 4])
+	draw_rect(Rect2(p.x - 13, p.y - 40, 26, 14), Color(Paint.TEAM_COLOR[bt.team], 0.85))       # takım yeleği
+	if outd:
+		draw_circle(p + Vector2(0, -30), 26, Color(Paint.TEAM_COLOR["mavi" if bt.team == "kirmizi" else "kirmizi"], 0.55))
+	_text(p + Vector2(-70, -66), str(bt.name), 12, Paint.TEAM_COLOR[bt.team].lightened(0.4), 140)
+
+
+var _sale_cache: Array = []
+
+
+func _sale_ids() -> Array:
+	if _sale_cache.is_empty():
+		_sale_cache = Isles.for_sale()
+	return _sale_cache
+
+
+func _isle_zone(isl: Dictionary, z: Dictionary, boat: bool) -> Dictionary:
+	var i := int(isl.id)
+	if not i in _sale_ids():
+		return z
+	var sp := Isles.spots(isl)
+	var own: Dictionary = Isles.view.get(str(i), {})
+	var mine := str(own.get("owner", "")) == Net.my_name
+	if mine and int(own.b.get("iskele", 0)) > 0 and my_pos.distance_to(sp.pump) < 200.0:
+		z = {"type": "ocean_fuel", "port": -1, "label": "Kendi iskelende yakıt al"}
+	if boat:
+		return z
+	if my_pos.distance_to(sp.sign) < 80.0:
+		if own.is_empty():
+			z = {"type": "isle", "i": i, "label": "SATILIK ADA: %s (%s)" % [isl.name, U.money(Isles.price_of(isl))]}
+		elif mine:
+			z = {"type": "isle", "i": i, "label": "Adanı yönet: yapı kur, sat"}
+		else:
+			z = {"type": "isle", "i": i, "label": "%s'in adası%s" % [own.owner, "" if own.get("open", true) else " (özel)"]}
+	if mine and int(own.b.get("ev", 0)) > 0 and my_pos.distance_to(sp.house) < 120.0:
+		z = {"type": "isle_rest", "i": i, "label": "Evinde dinlen (enerji dolar)"}
+	if mine and int(own.b.get("bahce", 0)) > 0 and my_pos.distance_to(sp.garden) < 140.0:
+		z = {"type": "isle_harvest", "i": i, "label": "Bahçeni hasat et"}
+	return z
+
+
+func _isle_interact() -> bool:
+	match str(zone.get("type", "")):
+		"isle":
+			if panel == null:
+				panel = PANELS["isle"].new()
+				panel.island = int(zone.get("i", Isles.for_sale()[0]))
+				panel.closed.connect(_close_panel)
+				ui_layer.add_child(panel)
+		"isle_rest":
+			Isles.rest(int(zone.get("i", -1)))
+			Sfx.play("success", -6.0)
+		"isle_harvest":
+			Isles.harvest(int(zone.get("i", -1)))
+			Sfx.play("coin", -6.0)
+		_:
+			return false
+	return true
+
+
+## Sahibi olan adada yapılar (yer seviyesindekiler hemen çizilir; ev ve fener y'ye göre sıralanır).
+func _draw_isle_ground(isl: Dictionary, own: Dictionary, sp: Dictionary, items: Array) -> void:
+	var b: Dictionary = own.get("b", {})
+	if int(b.get("bahce", 0)) > 0:
+		var g: Vector2 = sp.garden
+		draw_colored_polygon(_ellipse(Rect2(g - Vector2(70, 34), Vector2(140, 68)), 20), Color("#6b4f2a"))
+		for k in 6:
+			var gp := g + Vector2(-48 + (k % 3) * 48, -14 + int(k / 3) * 28)
+			draw_circle(gp, 10, Color("#16a34a"))
+			draw_circle(gp + Vector2(4, -3), 3.5, Color("#facc15") if k % 2 == 0 else Color("#f97316"))
+	if int(b.get("havuz", 0)) > 0:
+		var pp: Vector2 = sp.pool
+		draw_rect(Rect2(pp - Vector2(48, 24), Vector2(96, 48)), Color("#f8fafc"))
+		draw_rect(Rect2(pp - Vector2(41, 18), Vector2(82, 36)), Color("#22d3ee"))
+		for k in 2:
+			var wy := pp.y - 6 + k * 12
+			draw_line(Vector2(pp.x - 34, wy + sin(_t * 2.0 + k) * 2.0), Vector2(pp.x + 34, wy + sin(_t * 2.0 + k + 1) * 2.0), Color(1, 1, 1, 0.5), 2)
+	if int(b.get("iskele", 0)) > 0:
+		var a0: Vector2 = Vector2(isl.dock) - Vector2(isl.dock_dir) * 40.0
+		var b0 := OM.pier_end(isl)
+		var side: Vector2 = Vector2(isl.dock_dir).orthogonal() * 34.0
+		draw_colored_polygon(PackedVector2Array([a0 + side, b0 + side, b0 - side, a0 - side]), Color("#8b5a2b"))
+		items.append([b0.y - 10.0, "pump", b0 + side * 0.9])
+	if int(b.get("ev", 0)) > 0:
+		items.append([float(sp.house.y), "house", [sp.house, int(b.ev), str(own.owner)]])
+	if int(b.get("fener", 0)) > 0:
+		items.append([float(sp.light.y), "lighthouse", [sp.light, true]])
+
+
+func _draw_isle_house(p: Vector2, lvl: int, owner_name: String) -> void:
+	var w: float = [0.0, 90.0, 140.0, 200.0][lvl]
+	var h: float = [0.0, 60.0, 80.0, 100.0][lvl]
+	draw_rect(Rect2(p.x - w / 2.0 + 8, p.y - 4, w, 12), Color(0, 0, 0, 0.2))
+	var wall: Color = [Color.WHITE, Color("#d6b88c"), Color("#fef3c7"), Color("#f8fafc")][lvl]
+	var roof: Color = [Color.WHITE, Color("#a16207"), Color("#dc2626"), Color("#1e3a8a")][lvl]
+	draw_rect(Rect2(p.x - w / 2.0, p.y - h, w, h), wall)
+	draw_colored_polygon(PackedVector2Array([Vector2(p.x - w / 2.0 - 12, p.y - h), Vector2(p.x + w / 2.0 + 12, p.y - h), Vector2(p.x, p.y - h - h * 0.6)]), roof)
+	draw_rect(Rect2(p.x - 12, p.y - 34, 24, 34), Color("#7c2d12"))
+	for k in lvl + 1:
+		var wx := p.x - w / 2.0 + 12 + k * (w - 24) / maxf(1.0, float(lvl)) - (12 if k == lvl else 0)
+		if absf(wx - p.x) > 20:
+			draw_rect(Rect2(wx, p.y - h + 14, 18, 16), Color("#7dd3fc"))
+	if lvl >= 3:
+		draw_rect(Rect2(p.x - w / 2.0 - 4, p.y - h - 4, w + 8, 6), Color("#facc15"))
+	draw_rect(Rect2(p.x - w / 2.0, p.y - h, w, h), Color("#1f2937"), false, 2)
+	_text(p + Vector2(-100, -h - h * 0.6 - 22), "%s'in %s" % [owner_name, Isles.BUILD.ev.own[lvl - 1]], 13, Color("#fde68a"), 200)
+
+
+func _draw_isle_sign(isl: Dictionary) -> void:
+	var sp: Vector2 = Isles.spots(isl).sign
+	var own: Dictionary = Isles.view.get(str(int(isl.id)), {})
+	draw_rect(Rect2(sp.x - 3, sp.y - 46, 6, 46), Color("#5b3a1e"))
+	draw_rect(Rect2(sp.x - 54, sp.y - 76, 108, 34), Color("#fef3c7") if own.is_empty() else Color("#1e3a8a"))
+	draw_rect(Rect2(sp.x - 54, sp.y - 76, 108, 34), Color("#7c2d12"), false, 2)
+	if own.is_empty():
+		_text(Vector2(sp.x - 54, sp.y - 70), "SATILIK", 13, Color("#b91c1c"), 108, false)
+		_text(Vector2(sp.x - 54, sp.y - 54), U.money(Isles.price_of(isl)), 11, Color("#1f2937"), 108, false)
+	else:
+		_text(Vector2(sp.x - 54, sp.y - 70), str(own.owner), 12, Color.WHITE, 108, false)
+		_text(Vector2(sp.x - 54, sp.y - 54), "ÖZEL ADA" if not own.get("open", true) else "ADASI", 10, Color("#fde68a"), 108, false)
+
+
+var _raid_shown := {}
+
+
+func _raid_pos(owner_name: String) -> Vector2:
+	var r: Dictionary = Cargo.raids.get(owner_name, {})
+	if r.is_empty():
+		return Vector2(-99999, -99999)
+	var target := Vector2(float(r.x), float(r.y))
+	var cur: Vector2 = _raid_shown.get(owner_name, target)
+	cur = cur.lerp(target, 0.15)
+	_raid_shown[owner_name] = cur
+	return cur
+
+
+func _draw_raid_ship(p: Vector2, owner_name: String) -> void:
+	var r: Dictionary = Cargo.raids.get(owner_name, {})
+	draw_set_transform(p + Vector2(0, 10), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 70, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	var rock := sin(_t * 1.8) * 0.04
+	draw_set_transform(p, rock, Vector2.ONE)
+	draw_colored_polygon(PackedVector2Array([Vector2(-80, -10), Vector2(80, -10), Vector2(60, 18), Vector2(-64, 18)]), Color("#3f2a1a"))
+	draw_rect(Rect2(-74, -16, 148, 8), Color("#5b3a1e"))
+	draw_line(Vector2(0, -12), Vector2(0, -110), Color("#2b1a10"), 5)
+	draw_colored_polygon(PackedVector2Array([Vector2(4, -104), Vector2(56, -96), Vector2(52, -40), Vector2(4, -34)]), Color("#1f2937"))
+	draw_circle(Vector2(30, -72), 10, Color("#f8fafc"))
+	draw_line(Vector2(22, -58), Vector2(38, -50), Color("#f8fafc"), 3)
+	draw_line(Vector2(38, -58), Vector2(22, -50), Color("#f8fafc"), 3)
+	draw_rect(Rect2(-2, -126, 26, 14), Color("#111827"))
+	draw_set_transform(Vector2.ZERO)
+	_text(p + Vector2(-90, -150), "KORSANLAR (%d/%d)" % [int(r.get("hits", 0)), Cargo.RAID_HITS], 13, Color("#fecaca"), 180)
+	if randf() < 0.1:
+		add_fx("wake", p + Vector2(-80, 16), 1.2)
+
+
+
+# ================================================================== 1.7: göl kayığı
+
+## Küçük ahşap kayık; kürekler yol alırken çekilir.
+func _draw_kayik(p: Vector2, facing: String, moving: bool) -> void:
+	var side := facing == "left" or facing == "right"
+	var k := 1.0 if side else 0.75
+	var rock := sin(_t * 2.0 + p.x * 0.01) * 0.04
+	draw_set_transform(p + Vector2(0, 8), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 40, Color(0, 0, 0, 0.15))
+	draw_set_transform(p, rock, Vector2(k, 1.0 if side else 1.25))
+	var hull := PackedVector2Array([Vector2(-46, -6), Vector2(46, -6), Vector2(36, 12), Vector2(-36, 12)])
+	draw_colored_polygon(hull, Color("#92400e"))
+	draw_colored_polygon(PackedVector2Array([Vector2(-42, -6), Vector2(42, -6), Vector2(34, 2), Vector2(-34, 2)]), Color("#d6a26a"))
+	draw_line(Vector2(-46, -6), Vector2(46, -6), Color("#451a03"), 2)
+	draw_line(Vector2(-14, -6), Vector2(-14, 2), Color("#78350f"), 2)
+	draw_line(Vector2(14, -6), Vector2(14, 2), Color("#78350f"), 2)
+	var a := sin(_t * 6.0) * 0.5 if moving else 0.0
+	for sgn in [-1.0, 1.0]:
+		var o := Vector2(0, -2)
+		var tip := o + Vector2(sgn * 10.0, 26.0).rotated(a * sgn)
+		draw_line(o, tip, Color("#a16207"), 3)
+		draw_line(tip, tip + Vector2(sgn * 3.0, 8.0).rotated(a * sgn), Color("#a16207"), 6)
+	draw_set_transform(Vector2.ZERO)
+	if moving and randf() < 0.2:
+		add_fx("wake", p + Vector2(randf_range(-30, 30), 10), 1.0)
+
+
+## İskelede bağlı bedava kayık ve tabelası.
+func _draw_moored_kayik() -> void:
+	var kp: Vector2 = Map.KAYIK_SPOT + Vector2(0, sin(_t * 1.2) * 2.0)
+	draw_line(kp + Vector2(40, -4), Vector2(Map.DOCK.position.x + 4, Map.DOCK.position.y + 40), Color("#a16207"), 2)
+	_draw_kayik(kp, "right", false)
+	var sp := Vector2(Map.DOCK.end.x - 24, Map.DOCK.position.y - 6)
+	draw_rect(Rect2(sp.x - 2, sp.y - 34, 4, 34), Color("#5b3a1e"))
+	draw_rect(Rect2(sp.x - 46, sp.y - 58, 92, 26), Color("#fef3c7"))
+	draw_rect(Rect2(sp.x - 46, sp.y - 58, 92, 26), Color("#7c2d12"), false, 2)
+	_text(Vector2(sp.x - 46, sp.y - 52), "KAYIK (bedava)", 11, Color("#7c2d12"), 92, false)

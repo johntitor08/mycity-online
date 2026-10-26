@@ -224,7 +224,7 @@ func start_event(kind: String) -> void:
 		_active["hinted"] = false
 		Net.announce("HAZİNE AVI başladı! Sandık %s civarında saklı. Haritadaki sarı alana bak!" % Map.area_name(pos))
 	else:
-		Net.announce("%s başladı! %s" % [info.name.to_upper(), info.desc])
+		Net.announce("%s başladı! %s" % [U.upper_tr(info.name), info.desc])
 	if kind == "ev":
 		Party.seed_contest.call_deferred()
 	Net.log_line("Etkinlik başladı: %s" % info.name)

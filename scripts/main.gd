@@ -117,7 +117,7 @@ func _build_menu() -> void:
 	title.add_theme_color_override("font_color", Color("#facc15"))
 	v.add_child(title)
 	var sub := Label.new()
-	sub.text = "Şehrini kur • Dağ, lunapark ve 30 adalı okyanus • Arkadaşlarınla çok oyunculu"
+	sub.text = "Şehrini kur • Tren, sinema, paintball • 30 adalı okyanus, kendi adan • Çok oyunculu"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_color_override("font_color", Color("#94a3b8"))
 	v.add_child(sub)

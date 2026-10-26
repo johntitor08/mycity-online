@@ -15,7 +15,13 @@ func _ready() -> void:
 		w.hud.visible = false
 		Env.hour = 12.0
 		Env.force_weather("clear")
-		for part in [[Vector2(1400, 900), "genel_kuzey"], [Vector2(1400, 2400), "genel_orta"], [Vector2(1400, 3800), "genel_guney"]]:
+		var parts := [[Vector2(1400, 900), "genel_kuzey"], [Vector2(1400, 2400), "genel_orta"], [Vector2(1400, 3800), "genel_guney"]]
+		if "--bolgeler" in OS.get_cmdline_user_args():
+			parts = [[Vector2(11900, 760), "genel_fuar1"], [Vector2(11900, 2150), "genel_fuar2"], [Vector2(9100, 760), "genel_dag1"], [Vector2(9100, 2150), "genel_dag2"]]
+		for part in parts:
+			w.camera.limit_left = -99999
+			w.camera.limit_right = 99999
+			w.camera.limit_top = -99999
 			w.camera.zoom = Vector2(0.45, 0.45)
 			w.camera.limit_bottom = 99999
 			w.my_pos = part[0]
@@ -56,6 +62,12 @@ func _ready() -> void:
 		for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
 			w.hud.set_collapsed(k, false)
 		await _wait(0.3)
+		get_tree().quit()
+		return
+	if "--sadece17" in OS.get_cmdline_user_args():
+		Net.add_money(1, 400000)
+		Rpg.add_xp(1, "", 20000)
+		await _shots_17(w)
 		get_tree().quit()
 		return
 	if "--sadece16" in OS.get_cmdline_user_args():
@@ -2076,6 +2088,206 @@ func _shots_16(w) -> void:
 		Net.players.erase(9971 + k)
 		Net.positions.erase(9971 + k)
 	Net._broadcast_roster()
+
+
+func _fake_players(apps_names: Array) -> void:
+	var Avatar = preload("res://scripts/avatar.gd")
+	for k in apps_names.size():
+		var a: Array = apps_names[k]
+		Net.players[9981 + k] = {"name": a[0], "money": 5000, "color": Avatar.shirt_color(a[1]), "appearance": a[1], "level": 14, "ride": ""}
+	Net._broadcast_roster()
+
+
+func _shots_17(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var OM = preload("res://scripts/ocean_map.gd")
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Holidays.force("yok")
+	Tutorial.finish()
+	Env.hour = 12.0
+	var me := 1
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	var apps := [["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+		["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+		["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]]
+	_fake_players(apps)
+	# --- tren: şehir garı, tren peronda
+	Map.rail_shift = 15.0 - fposmod(Time.get_unix_time_from_system(), Map.RAIL_PERIOD)
+	var bo: Vector2 = Map.RAIL.sehir.booth
+	w.my_pos = bo + Vector2(0, 46)
+	Net.positions[9981] = bo + Vector2(110, 2)
+	Net.positions[9982] = bo + Vector2(180, -6)
+	Net.positions[9983] = bo + Vector2(-140, 0)
+	w.camera.zoom = Vector2(1.1, 1.1)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("tren_sehir")
+	# --- dağ istasyonu, tren giriyor
+	Map.rail_shift = 6.0 - fposmod(Time.get_unix_time_from_system(), Map.RAIL_PERIOD)
+	Homes._teleport(me, Map.RAIL.dag.booth + Vector2(-40, 10))
+	Net.positions[9981] = Map.RAIL.dag.booth + Vector2(90, 0)
+	Net.positions[9982] = Map.RAIL.dag.booth + Vector2(150, -20)
+	Net.positions[9983] = Map.RAIL.dag.booth + Vector2(-200, -30)
+	w.camera.zoom = Vector2(0.9, 0.9)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("tren_dag")
+	# --- yolculuk
+	_rail_stop_shot()
+	Rail.board("fuar")
+	await _wait(2.5)
+	_shot("tren_yolculuk")
+	await _wait(5.0)
+	Map.rail_shift = 0.0
+	# --- sinema dışı
+	var cr: Rect2 = Map.CINEMA.rect
+	Homes._teleport(me, Vector2(cr.get_center().x - 40, cr.end.y + 40))
+	Net.positions[9981] = Vector2(cr.get_center().x + 60, cr.end.y + 50)
+	Net.positions[9982] = Vector2(cr.get_center().x + 120, cr.end.y + 30)
+	Net.positions[9983] = Vector2(cr.get_center().x - 140, cr.end.y + 60)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("sinema_dis")
+	# --- film
+	Cinema.shift = 4.0 - fposmod(Time.get_unix_time_from_system(), Cinema.SESSION)
+	Cinema.buy_ticket()
+	await _wait(0.3)
+	Cinema.shift += 50.0
+	w.zone = {"type": "sinema"}
+	w._open_panel()
+	await _wait(0.5)
+	Cinema.reaction.emit({"who": "Kerem", "k": "kahkaha"})
+	Cinema.reaction.emit({"who": "Ayşe", "k": "alkis"})
+	await _wait(0.6)
+	_shot("sinema_film")
+	w._close_panel()
+	# --- karaoke
+	w.zone = {"type": "sinema"}
+	w._open_panel()
+	await _wait(0.3)
+	Cinema.karaoke_start(1)
+	await _wait(6.2)
+	_shot("karaoke")
+	Cinema.karaoke_finish([])
+	w._close_panel()
+	Cinema.shift = 0.0
+	# --- paintball
+	Homes._teleport(me, Map.ARENA_BOOTH + Vector2(0, 20))
+	await _wait(0.4)
+	Paint.join("kirmizi")
+	await _wait(0.3)
+	Paint.start()
+	await _wait(4.0)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	Paint.fire(Vector2(1, -0.2))
+	await _wait(0.12)
+	await _clear_toasts(w)
+	_shot("paintball")
+	Paint._finish("")
+	await _wait(0.5)
+	Paint.leave_team()
+	for k in 3:
+		Net.positions.erase(9981 + k)
+	# --- özel ada
+	if not "boat" in rec.vehicles:
+		rec.vehicles.append("boat")
+	Garage.send_state(me)
+	var sale: Array = Isles.for_sale()
+	var ii: int = sale[0]
+	for cand in sale:
+		if OM.islands()[cand].type == "tropik":
+			ii = cand
+			break
+	var isl: Dictionary = OM.islands()[ii]
+	var sp: Dictionary = Isles.spots(isl)
+	if Net.save_data.get("isles") is Dictionary:
+		Net.save_data.isles.clear()                 # önceki çekimden kalan ada
+	Garage.set_ride(me, "")
+	Homes._teleport(me, sp.sign + Vector2(0, 10))
+	await _wait(0.6)
+	print("[foto] ada: ", isl.name, " konum ", w.my_pos, " okyanus ", w._ocean)
+	Isles.buy(ii)
+	await _wait(0.3)
+	for k in ["ev", "ev", "ev", "bahce", "havuz", "fener", "iskele"]:
+		Isles.build(ii, k)
+		await _wait(0.15)
+	Homes._teleport(me, sp.house + Vector2(60, 70))
+	Net.positions[9981] = sp.pool + Vector2(0, 50)
+	Net.positions[9982] = sp.garden + Vector2(30, 40)
+	w.camera.zoom = Vector2(0.85, 0.85)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("ozel_ada")
+	# --- ticaret: liman paneli ve korsan baskını
+	var home: Dictionary = OM.islands()[0]
+	Homes._teleport(me, OM.pier_end(home) + Vector2(home.dock_dir) * 60.0)
+	Garage.set_ride(me, "boat")
+	await _wait(0.4)
+	Cargo.buy(Cargo.local_good(0), 6)
+	await _wait(0.4)
+	w.camera.zoom = Vector2(1, 1)
+	w.zone = {"type": "ocean_fuel", "port": 0}
+	w._open_panel()
+	await _wait(0.6)
+	_shot("liman_ticaret")
+	w._close_panel()
+	var far := Vector2(20500, 4200)
+	Homes._teleport(me, far)
+	await _wait(0.3)
+	Net.positions[9981] = far + Vector2(-220, 80)
+	Net.players[9981].ride = "boat"
+	Net._broadcast_roster()
+	Cargo.start_raid(me)
+	Cargo._raids[me].p = far + Vector2(330, -120)
+	Cargo._raids[me].until += 999.0
+	await _wait(0.6)
+	Cargo._raids[me].p = far + Vector2(330, -120)
+	Cargo._broadcast_raids()
+	await _wait(0.4)
+	w._harp_t = -10.0
+	w.zone = {"type": "ocean_harpoon", "target": "raid", "owner": Net.my_name}
+	w._harpoon()
+	await _wait(0.15)
+	await _clear_toasts(w)
+	_shot("korsan_baskini")
+	Cargo._raids.clear()
+	Cargo._broadcast_raids()
+	# --- göl: kayık ve yüzenler
+	Homes._teleport(me, Map.DOCK.position + Vector2(30, 40))
+	Garage.set_ride(me, "")
+	await _wait(0.4)
+	Pets.give(me, "dog", "Karabaş")
+	w._board_kayik()
+	await _wait(0.4)
+	var lc: Vector2 = Map.LAKE.get_center()
+	for k in 25:
+		w.my_pos = w.my_pos.lerp(lc + Vector2(120, -40), 0.12)
+		await _wait(0.04)
+	Net.players[9981].ride = "kayik"
+	Net.positions[9981] = lc + Vector2(-120, 90)
+	Net.players[9982].ride = ""
+	Net.positions[9982] = lc + Vector2(-Map.LAKE.size.x / 2.0 * 0.78, -60)
+	Net.players[9983].ride = ""
+	Net.positions[9983] = Map.DOCK.position + Vector2(70, 40)
+	Net._broadcast_roster()
+	w.camera.zoom = Vector2(0.9, 0.9)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("gol_kayik")
+	for k in 3:
+		Net.players.erase(9981 + k)
+		Net.positions.erase(9981 + k)
+	Net._broadcast_roster()
+	w.camera.zoom = Vector2(1, 1)
+
+
+func _rail_stop_shot() -> void:
+	var Map = preload("res://scripts/map.gd")
+	Map.rail_shift = 0.0
+	Map.rail_shift = 15.0 - fposmod(Time.get_unix_time_from_system(), Map.RAIL_PERIOD)
 
 
 func _shot(n: String) -> void:

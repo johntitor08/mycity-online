@@ -17,5 +17,10 @@ static func name_color(player_name: String) -> Color:
 
 
 ## BBCode içine kullanıcı metni koyarken köşeli parantezleri etkisizleştirir.
+## Türkçe büyük harf: i → İ, ı → I (Godot'nun to_upper'ı i'yi I yapar).
+static func upper_tr(text: String) -> String:
+	return text.replace("i", "İ").to_upper()
+
+
 static func esc(text: String) -> String:
 	return text.replace("[", "[lb]")

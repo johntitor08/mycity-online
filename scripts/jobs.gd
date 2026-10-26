@@ -199,6 +199,9 @@ func req_cast(_d: Dictionary) -> void:
 	if spot == "" and str(Net.players[id].get("ride", "")) == "boat" and Map.in_sea(pos):
 		spot = "boat"     # teknede açık deniz: deniz balıkları, nadir şansı daha yüksek
 		deep = Map.in_deep(pos)   # derin denizde daha da yüksek
+	if spot == "" and str(Net.players[id].get("ride", "")) == "kayik" and Map.in_lake(pos):
+		spot = "lake"     # 1.7: kayıktan göl balıkçılığı; gölün ortasında nadir şansı yüksek
+		deep = Map.lake_deep(pos)
 	if spot != "lake" and spot != "" and Env.weather == "storm":
 		Net.notify(id, "Fırtına var! Denizde balık tutmak tehlikeli, gölde dene.", false)
 		return
@@ -289,7 +292,7 @@ func req_sell_fish(_d: Dictionary) -> void:
 	if id == 0:
 		return
 	var here: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
-	var at_water := Map.fishing_spot(here) != "" or str(Net.players[id].get("ride", "")) == "boat"
+	var at_water := Map.fishing_spot(here) != "" or str(Net.players[id].get("ride", "")) in ["boat", "kayik"]
 	if not at_water and not Map.building("pazar").rect.grow(60).has_point(here):
 		Net.notify(id, "Balıkları iskelede ya da Pazar Yeri'ndeki Hal'de satabilirsin.", false)
 		return

@@ -97,6 +97,34 @@ static func balloon_at(t: float) -> Vector2:
 
 
 ## Bölge kimliği: oyuncu bölgeler arasında sadece sunucu ışınlamasıyla geçer.
+static var rail_shift := 0.0        # testler tarifeyi kaydırır (oyunda 0)
+
+
+static func train_state(t: float) -> Dictionary:
+	## Tren nerede? {k: 0 giriş → 1 peron → 2 çıkış, stopped: peronda mı, visible, left: kalkışa kalan sn, next: gelişe kalan sn}
+	var u := fposmod(t + rail_shift, RAIL_PERIOD)
+	if u < 10.0:
+		var k := u / 10.0
+		return {"k": 1.0 - (1.0 - k) * (1.0 - k), "phase": "in", "stopped": false, "visible": true, "next": 10.0 - u}
+	if u < 30.0:
+		return {"k": 1.0, "phase": "stop", "stopped": true, "visible": true, "left": 30.0 - u}
+	if u < 40.0:
+		var k2 := (u - 30.0) / 10.0
+		return {"k": 1.0 + k2 * k2, "phase": "out", "stopped": false, "visible": true, "next": RAIL_PERIOD - u + 10.0}
+	return {"k": 0.0, "phase": "away", "stopped": false, "visible": false, "next": RAIL_PERIOD - u + 10.0}
+
+
+## Trenin ortasının x'i (k: 0 girişte, 1 peronda, 2 çıkışta).
+static func train_x(st: Dictionary, k: float) -> float:
+	if k <= 1.0:
+		return lerpf(float(st.x0), float(st.stop), k)
+	return lerpf(float(st.stop), float(st.x1), k - 1.0)
+
+
+static func rail_region(key: String) -> String:
+	return {"sehir": "sehir", "dag": "dag", "fuar": "fuar"}[key]
+
+
 static func region_of(p: Vector2) -> String:
 	if OCEAN.has_point(p):
 		return "okyanus"
@@ -106,6 +134,24 @@ static func region_of(p: Vector2) -> String:
 		return "fuar"
 	return "sehir"
 
+
+# 1.7: tren hattı. Her bölgenin kenarında bir istasyon; tren hepsinde aynı tarifeyle peronlara girer.
+#  y: ray yüksekliği, x0/x1: trenin girip çıktığı uçlar, stop: durduğu yer (trenin ortası), booth: bilet gişesi
+const RAIL := {
+	"sehir": {"name": "Şehir Garı", "y": 36.0, "x0": -500.0, "x1": 3300.0, "stop": 2230.0, "booth": Vector2(2230, 84), "arrive": Vector2(2230, 140)},
+	"dag": {"name": "Dağ İstasyonu", "y": 2866.0, "x0": 7400.0, "x1": 10800.0, "stop": 8560.0, "booth": Vector2(8560, 2826), "arrive": Vector2(8620, 2790)},
+	"fuar": {"name": "Lunapark İstasyonu", "y": 36.0, "x0": 10100.0, "x1": 13700.0, "stop": 11560.0, "booth": Vector2(11560, 84), "arrive": Vector2(11640, 150)},
+}
+const RAIL_PERIOD := 80.0          # tarife: 0-10 sn giriş, 10-30 peronda, 30-40 çıkış
+const TRAIN_LEN := 480.0
+
+# 1.7: sinema (fuar bölgesi, akvaryumun güneyi) ve paintball arenası (havalimanının kuzeyi)
+const CINEMA := {"type": "sinema", "label": "Sinema", "rect": Rect2(12440, 2330, 400, 280), "sign_y": 78}
+const ARENA := Rect2(11940, 110, 680, 430)
+const ARENA_BOOTH := Vector2(12280, 610)
+const ARENA_COVER := [Rect2(12120, 190, 30, 110), Rect2(12410, 350, 30, 110), Rect2(12240, 160, 90, 26),
+	Rect2(12230, 460, 90, 26), Rect2(12030, 400, 70, 26), Rect2(12460, 210, 70, 26), Rect2(12260, 300, 50, 50)]
+const ARENA_BASE := {"kirmizi": Vector2(11990, 325), "mavi": Vector2(12570, 325)}
 
 # 1.6: Açık Okyanus (harita dışında; adalar ocean_map.gd'de)
 const OCEAN := Rect2(14000, 0, 16000, 10000)
@@ -190,6 +236,8 @@ const CARGO_DEPOT := Vector2(1855, 700)
 const FIRE_STATION := Rect2(2632, 930, 156, 140)
 const RECYCLE := Vector2(935, 1612)
 const DOCK := Rect2(760, 990, 200, 80)          # göl iskelesi (tamamı balık tutma alanı)
+const KAYIK_SPOT := Vector2(712, 1036)          # 1.7: iskelenin ucunda bağlı bedava kayık (suda)
+const LAKE_DEEP_K := 0.62                       # gölün ortası (bu oranın içi) derin: yüzülmez, kayıkla gidilir
 
 # Plaj ve deniz
 const BEACH := Rect2(0, 1630, 2800, 230)
@@ -290,6 +338,18 @@ static func bus_at(t: float) -> Array:
 
 
 ## Deniz: yüzülebilir (iskeleler ve ada hariç).
+## Gölün suyu (nehir hariç, iskele hariç).
+static func in_lake(p: Vector2) -> bool:
+	var d := (p - LAKE.get_center()) / (LAKE.size / 2.0)
+	return d.length_squared() < 1.0 and not DOCK.has_point(p)
+
+
+## Gölün derin ortası (yüzerek girilmez).
+static func lake_deep(p: Vector2) -> bool:
+	var d := (p - LAKE.get_center()) / (LAKE.size / 2.0 * LAKE_DEEP_K)
+	return d.length_squared() < 1.0
+
+
 static func in_sea(p: Vector2) -> bool:
 	if p.x > WORLD.end.x:
 		return false      # harita dışı (ev içleri) deniz değildir

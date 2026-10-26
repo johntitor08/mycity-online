@@ -1005,6 +1005,32 @@ def akvaryum():
     save("buildings/akvaryum.svg", svg(W, H, p))
 
 
+# ---------------------------------------------------------------- 1.7: sinema
+
+def sinema():
+    W, H = 400, 280
+    p = [rect(8, 60, W - 16, 216, "#7f1d1d", 6), rect(8, 252, W - 16, 24, "#450a0a"),
+         rect(0, 52, W, 14, "#facc15", 3),
+         # ışıklı tabela (marquee)
+         rect(60, 66, W - 120, 46, "#111827", 6, 3, "#fde68a")]
+    for x in range(72, W - 64, 16):
+        p += [circle(x, 70, 3, "#fde047", 0), circle(x, 108, 3, "#fde047", 0)]
+    # afişler
+    for i, (x, c1, c2) in enumerate([(24, "#1d4ed8", "#facc15"), (W - 84, "#15803d", "#f472b6")]):
+        p += [rect(x, 128, 60, 84, "#f8fafc", 3, 2.5), rect(x + 6, 134, 48, 72, c1, 2, 0),
+              circle(x + 30, 160, 12, c2, 1.5), path(f"M{x + 12} 196h36", "none", 3, "#f8fafc")]
+    # kapılar
+    p += [rect(140, 150, 120, 102, "#1f2937", 4, 3), path("M200 150v102", "none", 2.5, "#fbbf24"),
+          circle(190, 204, 4, "#fbbf24", 0), circle(210, 204, 4, "#fbbf24", 0),
+          rect(140, 128, 120, 18, "#b91c1c", 3, 2)]
+    # çatıda film şeridi
+    p += [rect(150, 6, 100, 46, "#1f2937", 4, 2.5)]
+    for x in range(156, 246, 14):
+        p += [rect(x, 10, 8, 6, "#f8fafc", 1, 0), rect(x, 42, 8, 6, "#f8fafc", 1, 0)]
+    p += [rect(162, 20, 34, 20, "#38bdf8", 2, 1.5), rect(204, 20, 34, 20, "#f472b6", 2, 1.5)]
+    save("buildings/sinema.svg", svg(W, H, p, GLASS))
+
+
 if __name__ == "__main__":
     hospital()
     market()

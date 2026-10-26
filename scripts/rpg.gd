@@ -221,6 +221,17 @@ func _update_energy(r: Dictionary, lvl: int) -> void:
 
 
 ## Enerji harcar; yetmiyorsa oyuncuyu uyarır ve false döner.
+## Enerji ver (yiyecek, dinlenme...). En fazla maksimum enerjiye kadar.
+func add_energy(id: int, amount: float) -> void:
+	var r := _rec(id)
+	if r.is_empty():
+		return
+	var lvl := level_of(int(r.xp))
+	_update_energy(r, lvl)
+	r["energy"] = minf(float(max_energy(lvl, r)), float(r.energy) + amount)
+	send_sheet(id)
+
+
 func use_energy(id: int, amount: int) -> bool:
 	var r := _rec(id)
 	if r.is_empty():

@@ -82,6 +82,7 @@ func _draw() -> void:
 	_rect(Map.FIRE_STATION, Color("#b91c1c"))
 	for r in Map.ROADS:
 		_rect(r, Color("#3f4148"))
+	_rect(Rect2(0, Map.RAIL.sehir.y - 8, Map.WORLD.size.x, 16), Color("#78716c"))      # tren hattı
 	_rect(Map.PIER, Color("#a0703c"))
 	_rect(Map.ISLAND_PIER, Color("#a0703c"))
 	_rect(Map.DOCK, Color("#a0703c"))
@@ -104,7 +105,8 @@ func _draw() -> void:
 	if big:
 		for t in [[Map.FERRY_PIER.get_center(), "Feribot"], [Map.CONTAINER_YARD.get_center(), "Liman"],
 				[Map.DOCK.get_center(), "Göl İskelesi"], [Map.PIER_END.get_center(), "Deniz İskelesi"], [Map.ISLAND.get_center(), "Martı Adası"],
-				[Football.FIELD.get_center(), "Plaj Sahası"], [Map.RACE_FLAG, "Yarış Pisti"], [Langirt.POS, "Langırt"]]:
+				[Football.FIELD.get_center(), "Plaj Sahası"], [Map.RACE_FLAG, "Yarış Pisti"], [Langirt.POS, "Langırt"],
+				[Map.RAIL.sehir.booth + Vector2(0, 30), "Şehir Garı"]]:
 			var c := to_map(t[0])
 			draw_string_outline(font, c + Vector2(-60, 4), t[1], HORIZONTAL_ALIGNMENT_CENTER, 120, 11, 4, Color(0, 0, 0, 0.8))
 			draw_string(font, c + Vector2(-60, 4), t[1], HORIZONTAL_ALIGNMENT_CENTER, 120, 11, Color("#fde68a"))

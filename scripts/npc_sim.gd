@@ -125,7 +125,7 @@ func update(delta: float, roster: Dictionary, positions: Dictionary, my_id: int,
 		var st: Dictionary = pets.get(id, {"pos": owner + Vector2(-30, 10), "facing": "right", "moving": false})
 		var ride := str(roster[id].get("ride", ""))
 		var target: Vector2 = owner + Vector2(-34 if st.facing == "right" else 34, 12)
-		st.in_boat = ride == "boat"
+		st.in_boat = ride == "boat" or ride == "kayik"
 		if st.in_boat:
 			# sahibi teknedeyse hayvan da teknede oturur (kıçta)
 			var dx := owner.x - float(st.get("ox", owner.x))

@@ -13,6 +13,7 @@ const U = preload("res://scripts/util.gd")
 const CATS := {
 	"wealth": ["Zenginlik", "TL"], "fish": ["Balık", "TL"], "race": ["Yarış", "sn"],
 	"goals": ["Futbol", "gol"], "xp": ["Tecrübe", "XP"], "ski": ["Kayak", "sn"], "marathon": ["Maraton", "sn"],
+	"paint": ["Paintball", "vuruş"],
 }
 const PRIZES := [5000, 2500, 1000]
 const HISTORY := 20

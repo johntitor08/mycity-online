@@ -33,6 +33,8 @@ var _rentals := {}           # sunucu: oyuncu adı -> bitiş (unix)
 
 
 static func speed_of(ride: String) -> float:
+	if ride == "kayik":
+		return 1.3
 	if ride == "ski":
 		return 1.7
 	if ride == "horse":
@@ -46,6 +48,8 @@ static func speed_of(ride: String) -> float:
 static func usable_at(ride: String, p: Vector2) -> bool:
 	if OM.in_ocean(p):
 		return OM.island_at(p, 20.0) < 0 if ride == "boat" else (ride == "" or ride == "horse") and (OM.is_land(p) or OM.on_pier(p))
+	if ride == "kayik":
+		return Map.in_lake(p)
 	if Map.interior_at(p) >= 0 or Map.MOUNTAIN.has_point(p) or Map.FAIR.has_point(p):
 		return false
 	if ride == "boat":
@@ -231,6 +235,18 @@ func req_ride(d: Dictionary) -> void:
 	if not Net.players.has(id):
 		return
 	var kind := str(d.get("kind", ""))
+	if kind == "kayik":
+		# 1.7: Göl İskelesi'ndeki bedava kayık (sahiplik gerekmez)
+		var kp: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
+		if d.get("pos") is Vector2 and (d.pos as Vector2).distance_to(kp) < 160.0 and Map.in_lake(d.pos):
+			kp = d.pos
+			Net.positions[id] = kp
+		if kp.distance_to(Map.KAYIK_SPOT) > 200.0 or not Map.in_lake(kp):
+			Net.notify(id, "Kayık Göl İskelesi'nin ucunda bağlı.", false)
+			return
+		set_ride(id, "kayik")
+		Ach.event(id, "kayik")
+		return
 	if kind == "horse":
 		var why := Horses.can_ride(id)
 		if why != "":
