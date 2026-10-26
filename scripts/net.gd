@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "1.5"
+const VERSION := "1.6"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -329,6 +329,7 @@ func _reset_peer() -> void:
 	Gym.reset()
 	Pirates.reset()
 	Zoo.reset()
+	Ocean.reset()
 
 
 func _on_connected() -> void:
@@ -525,6 +526,7 @@ func _on_peer_disconnected(id: int) -> void:
 	Gym.on_player_left(id)
 	Pirates.on_player_left(id)
 	Zoo.on_player_left(id)
+	Ocean.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -674,6 +676,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Gym.send_state(id)
 	Pirates.send_state(id)
 	Zoo.send_state(id)
+	Ocean.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -808,6 +811,9 @@ func send_pos(p: Vector2) -> void:
 		return
 	if Map.FAIR.has_point(p):
 		positions[id] = p.clamp(Map.FAIR.position, Map.FAIR.end)
+		return
+	if Map.OCEAN.has_point(p):
+		positions[id] = p.clamp(Map.OCEAN.position, Map.OCEAN.end)
 		return
 	var room := Map.interior_at(p)
 	if Map.INTERIOR_AREA.has_point(p):

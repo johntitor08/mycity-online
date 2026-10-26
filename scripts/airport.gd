@@ -21,7 +21,11 @@ static func destinations() -> Dictionary:
 		"ada": ["Martı Adası", Map.ISLAND.get_center() + Vector2(-140, 30), 80],
 		"dag": ["Dağ Köyü", Map.MOUNTAIN_SPAWN, 120],
 		"liman": ["Sanayi Limanı", Map.FERRY_STOPS.liman[1] + Vector2(0, 260), 60],
+		"okyanus": ["Liman Adası (Açık Okyanus)", AIRSTRIP + Vector2(0, 60), 250],
 	}
+
+## 1.6: Liman Adası'ndaki küçük pist (okyanustan şehre dönüş uçuşu da buradan)
+const AIRSTRIP := Vector2(15260, 1180)
 
 # --- istemci
 var balloon_t0 := 0.0              # yerel: balon turu başladıysa
@@ -83,7 +87,7 @@ func _pos(id: int) -> Vector2:
 
 
 func _at_terminal(id: int) -> bool:
-	return Map.FAIR_BUILDINGS[0].rect.grow(70).has_point(_pos(id))
+	return Map.FAIR_BUILDINGS[0].rect.grow(70).has_point(_pos(id)) or _pos(id).distance_to(AIRSTRIP) < 110.0
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -147,7 +151,7 @@ func _process(_delta: float) -> void:
 			_flights.erase(id)
 			if Net.players.has(id):
 				Homes._teleport(id, destinations()[to][1])
-				Net.notify(id, "%s'na indin. İyi yolculuklar!" % destinations()[to][0])
+				Net.notify(id, "İndin: %s. İyi yolculuklar!" % destinations()[to][0])
 	for id in _balloon.keys():
 		if now >= float(_balloon[id]) or not Net.players.has(id):
 			_end_balloon(id)

@@ -291,6 +291,7 @@ func _on_ok() -> void:
 		await _test_13(get_parent().world)
 		await _test_14(get_parent().world)
 		await _test_15(get_parent().world)
+		await _test_16(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -2561,6 +2562,168 @@ func _test_15(w) -> void:
 	w._open_panel()
 	await _wait(0.4)
 	check(w.my_ride() == "boat", "bağlı tekneye binildi")
+	Garage.ride("")
+	await _wait(0.2)
+
+
+func _test_16(w) -> void:
+	var OM = preload("res://scripts/ocean_map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 80000)
+	Env.force_weather("clear")
+	Holidays.force("yok")
+	if not "boat" in rec.vehicles:
+		rec.vehicles.append("boat")
+	Garage.send_state(me)
+	rec["fish"] = []
+	Jobs.send_inventory(me)
+	await _wait(0.3)
+
+	print("== 1.6: Okyanus haritası")
+	var isl: Array = OM.islands()
+	var names := {}
+	for i in isl:
+		names[i.name] = true
+	check(isl.size() == OM.ISLANDS and names.size() == OM.ISLANDS, "%d ada, adlar benzersiz" % isl.size())
+	check(OM.is_land(OM.HOME) and OM.is_water(OM.ARRIVE), "Liman Adası karada, varış noktası suda")
+	var types := {}
+	for i in isl:
+		types[i.type] = true
+	check(types.size() == OM.TYPES.size(), "bütün ada tipleri var (%d)" % types.size())
+	check(Airport.destinations().has("okyanus"), "havalimanından okyanusa uçuş var")
+	var ms := false
+	for st in Museum.sets():
+		if st[0] == "okyanus":
+			ms = st[2].size() == 7
+	check(ms, "müzede Okyanus koleksiyonu")
+
+	print("== 1.6: Okyanusa açılma")
+	var gate: Vector2 = Ocean.GATE.get_center()
+	w.my_pos = gate
+	await _wait(0.3)
+	Garage.ride("boat", gate)
+	await _wait(0.4)
+	check(w.my_ride() == "boat", "kapı şeridinde tekneye binildi")
+	check(w.zone.get("type", "") == "ocean_gate", "okyanus kapısı bölgesi")
+	w._open_panel()
+	await _wait(0.6)
+	check(w._ocean and w.my_pos.distance_to(OM.ARRIVE) < 50.0 and w.my_ride() == "boat", "Açık Okyanus'a geçildi (tekneyle)")
+	check(rec.ach.got.has("ocean"), "Açık Deniz başarımı")
+	await _wait(1.0)
+	check(Ocean.seen.count(1) > 0, "keşif sisi açılıyor (%d hücre)" % Ocean.seen.count(1))
+
+	print("== 1.6: Yakıt")
+	var f0 := float(Ocean.my.fuel)
+	var pos: Vector2 = OM.ARRIVE
+	for k in 25:
+		var np := pos + Vector2(60, 0)
+		if OM.island_at(np, 20.0) >= 0:
+			break
+		pos = np
+		w.my_pos = pos
+		await _wait(0.06)
+	await _wait(1.3)
+	check(float(Ocean.my.fuel) < f0, "yol aldıkça yakıt azaldı (%.1f → %.1f)" % [f0, float(Ocean.my.fuel)])
+	var home: Dictionary = isl[0]
+	var dock_w: Vector2 = OM.pier_end(home) + Vector2(home.dock_dir) * 60.0
+	w.my_pos = dock_w
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "ocean_fuel", "yakıt iskelesi")
+	var m0 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(absf(float(Ocean.my.fuel) - Ocean.max_fuel(Ocean.my.up)) < 0.5 and Net.my_money() < m0, "depo dolduruldu")
+	w._toggle_vehicle()
+	await _wait(0.4)
+	check(w.my_ride() == "" and (OM.on_pier(w.my_pos) or OM.is_land(w.my_pos)), "iskeleye inildi")
+
+	print("== 1.6: Tersane")
+	w.my_pos = w._shipyard_pos() + Vector2(0, 40)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "tersane", "tersane bölgesi")
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "tersane paneli açıldı")
+	w._close_panel()
+	var m1 := Net.my_money()
+	Ocean.upgrade("motor")
+	Ocean.upgrade("tank")
+	await _wait(0.4)
+	check(int(Ocean.my.up.motor) == 1 and int(Ocean.my.up.tank) == 1 and Net.my_money() == m1 - 5000, "motor ve depo yükseltildi")
+	check(Ocean.max_fuel(Ocean.my.up) == 160.0 and Ocean.speed_mult(Ocean.my.up, 10.0) > 0.75, "depo 160 L, tekne hızlandı")
+	rec.ocean.hp = 50.0
+	Ocean.repair()
+	await _wait(0.4)
+	check(float(Ocean.my.hp) == 100.0, "tekne tamir edildi")
+
+	print("== 1.6: Sandık ve fener")
+	w.my_pos = Vector2(home.chest) + Vector2(0, 12)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "ocean_chest", "ada sandığı")
+	var m2 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.my_money() > m2 and rec.ach.c.get("ocean_chests", 0) == 1, "sandık açıldı (+%d)" % (Net.my_money() - m2))
+	var m3 := Net.my_money()
+	Ocean.open_chest(0)
+	await _wait(0.3)
+	check(Net.my_money() == m3, "sandık 20 dk boş kalır")
+	var found0: int = Ocean.my.found.size()
+	w.my_pos = Ocean.lighthouse_pos(home) + Vector2(0, 20)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "ocean_light", "fener")
+	w._open_panel()
+	await _wait(0.5)
+	check(0 in Ocean.my.lit and Ocean.seen.count(1) > 60, "fener yandı, çevre haritada açıldı (%d hücre)" % Ocean.seen.count(1))
+	check(Ocean.my.found.size() >= found0, "keşfedilen adalar: %d" % Ocean.my.found.size())
+	w.open_ocean_map()
+	await _wait(0.3)
+	check(w.panel != null, "okyanus haritası (M)")
+	w._close_panel()
+
+	print("== 1.6: Fırtına ve batma")
+	w.my_pos = OM.pier_end(home) + Vector2(0, -10)
+	await _wait(0.2)
+	w._toggle_vehicle()
+	await _wait(0.4)
+	check(w.my_ride() == "boat", "iskeleden tekneye binildi")
+	Ocean._storms = [{"p": w.my_pos, "v": Vector2.ZERO, "r": 600.0}]
+	await _wait(1.6)
+	check(float(Ocean.my.hp) < 100.0 and Ocean.storm_at(w.my_pos), "fırtına gövdeyi yıprattı (%d)" % int(Ocean.my.hp))
+	var m4 := Net.my_money()
+	rec.ocean.hp = 0.5
+	await _wait(1.0)
+	check(w.my_pos.distance_to(OM.ARRIVE) < 50.0 and Net.my_money() <= m4 - Ocean.TOW_FEE + 50, "tekne battı, Liman Adası'na çekildi")
+	Ocean._storms = [{"p": OM.OCEAN.end - Vector2(900, 900), "v": Vector2.ZERO, "r": 300.0}]
+
+	print("== 1.6: Kraken")
+	Ocean.spawn_kraken()
+	Ocean._kraken.p = w.my_pos + Vector2(250, 0)
+	Ocean._kraken.hp = 30
+	Ocean._broadcast_world()
+	await _wait(0.4)
+	check(not Ocean.kraken.is_empty() and w.zone.get("type", "") == "ocean_harpoon", "Kraken çıktı, zıpkın menzilinde")
+	var m5 := Net.my_money()
+	for k in 6:
+		if Ocean.kraken.is_empty():
+			break
+		w._harp_t = -10.0
+		w._open_panel()
+		await _wait(1.0)
+	check(Ocean.kraken.is_empty() and Net.my_money() > m5 and rec.ach.got.has("kraken"), "Kraken yenildi, ganimet alındı (+%d)" % (Net.my_money() - m5))
+	var tooth := false
+	for f in rec.fish:
+		tooth = tooth or f.name == "Kraken Dişi"
+	check(tooth, "Kraken Dişi kovada")
+
+	print("== 1.6: Şehre dönüş")
+	w.my_pos = OM.ARRIVE
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "ocean_exit", "dönüş noktası")
+	w._open_panel()
+	await _wait(0.6)
+	check(not w._ocean and w.my_pos.distance_to(Ocean.CITY_RETURN) < 50.0 and w.my_ride() == "boat", "şehrin açıklarına dönüldü")
 	Garage.ride("")
 	await _wait(0.2)
 

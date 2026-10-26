@@ -8,7 +8,8 @@ klanlar ve sohbet kanalları, yarış/turnuva/hazine avı/festival etkinlikleri,
 Çarşı ve aksesuarlar, banka ve borsa, belediye seçimi, düğün ve aile (0.7); başarımlar ve unvanlar,
 mini harita, açık deniz ve Martı Adası, mevsimlik eğlence, plaj futbolu ve langırt (0.8); taksi, kargo,
 itfaiye ve çöpçülük meslekleri, nehir/park/otobüs, ev partileri, ayarlar ve eğitim turu (0.9); Sanayi Limanı,
-feribot ve fabrika, haftalık lig, mevsim/gece müzikleri, yönetici komutları ve otomatik yedekler (1.0).
+feribot ve fabrika, haftalık lig, mevsim/gece müzikleri, yönetici komutları ve otomatik yedekler (1.0);
+30 adalı Açık Okyanus: hazineler, keşif haritası, fenerler, yakıt ve tekne geliştirme, fırtınalar ve Kraken (1.6).
 
 **İndir (Windows / Linux):** https://johntitortheprog.itch.io/mycity-online
 **Resmi sunucu:** `traded-rolled.tun.ply.gg:12861` (menüde "Resmi Sunucuya Katıl")
@@ -34,6 +35,36 @@ Menüde:
 - **Sunucuya Katıl**: Arkadaşının IP adresini ve portunu yazıp bağlan.
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
+
+## 1.6: Açık Okyanus
+
+| | |
+|---|---|
+| ![Liman Adası](docs/ekran/okyanus_liman.png) | ![Okyanus haritası](docs/ekran/okyanus_harita.png) |
+| ![Volkan adası](docs/ekran/okyanus_volkanik.png) | ![Buzul adası](docs/ekran/okyanus_buzul.png) |
+| ![Batık şehir](docs/ekran/okyanus_batik.png) | ![Kraken](docs/ekran/okyanus_kraken.png) |
+
+- **Açık Okyanus:** şehrin 6 katı büyüklüğünde ayrı bir deniz bölgesi, **30 ada**.
+  - Giriş: kendi teknenle şehrin doğusundaki yeşil şamandıralı şeritten (Korsan Adası'nın güneyi) E ile açıl.
+    Ya da havalimanından **Liman Adası**'na uç (250 TL). Kiralık tekneyle okyanusa çıkılmaz.
+  - Dönüş: Liman Adası'nın güneyindeki turuncu şamandıralar (E) ya da adadaki pistten uçak.
+- **Ada çeşitleri:** Tropik, Kayalık, Mangrov, Volkanik (lav ve duman), Buzul (yüzen buzlar), Batık Şehir (sütunlu harabeler).
+  - Uzak adalar daha tehlikeli tiplerde ve ★ (1–5) zorlukta.
+  - Her adada bir **sandık** var; her oyuncu her sandığı 20 dakikada bir açar.
+  - Ganimet ★ ile artar; ada tipine göre Okyanus İncisi, Kayalık Akiği, Mangrov Kehribarı, Volkan Taşı,
+    Buzul Kristali ya da Antik Sikke çıkar. Bunlar müzedeki yeni **Okyanus** koleksiyonuna girer.
+  - Sandıktan hazine haritası parçası da çıkabilir.
+- **Keşif haritası (okyanusta M):** gezdikçe sis açılır, adalar haritaya eklenir.
+  - **Fenerler:** 11 adada fener var; yakınca çevredeki geniş alan birden açılır.
+  - Başarımlar: Kâşif (10 ada), Haritacı (30 ada), Fenerci, Sandık Avcısı.
+- **Yakıt ve tekne geliştirme:** okyanusta tekne yol aldıkça yakıt harcar; biterse kürek hızında gidersin.
+  - Yakıt iskelesi olan adalarda yakıt litresi 2 TL.
+  - Liman Adası **Tersanesi:** Motor (+%12 hız), Yakıt Deposu (+60 L), Gövde (-%20 hasar), 3'er seviye; tamir.
+- **Fırtınalar:** okyanusta sürüklenen fırtına bölgeleri tekneyi yavaşlatır ve gövdeyi yıpratır.
+  - Gövde biterse tekne batar; römorkör seni Liman Adası'na çeker (200 TL).
+- **Kraken:** 20–35 dakikada bir ortaya çıkar ve herkese duyurulur.
+  - Oyuncular teknelerinden zıpkınla (E, basılı tut) birlikte saldırır; Kraken yakındaki tekneleri sarsar.
+  - Ganimet verilen hasara göre bölüşülür; en çok vurana müzelik **Kraken Dişi**.
 
 ## 1.5: Özel günler, spor salonu ve maraton, Korsan Adası, hayvanat bahçesi ve akvaryum
 
@@ -403,8 +434,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.5
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.5
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.6
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.6
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
@@ -539,6 +570,8 @@ scripts/
   tutorial.gd (autoload) ilk giriş eğitim turu (istemci)
   league.gd   (autoload) haftalık lig/sezonlar, rozetler, Şampiyonlar Duvarı
   factory.gd  (autoload) fabrika üretim bandı işi
+  ocean.gd    (autoload) Açık Okyanus: yakıt, tersane, sandıklar, fenerler, keşif sisi, fırtınalar, Kraken
+  ocean_map.gd okyanus adaları (sabit tohumla üretilir; sunucu ve istemci aynı adaları görür)
   npc_sim.gd  yürüyen vatandaşlar, trafik, müşteriler, evcil hayvan takibi (yalnızca istemci)
   lighting.gd gece ışıkları (CanvasModulate + PointLight2D)
   sfx.gd      (autoload) ses efektleri, müzik, dalga ambiyansı (yalnızca istemcide)

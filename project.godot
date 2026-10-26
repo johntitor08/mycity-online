@@ -66,6 +66,7 @@ Holidays="*res://scripts/holidays.gd"
 Gym="*res://scripts/gym.gd"
 Pirates="*res://scripts/pirates.gd"
 Zoo="*res://scripts/zoo.gd"
+Ocean="*res://scripts/ocean.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

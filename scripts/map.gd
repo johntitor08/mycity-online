@@ -98,12 +98,17 @@ static func balloon_at(t: float) -> Vector2:
 
 ## Bölge kimliği: oyuncu bölgeler arasında sadece sunucu ışınlamasıyla geçer.
 static func region_of(p: Vector2) -> String:
+	if OCEAN.has_point(p):
+		return "okyanus"
 	if MOUNTAIN.has_point(p):
 		return "dag"
 	if FAIR.has_point(p):
 		return "fuar"
 	return "sehir"
 
+
+# 1.6: Açık Okyanus (harita dışında; adalar ocean_map.gd'de)
+const OCEAN := Rect2(14000, 0, 16000, 10000)
 
 # 1.3: hipodrom (güney şeridi): 4 kulvar, soldan sağa
 const HIPPODROME := Rect2(260, 4116, 2440, 172)

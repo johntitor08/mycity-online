@@ -30,6 +30,9 @@ static func sets() -> Array:
 	var sea: Array = []
 	for n in ["İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı", "Korsan Altını", "Korsan Pusulası", "Korsan Yüzüğü"]:
 		sea.append(["fish:" + n, n])
+	var ocean: Array = []
+	for n in ["Okyanus İncisi", "Kayalık Akiği", "Mangrov Kehribarı", "Volkan Taşı", "Buzul Kristali", "Antik Sikke", "Kraken Dişi"]:
+		ocean.append(["fish:" + n, n])
 	var fossils: Array = []
 	var minerals: Array = []
 	for k in MountainS.ORES:
@@ -43,7 +46,7 @@ static func sets() -> Array:
 	for k in CampS.FORAGE:
 		if k != "odun":
 			forest.append(["barn:" + k, CampS.FORAGE[k].name])
-	return [["balik", "Balıklar", fish], ["deniz", "Deniz Hazineleri", sea], ["fosil", "Fosiller", fossils],
+	return [["balik", "Balıklar", fish], ["deniz", "Deniz Hazineleri", sea], ["okyanus", "Okyanus", ocean], ["fosil", "Fosiller", fossils],
 		["mineral", "Mineraller", minerals], ["orman", "Orman", forest], ["ciftlik", "Çiftlik Ürünleri", farm]]
 
 

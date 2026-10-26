@@ -29,6 +29,12 @@ func _ready() -> void:
 		await _shots_cover(w)
 		get_tree().quit()
 		return
+	if "--sadece16" in OS.get_cmdline_user_args():
+		Net.add_money(1, 300000)
+		Rpg.add_xp(1, "", 20000)
+		await _shots_16(w)
+		get_tree().quit()
+		return
 	if "--sadece15" in OS.get_cmdline_user_args():
 		Net.add_money(1, 300000)
 		Rpg.add_xp(1, "", 20000)
@@ -1935,6 +1941,112 @@ func _shots_04(w) -> void:
 	await _wait(0.6)
 	_shot("galeri")
 	w._close_panel()
+
+
+func _shots_16(w) -> void:
+	var OM = preload("res://scripts/ocean_map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Holidays.force("yok")
+	Tutorial.finish()
+	Env.hour = 12.0
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	if not "boat" in rec.vehicles:
+		rec.vehicles.append("boat")
+	Garage.send_state(1)
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0},
+		{"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]
+	var names := ["Ayşe", "Kerem", "Zeynep"]
+	for k in 3:
+		Net.players[9971 + k] = {"name": names[k], "money": 5000, "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 12, "ride": "boat"}
+	var isl: Array = OM.islands()
+	var home: Dictionary = isl[0]
+	Garage.set_ride(1, "boat")
+	Homes._teleport(1, OM.ARRIVE)
+	await _wait(0.5)
+	# Liman Adası: tersane, fener, iskele, yakıt
+	Garage.set_ride(1, "")
+	Homes._teleport(1, Ocean.lighthouse_pos(home) + Vector2(0, 20))
+	await _wait(0.3)
+	Ocean.light(0)
+	await _wait(0.3)
+	var pe: Vector2 = OM.pier_end(home) + Vector2(home.dock_dir) * 70.0
+	Net.positions[9971] = pe + Vector2(-140, 30)
+	Net.positions[9972] = pe + Vector2(160, 10)
+	Net.players[9973].ride = ""
+	Net.positions[9973] = OM.pier_end(home) - Vector2(home.dock_dir) * 30.0
+	Net._broadcast_roster()
+	w.my_pos = home.c + Vector2(40, -60)
+	Garage.set_ride(1, "")
+	w.camera.zoom = Vector2(0.8, 0.8)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("okyanus_liman")
+	# ada çeşitleri
+	for t in ["volkanik", "buzul", "batik", "mangrov"]:
+		for i in isl:
+			if i.type == t:
+				var p: Vector2 = Vector2(i.c) + Vector2(0, float(i.r) * float(i.sq) + 120.0)
+				Homes._teleport(1, p)
+				Garage.set_ride(1, "boat")
+				Net.positions[9971] = p + Vector2(-200, 40)
+				Net.positions[9972] = p + Vector2(220, 60)
+				Net.positions[9973] = p + Vector2(330, -20)
+				Net.players[9973].ride = "boat"
+				Net._broadcast_roster()
+				w.camera.zoom = Vector2(0.75, 0.75)
+				await _wait(1.3)
+				await _clear_toasts(w)
+				_shot("okyanus_" + t)
+				break
+	# fırtına
+	var sp: Vector2 = OM.ARRIVE + Vector2(1600, 1400)
+	if OM.island_at(sp, 200.0) >= 0:
+		sp += Vector2(600, 0)
+	Ocean._storms = [{"p": sp + Vector2(120, -60), "v": Vector2.ZERO, "r": 650.0}]
+	Homes._teleport(1, sp)
+	Net.positions[9971] = sp + Vector2(-180, 60)
+	Net.positions[9972] = sp + Vector2(200, 90)
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("okyanus_firtina")
+	Ocean._storms = [{"p": OM.OCEAN.end - Vector2(900, 900), "v": Vector2.ZERO, "r": 300.0}]
+	# Kraken
+	Ocean.spawn_kraken()
+	Ocean._kraken.p = sp + Vector2(0, -60)
+	Ocean._broadcast_world()
+	Homes._teleport(1, sp + Vector2(-330, 120))
+	Net.positions[9971] = sp + Vector2(330, 140)
+	Net.positions[9972] = sp + Vector2(40, 260)
+	Net.positions[9973] = sp + Vector2(-260, -140)
+	Ocean._kraken.hp = int(Ocean._kraken.max * 0.55)
+	Ocean._broadcast_world()
+	await _wait(1.0)
+	w._harp_t = -10.0
+	w._harpoon()
+	await _wait(0.15)
+	await _clear_toasts(w)
+	_shot("okyanus_kraken")
+	Ocean._kraken = {}
+	Ocean._broadcast_world()
+	# keşif haritası
+	for i in isl.size():
+		if i % 3 != 2:
+			Ocean.reveal_around(isl[i].c, 1200.0)
+	Ocean.flush_seen()
+	await _wait(0.6)
+	w.open_ocean_map()
+	await _wait(0.8)
+	_shot("okyanus_harita")
+	w._close_panel()
+	w.camera.zoom = Vector2(1, 1)
+	for k in 3:
+		Net.players.erase(9971 + k)
+		Net.positions.erase(9971 + k)
+	Net._broadcast_roster()
 
 
 func _shot(n: String) -> void:

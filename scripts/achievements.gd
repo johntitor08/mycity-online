@@ -140,6 +140,15 @@ const LIST := {
 	"keeper20": ["keeper", 20, "Bakıcı", "Gönüllü bakıcı olarak 20 kez yem taşı.", 1500, "Bakıcı"],
 	"feeding": ["feeding", 3, "Besleme Saati", "3 besleme saatini izle.", 600, ""],
 	"aquarium": ["aquarium", 1, "Akvaryum Gezgini", "Akvaryumu gez.", 300, ""],
+	# 1.6
+	"ocean": ["ocean", 1, "Açık Deniz", "Kendi teknenle Açık Okyanus'a açıl.", 500, ""],
+	"isles10": ["isles", 10, "Kâşif", "Okyanusta 10 ada keşfet.", 1500, "Kâşif"],
+	"isles30": ["isles", 30, "Haritacı", "Okyanustaki bütün adaları keşfet.", 8000, "Haritacı"],
+	"visit15": ["isles_visited", 15, "Ada Ada", "15 farklı adanın sandığını aç.", 4000, "Ada Gezgini"],
+	"chests25": ["ocean_chests", 25, "Sandık Avcısı", "Okyanusta 25 sandık aç.", 3000, "Sandık Avcısı"],
+	"lights5": ["lighthouses", 5, "Fenerci", "5 deniz fenerini yak.", 2000, "Fenerci"],
+	"boat_up": ["boat_up", 9, "Usta Kaptan", "Teknenin bütün yükseltmelerini tamamla.", 6000, "Usta Kaptan"],
+	"kraken": ["kraken", 1, "Kraken Avcısı", "Kraken'i yenmeye katıl.", 3000, "Kraken Avcısı"],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

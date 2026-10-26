@@ -143,6 +143,10 @@ var _jail := false          # hapishanede miyim
 var _dive := false          # deniz tabanında mıyım (dalış)
 var _mount := false         # dağda mıyım (1.2)
 var _fair := false          # fuar ve havalimanında mıyım (1.4)
+var _ocean := false         # Açık Okyanus'ta mıyım (1.6)
+var _ocean_acc := 0.0
+var _ocean_flush := 0.0
+var _harp_t := -10.0
 var _bump_vel := Vector2.ZERO
 var _bump_t := {}
 var _takeoff_t := -99.0
@@ -332,6 +336,8 @@ func _process(delta: float) -> void:
 				mult *= Gym.walk_mult()                # kondisyon
 			if ride == "" and Map.in_sea(my_pos):
 				mult = 0.55
+			if _ocean and ride == "boat":
+				mult *= Ocean.speed_mult(Ocean.my.up, float(Ocean.my.fuel)) * (0.6 if Ocean.storm_at(my_pos) else 1.0)
 			if _dive:
 				mult = 0.6
 			var step := dir.normalized() * SPEED * delta * mult
@@ -357,6 +363,10 @@ func _process(delta: float) -> void:
 			_spray_acc = 0.0
 			Work.spray(int(zone.id))
 	Net.update_my_pos(my_pos, delta)
+	if _ocean:
+		_ocean_tick(delta)
+		if panel == null and zone.get("type", "") == "ocean_harpoon" and Settings.held("interact"):
+			_harpoon()
 	if my_moving:
 		_walked += delta
 		if _walked > 1.2:
@@ -368,7 +378,7 @@ func _process(delta: float) -> void:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
 	var outside := _room < 0 and not _jail and not _dive and not _mount and not _fair
-	Sfx.set_ambience(clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0) if outside else 0.0)
+	Sfx.set_ambience(1.0 if _ocean else clampf(1.0 - (Map.BEACH.position.y - my_pos.y) / 700.0, 0.0, 1.0) if outside else 0.0)
 	Sfx.set_environment((1.0 if Env.weather == "storm" else 0.6) if Env.is_rainy() and outside else 0.0,
 		Env.darkness() * 0.8 if outside and not Env.is_rainy() else 0.0,
 		my_moving and my_ride() in ["car", "boat"], 1.0 if my_ride() == "car" else 0.8)
@@ -405,6 +415,8 @@ func my_ride() -> String:
 
 ## Bulunduğum alan: ev içiysem oda, değilsem şehir.
 func _clamp_to_area(p: Vector2) -> Vector2:
+	if _ocean:
+		return p.clamp(OM.OCEAN.position + Vector2(20, 20), OM.OCEAN.end - Vector2(20, 20))
 	if _fair:
 		var fr := Map.FAIR.grow(-20)
 		if my_ride() == "bumper":
@@ -434,6 +446,8 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 func _can_stand(p: Vector2, ride: String) -> bool:
 	if _room >= 0 or _jail or _dive:
 		return true
+	if _ocean:
+		return _ocean_can_stand(p, ride)
 	if _mount or _fair:
 		return not (_blocked(p) and not _blocked(my_pos))
 	if _blocked(p) and not _blocked(my_pos):
@@ -456,9 +470,11 @@ func _update_area() -> void:
 	var dive := Map.SEA_BED.has_point(my_pos)
 	var mount := Map.MOUNTAIN.has_point(my_pos)
 	var fair := Map.FAIR.has_point(my_pos)
-	if room == _room and jail == _jail and dive == _dive and mount == _mount and fair == _fair:
+	var ocean := OM.in_ocean(my_pos)
+	if room == _room and jail == _jail and dive == _dive and mount == _mount and fair == _fair and ocean == _ocean:
 		return
 	_fair = fair
+	_ocean = ocean
 	_room = room
 	_jail = jail
 	_dive = dive
@@ -470,6 +486,8 @@ func _update_area() -> void:
 		r = Map.MOUNTAIN
 	elif fair:
 		r = Map.FAIR
+	elif ocean:
+		r = OM.OCEAN
 	elif jail:
 		r = Map.JAIL.grow(160)
 	elif room >= 0:
@@ -498,6 +516,9 @@ func _toggle_vehicle() -> void:
 	var ride := my_ride()
 	if ride == "ski":
 		Mountain.ski_stop()
+		return
+	if _ocean:
+		_ocean_toggle_vehicle()
 		return
 	if _mount:
 		hud.show_toast("Dağda araç kullanılmaz. Kayak için telesiyeje git.", false)
@@ -632,7 +653,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif Settings.is_key(k, "vehicle"):
 		_toggle_vehicle()
 	elif Settings.is_key(k, "map"):
-		open_map()
+		if _ocean:
+			open_ocean_map()
+		else:
+			open_map()
 	elif Settings.is_key(k, "phone"):
 		open_phone()
 	elif Settings.is_key(k, "photo"):
@@ -681,6 +705,9 @@ func _update_zone() -> void:
 		return
 	if _fair:
 		_update_fair_zone()
+		return
+	if _ocean:
+		_update_ocean_zone()
 		return
 	if my_ride() == "balloon":
 		zone = {}
@@ -779,6 +806,8 @@ func _update_zone() -> void:
 		z = {"type": "boatrent", "label": "Tekne kirala (%s / %d dk) — F: bin" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
 	if my_pos.distance_to(Map.RACE_FLAG) < 80.0 or my_pos.distance_to(Map.RACE_START) < 60.0:
 		z = {"type": "race", "label": "Yarış Pisti — tur başlat"}
+	if my_ride() == "boat" and Ocean.GATE.has_point(my_pos):
+		z = {"type": "ocean_gate", "label": "AÇIK OKYANUS'a açıl (30 ada, hazineler, Kraken!)"}
 	z = _holiday_zone(z)
 	if not dz.is_empty():
 		z = dz
@@ -860,6 +889,8 @@ func _open_panel() -> void:
 		return
 	if zone.type == "boatrent":
 		Garage.rent_boat()
+		return
+	if _ocean_interact():
 		return
 	if zone.type == "moored":
 		if Garage.has_boat():
@@ -1855,6 +1886,12 @@ func _make_nature() -> void:
 
 func _draw() -> void:
 	_label_queue = []
+	if _ocean:
+		_draw_ocean_world()
+		_draw_snow_fx()
+		labels.items = _label_queue
+		labels.queue_redraw()
+		return
 	var winter := Env.season == "winter"
 	draw_rect(Map.WORLD, GRASS.get(Env.season, GRASS.spring))
 	for d in decor:
@@ -1888,6 +1925,7 @@ func _draw() -> void:
 	_draw_fair()
 	_draw_zoo()
 	_draw_korsan()
+	_draw_ocean_gate()
 	_draw_city_extras()
 	_draw_holiday()
 	_draw_marathon()
@@ -3457,6 +3495,13 @@ func _draw_fx() -> void:
 		match str(f.k):
 			"smoke":
 				draw_circle(p + Vector2(0, -u * 14.0), 4.0 + u * 8.0, Color(0.55, 0.55, 0.6, 0.45 * (1.0 - u)))
+			"harpoon":
+				var to: Vector2 = f.d.get("to", p)
+				var hp := p.lerp(to, u)
+				var dir := (to - p).normalized()
+				draw_line(p, hp, Color("#d6d3d1", 0.7), 1.5)
+				draw_line(hp - dir * 26.0, hp, Color("#78350f"), 4.0)
+				draw_colored_polygon(PackedVector2Array([hp + dir * 10.0, hp + dir.orthogonal() * 6.0, hp - dir.orthogonal() * 6.0]), Color("#9ca3af"))
 			"wake":
 				draw_set_transform(p, 0, Vector2(1, 0.45))
 				draw_arc(Vector2.ZERO, 6.0 + u * 26.0, 0, TAU, 20, Color(1, 1, 1, 0.55 * (1.0 - u)), 2.0)
@@ -4664,3 +4709,488 @@ func _draw_marathon() -> void:
 			draw_rect(Rect2(mp.x - 2, mp.y - 60, 4, 60), Color("#374151"))
 			draw_colored_polygon(PackedVector2Array([mp + Vector2(2, -60), mp + Vector2(30, -52), mp + Vector2(2, -44)]), Color("#94a3b8") if done else Color("#22c55e"))
 			_text(mp + Vector2(-20, -68), str(i), 13, Color.WHITE, 40)
+
+
+# ================================================================== 1.6: Açık Okyanus
+
+const OM = preload("res://scripts/ocean_map.gd")
+const OCEAN_WATER := Color("#12558c")
+const ISLAND_TREE := {"tropik": 3, "kayalik": 1, "mangrov": 2, "volkanik": -1, "buzul": 1, "batik": 0}
+
+
+func _ocean_can_stand(p: Vector2, ride: String) -> bool:
+	if ride == "boat":
+		# tekne karaya ve iskeleye giremez (kıyıdan 20 px açıkta kalır)
+		return OM.island_at(p, 20.0) < 0 or OM.island_at(my_pos, 20.0) >= 0      # karaya oturduysan kurtulabilirsin
+	return OM.is_land(p) or OM.on_pier(p)
+
+
+func _ocean_tick(delta: float) -> void:
+	_ocean_acc += delta
+	if _ocean_acc >= 0.4:
+		_ocean_acc = 0.0
+		Ocean.reveal_around(my_pos, 950.0)
+	_ocean_flush += delta
+	if _ocean_flush >= 2.0:
+		_ocean_flush = 0.0
+		Ocean.flush_seen()
+	if my_ride() == "boat" and my_moving and randf() < delta * 4.0 and Ocean.storm_at(my_pos):
+		add_fx("water", my_pos + Vector2(randf_range(-40, 40), randf_range(-20, 10)), 0.8)
+
+
+## Okyanusta F: iskeleden/kıyıdan tekneye bin ya da kıyıya/iskeleye in.
+func _ocean_toggle_vehicle() -> void:
+	var ride := my_ride()
+	if ride == "boat":
+		var spot = _ocean_land_near(my_pos)
+		if spot == null:
+			hud.show_toast("Tekneden inmek için bir adanın kıyısına ya da iskelesine yanaş.", false)
+			return
+		my_pos = spot
+		Garage.ride("")
+		return
+	if ride != "":
+		Garage.ride("")
+		return
+	if not Garage.owned.has("boat"):
+		hud.show_toast("Okyanusta kendi teknen gerekli (Galeri'den Sürat Teknesi).", false)
+		return
+	var w = _ocean_water_near(my_pos)
+	if w == null:
+		hud.show_toast("Tekneye binmek için iskelenin ucuna ya da kıyıya git.", false)
+		return
+	my_pos = w
+	Garage.ride("boat", w)
+	Sfx.play("splash_small")
+
+
+func _ocean_water_near(p: Vector2) -> Variant:
+	for dist in [40.0, 70.0, 100.0, 130.0]:
+		for k in 12:
+			var q: Vector2 = p + Vector2.RIGHT.rotated(TAU * k / 12.0) * dist
+			if OM.in_ocean(q) and OM.island_at(q, 20.0) < 0:
+				return q
+	return null
+
+
+func _ocean_land_near(p: Vector2) -> Variant:
+	for dist in [20.0, 45.0, 70.0, 95.0, 120.0]:
+		for k in 16:
+			var q: Vector2 = p + Vector2.RIGHT.rotated(TAU * k / 16.0) * dist
+			if OM.on_pier(q) or OM.is_land(q):
+				return q
+	return null
+
+
+func _update_ocean_zone() -> void:
+	var z := {}
+	var boat := my_ride() == "boat"
+	var isl_list := OM.islands()
+	for isl in isl_list:
+		var c: Vector2 = isl.c
+		if c.distance_to(my_pos) > float(isl.r) + 400.0:
+			continue
+		if not boat and my_pos.distance_to(isl.chest) < 80.0:
+			var last := float(Ocean.my.chest.get(str(int(isl.id)), 0.0))
+			var left := Ocean.CHEST_COOLDOWN - (Time.get_unix_time_from_system() - last)
+			z = {"type": "ocean_chest", "i": int(isl.id), "label": ("%s sandığını aç" % isl.name) if left <= 0.0 else "Sandık boş (%d dk sonra dolar)" % int(ceil(left / 60.0))}
+		if isl.lighthouse and not boat and my_pos.distance_to(Ocean.lighthouse_pos(isl)) < 100.0:
+			z = {"type": "ocean_light", "i": int(isl.id), "label": "Feneri yak (çevre haritada açılır)" if not int(isl.id) in Ocean.my.lit else "Fener yanıyor ✓"}
+		if isl.fuel and my_pos.distance_to(isl.dock) < 200.0:
+			var need := Ocean.max_fuel(Ocean.my.up) - float(Ocean.my.fuel)
+			z = {"type": "ocean_fuel", "label": "Yakıt al (%d L, %s)" % [int(ceil(need)), U.money(int(ceil(need)) * Ocean.FUEL_PRICE)] if need >= 1.0 else "Yakıt iskelesi (depo dolu)"}
+		if isl.shipyard and my_pos.distance_to(_shipyard_pos()) < 150.0:
+			z = {"type": "tersane", "label": "Tersane — yükseltme ve tamir"}
+		if isl.shipyard and not boat and my_pos.distance_to(Airport.AIRSTRIP) < 110.0:
+			z = {"type": "terminal", "label": "Pist — şehre uç"}
+	if boat and my_pos.distance_to(OM.ARRIVE) < 240.0:
+		z = {"type": "ocean_exit", "label": "Şehrin açıklarına dön"}
+	if boat and not Ocean.kraken.is_empty() and my_pos.distance_to(_kraken_pos()) < Ocean.HARPOON_RANGE:
+		z = {"type": "ocean_harpoon", "label": "ZIPKIN AT! (basılı tut)"}
+	zone = z
+	var o: Dictionary = Ocean.my
+	var st := "Yakıt %d/%d L   ·   Gövde %d%%" % [int(o.fuel), int(Ocean.max_fuel(o.up)), int(o.hp)]
+	if float(o.fuel) <= 0.0:
+		st += "   ·   YAKIT BİTTİ (kürek hızı)"
+	if boat and Ocean.storm_at(my_pos):
+		st += "   ·   FIRTINA!"
+	if not Ocean.kraken.is_empty():
+		st += "   ·   KRAKEN %d/%d" % [int(Ocean.kraken.hp), int(Ocean.kraken.max)]
+	var hint := st if z.is_empty() else "[%s]  %s\n%s" % [Settings.key_name("interact"), z.label, st]
+	hud.set_hint("" if panel != null else hint)
+
+
+func _shipyard_pos() -> Vector2:
+	return OM.HOME + Vector2(-150, 60)
+
+
+func _kraken_pos() -> Vector2:
+	var k: Dictionary = Ocean.kraken
+	return Vector2(float(k.get("x", 0.0)), float(k.get("y", 0.0))) + Vector2(sin(_t * 0.5) * 30.0, cos(_t * 0.4) * 18.0)
+
+
+## Okyanus bölgesinin E işlemleri. true: işlendi.
+func _ocean_interact() -> bool:
+	match str(zone.get("type", "")):
+		"ocean_gate":
+			Ocean.enter()
+			Sfx.play("splash")
+		"ocean_exit":
+			Ocean.leave()
+			Sfx.play("splash")
+		"ocean_fuel":
+			Ocean.refuel()
+			Sfx.play("coin", -6.0)
+		"ocean_chest":
+			Ocean.open_chest(int(zone.i))
+			Sfx.play("open")
+		"ocean_light":
+			Ocean.light(int(zone.i))
+			Sfx.play("success", -4.0)
+		"ocean_harpoon":
+			_harpoon()
+		"tersane":
+			if panel == null:
+				panel = preload("res://scripts/ui/shipyard_panel.gd").new()
+				panel.closed.connect(_close_panel)
+				ui_layer.add_child(panel)
+		_:
+			return false
+	return true
+
+
+func _harpoon() -> void:
+	if _t - _harp_t < Ocean.HARPOON_COOLDOWN:
+		return
+	_harp_t = _t
+	Ocean.harpoon()
+	var kp := _kraken_pos()
+	add_fx("harpoon", my_pos + Vector2(0, -20), 0.35, {"to": kp})
+	add_fx("water", kp + Vector2(randf_range(-40, 40), randf_range(-20, 20)), 0.7)
+	Sfx.play("splash_small", -4.0, 1.4)
+
+
+func open_ocean_map() -> void:
+	if panel != null:
+		return
+	panel = preload("res://scripts/ui/ocean_map_panel.gd").new()
+	panel.world = self
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("open", -6.0)
+
+
+func _view_rect() -> Rect2:
+	var vsize := get_viewport_rect().size / camera.zoom
+	return Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize)
+
+
+func _scaled_shape(isl: Dictionary, k: float, add: float = 0.0) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var c: Vector2 = isl.c
+	for pt in isl.shape:
+		var d: Vector2 = pt - c
+		out.append(c + d * k + d.normalized() * add)
+	return out
+
+
+func _draw_ocean_world() -> void:
+	var view := _view_rect().grow(200)
+	draw_rect(view.intersection(OM.OCEAN.grow(3000)), OCEAN_WATER)
+	if not OM.OCEAN.encloses(view):
+		# okyanusun kenarı: sis duvarı
+		var edge := Color(0.75, 0.82, 0.9, 0.85)
+		for r in [Rect2(view.position.x, view.position.y, OM.OCEAN.position.x - view.position.x, view.size.y),
+				Rect2(OM.OCEAN.end.x, view.position.y, view.end.x - OM.OCEAN.end.x, view.size.y),
+				Rect2(view.position.x, view.position.y, view.size.x, OM.OCEAN.position.y - view.position.y),
+				Rect2(view.position.x, OM.OCEAN.end.y, view.size.x, view.end.y - OM.OCEAN.end.y)]:
+			if r.size.x > 0 and r.size.y > 0:
+				draw_rect(r, edge)
+	# dalga çizgileri (görünen alanda, sabit ızgaraya bağlı)
+	var g := 140
+	for gx in range(int(view.position.x / g) * g, int(view.end.x), g):
+		for gy in range(int(view.position.y / g) * g, int(view.end.y), g):
+			var hsh := absi(int(gx * 73856093) ^ int(gy * 19349663))
+			if hsh % 3 != 0:
+				continue
+			var wp := Vector2(gx + (hsh % 97), gy + (hsh % 61))
+			var a := 0.12 + 0.12 * sin(_t * 1.6 + float(hsh % 100))
+			draw_line(wp, wp + Vector2(18, 0), Color(1, 1, 1, a), 2)
+			draw_line(wp + Vector2(18, 0), wp + Vector2(26, -3), Color(1, 1, 1, a * 0.7), 2)
+	var items: Array = []
+	for isl in OM.islands():
+		var c: Vector2 = isl.c
+		if not view.grow(float(isl.r) * 1.4).has_point(c):
+			continue
+		_draw_ocean_island(isl, items)
+	# fırtınalar (yağmur halkası ve koyu bulut)
+	for s in Ocean.storm_positions():
+		var sp: Vector2 = s[0]
+		var sr: float = s[1]
+		if not view.grow(sr).has_point(sp):
+			continue
+		draw_circle(sp, sr, Color(0.06, 0.09, 0.16, 0.35))
+		draw_circle(sp, sr * 0.7, Color(0.05, 0.07, 0.12, 0.25))
+		for k in 40:
+			var a := float(k) * 2.39
+			var rr := sr * fmod(float(k) * 0.37 + _t * 0.15, 1.0)
+			var rp := sp + Vector2(cos(a), sin(a)) * rr
+			draw_line(rp, rp + Vector2(-6, 18), Color(0.75, 0.85, 1.0, 0.45), 1.5)
+		if fmod(_t + sp.x * 0.001, 6.0) < 0.12:
+			draw_circle(sp, sr, Color(1, 1, 1, 0.12))       # şimşek
+	# Kraken
+	if not Ocean.kraken.is_empty():
+		var kp := _kraken_pos()
+		if view.grow(300).has_point(kp):
+			items.append([kp.y, "kraken", kp])
+	# oyuncular
+	for id in shown:
+		var info = Net.roster.get(id)
+		if info and OM.in_ocean(shown[id]):
+			var a: Dictionary = anim.get(id, {"facing": "down", "moving": false})
+			items.append([shown[id].y, "p", [shown[id], info.get("appearance", {}), _name_of(info), false, a.facing, a.moving, str(info.get("ride", "")), info.get("color", Color.WHITE), info]])
+	var mine = Net.roster.get(Net.my_id())
+	if mine:
+		items.append([my_pos.y, "p", [my_pos, mine.get("appearance", {}), _name_of(mine), true, my_facing, my_moving, my_ride(), mine.get("color", Color.WHITE), mine]])
+	items.sort_custom(func(a, b): return a[0] < b[0])
+	for it in items:
+		match str(it[1]):
+			"palm", "tree", "bush":
+				_draw_tex_at(PROPS[int(it[2][1])][0], it[2][0], PROPS[int(it[2][1])][1] * float(it[2][2]),
+					Color(0.85, 0.95, 1.0) if it[2][3] == "buzul" else Color.WHITE)
+			"rock":
+				var rp: Vector2 = it[2][0]
+				var rs: float = it[2][1]
+				draw_colored_polygon(PackedVector2Array([rp + Vector2(-rs, 0), rp + Vector2(-rs * 0.6, -rs * 0.9), rp + Vector2(rs * 0.3, -rs * 1.1), rp + Vector2(rs, -rs * 0.2), rp + Vector2(rs * 0.8, 0)]), it[2][2])
+				draw_line(rp + Vector2(-rs * 0.6, -rs * 0.9), rp + Vector2(rs * 0.3, -rs * 1.1), Color(1, 1, 1, 0.25), 2)
+			"column":
+				var cp: Vector2 = it[2][0]
+				var ch: float = it[2][1]
+				draw_rect(Rect2(cp.x - 9, cp.y - ch, 18, ch), Color("#e7e0c9"))
+				draw_rect(Rect2(cp.x - 13, cp.y - ch - 6, 26, 7), Color("#d6cfb4"))
+				draw_rect(Rect2(cp.x - 13, cp.y - 5, 26, 6), Color("#d6cfb4"))
+				for k in 3:
+					draw_line(Vector2(cp.x - 5 + k * 5, cp.y - ch + 2), Vector2(cp.x - 5 + k * 5, cp.y - 6), Color(0, 0, 0, 0.12), 1.5)
+			"lighthouse":
+				_draw_ocean_lighthouse(it[2][0], bool(it[2][1]))
+			"chest":
+				_draw_ocean_chest(it[2][0], bool(it[2][1]))
+			"shipyard":
+				_draw_shipyard(it[2])
+			"pump":
+				_draw_fuel_pump(it[2])
+			"kraken":
+				_draw_kraken(it[2])
+			"p":
+				var a: Array = it[2]
+				_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
+	for isl in OM.islands():
+		var c: Vector2 = isl.c
+		if view.has_point(c):
+			var seen_it: bool = int(isl.id) in Ocean.my.found
+			var top := c + Vector2(-140, -float(isl.r) * float(isl.sq) * 1.25 - 52)
+			if Vector2(isl.dock_dir).y < -0.5:
+				top = c + Vector2(-140, float(isl.r) * float(isl.sq) * 1.25 + 20)       # iskele kuzeydeyse ad güneyde
+			_text(top, str(isl.name) + ("" if seen_it else " (yeni!)"), 20, Color(1, 1, 1, 0.95), 280)
+			_text(top + Vector2(0, 20), OM.TYPES[isl.type].name + "  " + "★".repeat(int(isl.tier)), 14, Color("#fde68a"), 280)
+	if view.has_point(OM.ARRIVE):
+		_text(OM.ARRIVE + Vector2(-120, 60), "← ŞEHRE DÖNÜŞ (E)", 14, Color("#fde68a"), 240)
+		for k in 6:
+			var bp := OM.ARRIVE + Vector2(-150 + k * 60, 40 + sin(_t * 1.5 + k) * 3.0)
+			draw_circle(bp, 7, Color("#f97316"))
+			draw_circle(bp + Vector2(0, -3), 3, Color.WHITE)
+	_draw_fx()
+	_draw_nav()
+
+
+func _draw_ocean_island(isl: Dictionary, items: Array) -> void:
+	var t: String = isl.type
+	var ty: Dictionary = OM.TYPES[t]
+	var c: Vector2 = isl.c
+	var r: float = isl.r
+	var sq: float = isl.sq
+	var shallow := Color("#3aa0c8") if t != "buzul" else Color("#9fd3e6")
+	if t == "batik":
+		shallow = Color("#3fc1c9")
+	draw_colored_polygon(_scaled_shape(isl, 1.0, 60.0 + sin(_t * 0.8 + c.x) * 4.0), Color(shallow, 0.55))
+	draw_colored_polygon(_scaled_shape(isl, 1.0, 26.0), shallow)
+	draw_colored_polygon(_scaled_shape(isl, 1.0, 6.0 + sin(_t * 1.4 + c.y) * 2.0), Color(1, 1, 1, 0.55))
+	draw_colored_polygon(isl.shape, ty.sand)
+	draw_colored_polygon(_scaled_shape(isl, 0.78), ty.land)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(isl.id) * 7919 + 13
+	match t:
+		"volkanik":
+			var cr := c + Vector2(0, -r * 0.08 * sq)
+			draw_colored_polygon(_ellipse(Rect2(cr - Vector2(r * 0.42, r * 0.3 * sq), Vector2(r * 0.84, r * 0.6 * sq)), 24), Color("#57483f"))
+			draw_colored_polygon(_ellipse(Rect2(cr - Vector2(r * 0.22, r * 0.15 * sq), Vector2(r * 0.44, r * 0.3 * sq)), 20), Color("#7f1d1d"))
+			draw_colored_polygon(_ellipse(Rect2(cr - Vector2(r * 0.15, r * 0.1 * sq), Vector2(r * 0.3, r * 0.2 * sq)), 20),
+				Color(1.0, 0.45 + 0.15 * sin(_t * 2.0), 0.1))
+			for k in 4:
+				var u := fmod(_t * 0.25 + k * 0.25, 1.0)
+				draw_circle(cr + Vector2(sin(k * 1.7 + _t * 0.3) * 20.0, -u * 200.0), 18.0 + u * 30.0, Color(0.35, 0.33, 0.33, 0.45 * (1.0 - u)))
+			for k in 6:
+				var a := rng.randf() * TAU
+				items.append([c.y + sin(a) * r * 0.6 * sq, "rock", [c + Vector2(cos(a) * r * 0.6, sin(a) * r * 0.6 * sq), rng.randf_range(14, 26), Color("#2b2522")]])
+		"buzul":
+			for k in 7:
+				var a := rng.randf() * TAU
+				var d := rng.randf_range(0.2, 0.65)
+				var ip := c + Vector2(cos(a) * r * d, sin(a) * r * d * sq)
+				items.append([ip.y, "rock", [ip, rng.randf_range(16, 30), Color("#cfe8f5")]])
+			for k in 8:
+				var a := rng.randf() * TAU
+				var fp := c + Vector2(cos(a), sin(a) * sq) * (r + 90.0 + rng.randf() * 60.0)
+				draw_colored_polygon(_ellipse(Rect2(fp - Vector2(24, 10), Vector2(48, 20)), 10), Color("#f1f8fb"))   # yüzen buz
+		"batik":
+			for k in 7:
+				var a := rng.randf() * TAU
+				var d := rng.randf_range(0.15, 0.6)
+				var cp := c + Vector2(cos(a) * r * d, sin(a) * r * d * sq)
+				items.append([cp.y, "column", [cp, rng.randf_range(30, 70)]])
+			draw_rect(Rect2(c + Vector2(-r * 0.3, -r * 0.2 * sq), Vector2(r * 0.6, r * 0.12)), Color("#b9ae8c"))
+			for k in 6:
+				var a := rng.randf() * TAU
+				var wp := c + Vector2(cos(a), sin(a) * sq) * (r + 40.0)
+				draw_rect(Rect2(wp - Vector2(10, 6), Vector2(20, 12)), Color(0.8, 0.76, 0.6, 0.6))   # sudaki harabe
+		"mangrov":
+			for k in 4:
+				var a := rng.randf() * TAU
+				var mp := c + Vector2(cos(a) * r * 0.35, sin(a) * r * 0.35 * sq)
+				draw_colored_polygon(_ellipse(Rect2(mp - Vector2(40, 14), Vector2(80, 28)), 12), Color("#2f6f8f"))   # bataklık gölcükleri
+		"kayalik":
+			for k in 6:
+				var a := rng.randf() * TAU
+				var d := rng.randf_range(0.2, 0.75)
+				var kp := c + Vector2(cos(a) * r * d, sin(a) * r * d * sq)
+				items.append([kp.y, "rock", [kp, rng.randf_range(14, 32), Color("#8b8578")]])
+	var tree: int = ISLAND_TREE[t]
+	if tree >= 0:
+		for k in isl.deco.size():
+			var dp: Vector2 = isl.deco[k]
+			if dp.distance_to(isl.chest) < 50.0 or isl.lighthouse and dp.distance_to(Ocean.lighthouse_pos(isl)) < 60.0:
+				continue
+			if isl.shipyard and (dp.distance_to(_shipyard_pos()) < 130.0 or dp.distance_to(Airport.AIRSTRIP) < 120.0):
+				continue
+			if k % (2 if t == "buzul" or t == "batik" else 1) != 0:
+				continue
+			var kind := tree if k % 3 != 0 or t != "tropik" else 2
+			items.append([dp.y, "palm", [dp, kind, 0.8 + 0.25 * float((k * 37) % 10) / 10.0, t]])
+	# iskele
+	var a0: Vector2 = Vector2(isl.dock) - Vector2(isl.dock_dir) * 40.0
+	var b0 := OM.pier_end(isl)
+	var side: Vector2 = Vector2(isl.dock_dir).orthogonal() * 16.0
+	draw_colored_polygon(PackedVector2Array([a0 + side, b0 + side, b0 - side, a0 - side]), Color("#a0703c"))
+	for k in 8:
+		var pp := a0.lerp(b0, k / 7.0)
+		draw_line(pp + side, pp - side, Color("#6b4423"), 2)
+	draw_polyline(PackedVector2Array([a0 + side, b0 + side, b0 - side, a0 - side, a0 + side]), Color("#232634"), 2)
+	if isl.fuel:
+		items.append([b0.y - 10.0, "pump", b0 + side * 1.6])
+	if isl.lighthouse:
+		var lp := Ocean.lighthouse_pos(isl)
+		items.append([lp.y, "lighthouse", [lp, int(isl.id) in Ocean.my.lit]])
+	var last := float(Ocean.my.chest.get(str(int(isl.id)), 0.0))
+	items.append([float(isl.chest.y), "chest", [isl.chest, Time.get_unix_time_from_system() - last >= Ocean.CHEST_COOLDOWN]])
+	if isl.shipyard:
+		items.append([_shipyard_pos().y, "shipyard", _shipyard_pos()])
+		var ap: Vector2 = Airport.AIRSTRIP
+		draw_rect(Rect2(ap.x - 110, ap.y - 22, 220, 44), Color("#3f4148"))
+		for k in 6:
+			draw_rect(Rect2(ap.x - 95 + k * 36, ap.y - 2, 20, 4), Color.WHITE)
+		_text(ap + Vector2(-110, -30), "PİST — şehre uçuş", 12, Color.WHITE, 220)
+
+
+func _draw_ocean_lighthouse(l: Vector2, lit: bool) -> void:
+	draw_set_transform(l + Vector2(0, 6), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 26, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	draw_colored_polygon(PackedVector2Array([l + Vector2(-20, 0), l + Vector2(20, 0), l + Vector2(12, -100), l + Vector2(-12, -100)]), Color("#f8fafc"))
+	for k in 3:
+		var y0 := -16.0 - k * 30.0
+		draw_rect(Rect2(l.x - 18 + k * 2.5, l.y + y0 - 12, 36 - k * 5.0, 12), Color("#dc2626"))
+	draw_rect(Rect2(l.x - 15, l.y - 118, 30, 18), Color("#334155"))
+	draw_rect(Rect2(l.x - 10, l.y - 114, 20, 11), Color("#fde68a") if lit else Color("#64748b"))
+	draw_colored_polygon(PackedVector2Array([l + Vector2(-18, -118), l + Vector2(18, -118), l + Vector2(0, -134)]), Color("#991b1b"))
+	if lit:
+		var ang := _t * 0.9
+		var src := l + Vector2(0, -108)
+		var dir := Vector2(cos(ang), sin(ang) * 0.45)
+		var sd := dir.orthogonal() * 0.18
+		draw_colored_polygon(PackedVector2Array([src, src + (dir + sd) * 520.0, src + (dir - sd) * 520.0]), Color(1, 0.95, 0.7, 0.1 + 0.15 * Env.darkness()))
+
+
+func _draw_ocean_chest(p: Vector2, full: bool) -> void:
+	draw_set_transform(p + Vector2(0, 6), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 20, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(p.x - 18, p.y - 16, 36, 22), Color("#92400e"))
+	if full:
+		draw_rect(Rect2(p.x - 18, p.y - 24, 36, 10), Color("#b45309"))
+		draw_rect(Rect2(p.x - 3, p.y - 16, 6, 7), Color("#facc15"))
+		for k in 4:
+			var a := _t * 1.8 + k * TAU / 4.0
+			draw_circle(p + Vector2(cos(a), sin(a) * 0.5) * 26.0 + Vector2(0, -10), 2.5, Color(1, 0.95, 0.4, 0.5 + 0.4 * sin(_t * 5 + k)))
+	else:
+		draw_colored_polygon(PackedVector2Array([p + Vector2(-18, -16), p + Vector2(18, -16), p + Vector2(14, -34), p + Vector2(-14, -34)]), Color("#78350f"))
+	draw_rect(Rect2(p.x - 18, p.y - 16, 36, 22), Color("#451a03"), false, 2)
+
+
+func _draw_fuel_pump(p: Vector2) -> void:
+	draw_rect(Rect2(p.x - 10, p.y - 40, 20, 40), Color("#dc2626"))
+	draw_rect(Rect2(p.x - 7, p.y - 34, 14, 10), Color("#fef3c7"))
+	draw_line(p + Vector2(10, -24), p + Vector2(18, -10), Color("#111827"), 3)
+	_text(p + Vector2(-50, -50), "YAKIT", 12, Color("#fde68a"), 100)
+
+
+func _draw_shipyard(p: Vector2) -> void:
+	draw_rect(Rect2(p.x - 80, p.y - 70, 160, 70), Color("#475569"))
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-90, -70), p + Vector2(90, -70), p + Vector2(60, -100), p + Vector2(-60, -100)]), Color("#1e293b"))
+	draw_rect(Rect2(p.x - 30, p.y - 44, 60, 44), Color("#0f172a"))
+	draw_line(p + Vector2(70, 0), p + Vector2(70, -150), Color("#f59e0b"), 5)       # vinç
+	draw_line(p + Vector2(70, -150), p + Vector2(150, -150), Color("#f59e0b"), 4)
+	draw_line(p + Vector2(140, -150), p + Vector2(140, -90 + sin(_t) * 6.0), Color("#111827"), 2)
+	_text(p + Vector2(-90, -112), "TERSANE", 15, Color.WHITE, 180)
+
+
+func _draw_kraken(p: Vector2) -> void:
+	var k: Dictionary = Ocean.kraken
+	draw_circle(p, 150, Color(0.02, 0.05, 0.1, 0.35))
+	for i in 8:
+		var a := TAU * i / 8.0 + sin(_t * 0.6) * 0.2
+		var pts := PackedVector2Array()
+		for s in 9:
+			var u := s / 8.0
+			var wav := sin(_t * 3.0 + i + u * 5.0) * 22.0 * u
+			pts.append(p + Vector2(cos(a), sin(a) * 0.6) * (40.0 + u * 170.0) + Vector2(cos(a), sin(a)).orthogonal() * wav + Vector2(0, -u * 30.0 * absf(sin(_t * 1.5 + i))))
+		draw_polyline(pts, Color("#7e22ce"), 18.0 - 0.0)
+		draw_polyline(pts, Color("#a855f7"), 9.0)
+		for s in range(2, 9, 2):
+			draw_circle(pts[s], 3.0, Color("#f5d0fe"))
+	draw_colored_polygon(_ellipse(Rect2(p + Vector2(-60, -110), Vector2(120, 130)), 24), Color("#6b21a8"))
+	draw_circle(p + Vector2(-24, -40), 13, Color("#fef08a"))
+	draw_circle(p + Vector2(24, -40), 13, Color("#fef08a"))
+	draw_rect(Rect2(p.x - 26, p.y - 48, 5, 16), Color.BLACK)
+	draw_rect(Rect2(p.x + 22, p.y - 48, 5, 16), Color.BLACK)
+	var mx := float(k.get("max", 1))
+	var frac := clampf(float(k.get("hp", 0)) / maxf(1.0, mx), 0.0, 1.0)
+	draw_rect(Rect2(p.x - 100, p.y - 150, 200, 14), Color(0, 0, 0, 0.6))
+	draw_rect(Rect2(p.x - 98, p.y - 148, 196 * frac, 10), Color("#ef4444"))
+	_text(p + Vector2(-100, -160), "KRAKEN  %d / %d" % [int(k.get("hp", 0)), int(mx)], 15, Color("#fecaca"), 200)
+
+
+## Şehirde: okyanusa açılma şeridi (şamandıralar ve tabela).
+func _draw_ocean_gate() -> void:
+	var g: Rect2 = Ocean.GATE
+	if not _view_rect().grow(300).intersects(g):
+		return
+	for y in range(int(g.position.y), int(g.end.y), 70):
+		var bp := Vector2(g.position.x, y + sin(_t * 1.5 + y) * 3.0)
+		draw_circle(bp, 7, Color("#22c55e"))
+		draw_circle(bp + Vector2(0, -3), 3, Color.WHITE)
+	var sp := Vector2(g.get_center().x, g.position.y + 40)
+	draw_rect(Rect2(sp.x - 3, sp.y - 60, 6, 60), Color("#5b3a1e"))
+	draw_rect(Rect2(sp.x - 80, sp.y - 104, 160, 48), Color("#0c4a6e"))
+	draw_rect(Rect2(sp.x - 80, sp.y - 104, 160, 48), Color("#f8fafc"), false, 3)
+	_text(Vector2(sp.x - 80, sp.y - 86), "AÇIK OKYANUS →", 14, Color.WHITE, 160, false)
+	_text(Vector2(sp.x - 80, sp.y - 68), "kendi teknenle (E)", 12, Color("#fde68a"), 160, false)

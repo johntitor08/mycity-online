@@ -7,6 +7,7 @@ signal owned_changed
 
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
+const OM = preload("res://scripts/ocean_map.gd")
 
 const VEHICLES := {
 	"bike": {"name": "Bisiklet", "price": 1500, "level": 2, "speed": 1.6, "desc": "Karada 1,6 kat hız"},
@@ -43,6 +44,8 @@ static func speed_of(ride: String) -> float:
 
 ## Bu araç bu noktada kullanılabilir mi?
 static func usable_at(ride: String, p: Vector2) -> bool:
+	if OM.in_ocean(p):
+		return OM.island_at(p, 20.0) < 0 if ride == "boat" else (ride == "" or ride == "horse") and (OM.is_land(p) or OM.on_pier(p))
 	if Map.interior_at(p) >= 0 or Map.MOUNTAIN.has_point(p) or Map.FAIR.has_point(p):
 		return false
 	if ride == "boat":
@@ -246,10 +249,13 @@ func req_ride(d: Dictionary) -> void:
 				Net.notify(id, "Teknen yok. Galeri'den al ya da iskelede kirala.", false)
 			return
 		var p: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
+		if kind == "boat" and OM.in_ocean(p) and not _list(id).has("boat"):
+			Net.notify(id, "Açık okyanusta kiralık tekne yok; kendi teknen gerekli.", false)
+			return
 		# iskeleden/kıyıdan binerken tekne yakındaki suya konur
 		if kind == "boat" and d.get("pos") is Vector2:
 			var q: Vector2 = d.pos
-			if q.distance_to(p) < 160.0 and Map.in_sea(q):
+			if q.distance_to(p) < 160.0 and (Map.in_sea(q) or OM.in_ocean(q) and OM.island_at(q, 20.0) < 0):
 				p = q
 				Net.positions[id] = q
 		if not usable_at(kind, p):

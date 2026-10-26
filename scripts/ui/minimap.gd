@@ -60,6 +60,9 @@ func _ellipse(r: Rect2, c: Color) -> void:
 
 
 func _draw() -> void:
+	if world and world.get("_ocean"):
+		preload("res://scripts/ui/ocean_chart.gd").draw_chart(self, Rect2(Vector2.ZERO, size), big, world)
+		return
 	var k := _k()
 	var full := Rect2(Vector2.ZERO, Map.WORLD.size * k)
 	draw_rect(full.grow(2), Color(0, 0, 0, 0.6))
