@@ -124,6 +124,22 @@ const LIST := {
 	"case4": ["cases", 4, "Baş Dedektif", "Bütün vakaları çöz.", 5000, "Baş Dedektif"],
 	"diploma1": ["diplomas", 1, "Mezun", "İlk diplomanı al.", 500, ""],
 	"diploma7": ["diplomas", 7, "Profesör", "Bütün kursların diplomasını al.", 5000, "Profesör"],
+	# 1.5
+	"candy25": ["candy", 25, "Şeker Avcısı", "Cadılar Bayramı'nda 25 şeker topla.", 1000, "Şeker Avcısı"],
+	"costume": ["costume", 1, "Kılık Değiştiren", "Bir kostüm giy.", 300, ""],
+	"gifts10": ["gifts", 10, "Hediye Avcısı", "Yılbaşında 10 hediye kutusu topla.", 1000, "Hediye Avcısı"],
+	"santa": ["santa", 1, "Noel Baba'nın Dostu", "Noel Baba'dan hediye al.", 300, ""],
+	"hands": ["hands", 3, "Bayramlaşma", "Bayramda 3 büyüğün elini öp.", 800, ""],
+	"roses": ["roses", 1, "Romantik", "Sevgililer Günü'nde birine gül ver.", 500, "Romantik"],
+	"workout10": ["workouts", 10, "Sporcu", "10 antrenman yap.", 1000, "Sporcu"],
+	"fitness100": ["fitness", 100, "Atlet", "Kondisyon + kuvvet toplamı 100 olsun.", 3000, "Atlet"],
+	"marathon": ["marathon", 1, "Maratoncu", "Şehir maratonunu bitir.", 500, "Maratoncu"],
+	"pirate1": ["pirate_treasure", 1, "Korsan", "Korsan Adası'nda gömülü hazineyi bul.", 2000, "Korsan"],
+	"pirate5": ["pirate_treasure", 5, "Korsan Kaptan", "5 gömülü hazine bul.", 6000, "Korsan Kaptan"],
+	"zoo": ["zoo", 1, "Hayvansever", "Hayvanat bahçesini ziyaret et.", 300, ""],
+	"keeper20": ["keeper", 20, "Bakıcı", "Gönüllü bakıcı olarak 20 kez yem taşı.", 1500, "Bakıcı"],
+	"feeding": ["feeding", 3, "Besleme Saati", "3 besleme saatini izle.", 600, ""],
+	"aquarium": ["aquarium", 1, "Akvaryum Gezgini", "Akvaryumu gez.", 300, ""],
 }
 
 var data: Dictionary = {}          # istemci: {got: {...}, c: {...}, title}

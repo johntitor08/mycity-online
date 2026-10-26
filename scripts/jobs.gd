@@ -242,6 +242,8 @@ func req_reel(_d: Dictionary) -> void:
 	Net.tell(self, id, "on_fish", {"state": "caught", "fish": f[0], "price": f[1], "spot": t.spot})
 	send_inventory(id)
 	Rpg.add_xp(id, "fishing", 5 + mini(int(f[1]) / 10, 200))
+	if t.spot in ["sea", "boat", "island"]:
+		Pirates.maybe_piece(id, 0.03 if t.spot == "boat" else 0.015)      # 1.5: hazine haritası parçası
 	Rpg.quest_event(id, "fish")
 	Story.event(id, "fish", {"fish": f[0]})
 	Events.on_fish(id, f[0], int(f[1]))

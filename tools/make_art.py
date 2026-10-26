@@ -681,6 +681,13 @@ def furniture():
     items["lunapark_feneri"] = (w, h, [rect(w / 2 - 3, 18, 6, h - 22, "#374151", 1, 1.5), ellipse(w / 2, h - 5, 12, 4, "#374151", 1.5),
                                        circle(w / 2, 14, 11, "#f472b6", 2), circle(w / 2 - 4, 11, 3, "#fde68a", 0),
                                        circle(w / 2 + 5, 16, 3, "#a5f3fc", 0), circle(w / 2 + 2, 7, 2.5, "#bbf7d0", 0)])
+    w, h = T, 2 * T
+    items["yilbasi_agaci"] = (w, h, [rect(w / 2 - 4, h - 16, 8, 14, "#78350f", 1, 1.5),
+                                     poly([(4, h - 16), (w - 4, h - 16), (w / 2, h * 0.45)], "#166534", 2),
+                                     poly([(8, h * 0.55), (w - 8, h * 0.55), (w / 2, h * 0.2)], "#15803d", 2),
+                                     poly([(w / 2 - 6, 10), (w / 2 + 6, 10), (w / 2, 0)], "#facc15", 1),
+                                     circle(w / 2 - 8, h * 0.6, 3, "#ef4444", 0), circle(w / 2 + 9, h * 0.7, 3, "#3b82f6", 0),
+                                     circle(w / 2 + 4, h * 0.4, 3, "#facc15", 0), circle(w / 2 - 6, h * 0.8, 3, "#f472b6", 0)])
     for name, (w, h, parts) in items.items():
         save(f"furniture/{name}.svg", svg(w, h, parts))
 
@@ -973,6 +980,31 @@ def terminal():
     save("buildings/terminal.svg", svg(W, H, p, GLASS))
 
 
+# ---------------------------------------------------------------- 1.5: spor salonu, akvaryum, yılbaşı ağacı
+
+def spor():
+    W, H = 168, 156
+    p = [rect(6, 46, W - 12, 106, "#e2e8f0", 4), rect(6, 136, W - 12, 16, "#94a3b8"),
+         rect(0, 40, W, 12, "#ea580c", 3), rect(64, 96, 40, 56, "#334155", 3), path("M84 96v56", "none", 2, "#94a3b8"),
+         rect(14, 62, 44, 30, "url(#glass)", 3, 2), rect(110, 62, 44, 30, "url(#glass)", 3, 2),
+         # dambıl
+         rect(60, 68, 48, 6, "#1f2937", 2, 1.5), rect(54, 60, 10, 22, "#1f2937", 2, 1.5), rect(104, 60, 10, 22, "#1f2937", 2, 1.5)]
+    p.append(rect(W / 2 - 62, 12, 124, 26, "#1e293b", 6, 2.5, "#fb923c"))
+    save("buildings/spor.svg", svg(W, H, p, GLASS))
+
+
+def akvaryum():
+    W, H = 560, 340
+    p = [path("M10 120Q280 10 550 120Z", "#0ea5e9", 3), rect(10, 118, W - 20, 216, "#e0f2fe", 6), rect(10, 310, W - 20, 24, "#7dd3fc"),
+         rect(40, 160, W - 80, 120, "#0369a1", 8, 3)]
+    for i, (x, y, c) in enumerate([(120, 200, "#f59e0b"), (240, 240, "#ef4444"), (360, 190, "#a3e635"), (450, 250, "#f472b6")]):
+        p += [ellipse(x, y, 22, 12, c, 2), poly([(x - 20, y), (x - 36, y - 10), (x - 36, y + 10)], c, 2), circle(x + 10, y - 3, 2, "#111827", 0)]
+    p += [path("M80 280c10-30 0-50 10-80M500 280c-10-30 0-50-10-80", "none", 4, "#15803d"),
+          rect(250, 250, 60, 84, "#0c4a6e", 4), path("M280 250v84", "none", 2, "#7dd3fc")]
+    p.append(rect(W / 2 - 92, 128, 184, 30, "#0c4a6e", 7, 3, "#7dd3fc"))
+    save("buildings/akvaryum.svg", svg(W, H, p))
+
+
 if __name__ == "__main__":
     hospital()
     market()
@@ -1004,3 +1036,5 @@ if __name__ == "__main__":
     hara()
     okul()
     terminal()
+    spor()
+    akvaryum()

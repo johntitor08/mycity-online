@@ -354,7 +354,7 @@ func req_hit(d: Dictionary) -> void:
 		Net.notify(id, "Çok yorgunsun. Dağ Evi'nde sıcak çikolata iç ya da dinlen.", false)
 		return
 	_last_hit[id] = now
-	rock["hp"] = int(rock.hp) - 1
+	rock["hp"] = int(rock.hp) - (2 if Gym.double_hit(id) else 1)     # 1.5: kuvvetle çift darbe
 	if int(rock.hp) > 0:
 		_broadcast_rocks()
 		return

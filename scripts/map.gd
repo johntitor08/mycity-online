@@ -36,9 +36,31 @@ const BUILDINGS := [
 	{"type": "hara", "label": "Hara", "rect": Rect2(1316, 3806, 196, 150), "sign_y": 26},
 	# 1.4: okul (bankanın doğusu)
 	{"type": "okul", "label": "Okul", "rect": Rect2(2626, 1168, 168, 200), "sign_y": 30},
+	# 1.5: spor salonu (çarşının doğusu)
+	{"type": "spor", "label": "Spor Salonu", "rect": Rect2(2626, 1424, 168, 156), "sign_y": 26},
 ]
+# 1.5: hayvanat bahçesi ve akvaryum (fuarın altı)
+const ZOO := Rect2(10700, 1720, 1560, 1080)
+const ZOO_GATE := Vector2(11480, 1720)            # giriş turnikesi (üst çit ortası)
+const ZOO_PENS := {
+	"aslan": Rect2(10760, 1800, 340, 260), "fil": Rect2(11160, 1800, 400, 280), "zurafa": Rect2(11640, 1800, 340, 300),
+	"penguen": Rect2(10760, 2160, 340, 240), "maymun": Rect2(11160, 2180, 400, 240), "ayi": Rect2(11640, 2200, 340, 240),
+}
+const ZOO_KEEPER := Vector2(11480, 2560)          # bakıcı ofisi (yem deposu)
+const ZOO_BUILDINGS := [
+	{"type": "akvaryum", "label": "Akvaryum", "rect": Rect2(12360, 1800, 560, 340), "sign_y": 40},
+]
+# 1.5: maraton parkuru (şehir içi, yaya)
+const MARATHON := [Vector2(2700, 1620), Vector2(2480, 518), Vector2(1300, 518), Vector2(300, 518),
+	Vector2(300, 1590), Vector2(1005, 1660), Vector2(1600, 1690), Vector2(2700, 1620)]
+const MARATHON_R := 90.0
+# 1.5: Korsan Adası (açık denizde, Martı Adası'nın doğusu; tekneyle)
+const KORSAN := Rect2(2050, 2500, 700, 380)
+const KORSAN_PIER := Rect2(2378, 2410, 50, 110)
+const KORSAN_CAPTAIN := Vector2(2200, 2660)
+const KORSAN_SHIP := Vector2(2600, 2720)
 # 1.4: Fuar ve Havalimanı bölgesi (harita dışında; şehirden servisle gidilir)
-const FAIR := Rect2(10600, 0, 2600, 1700)
+const FAIR := Rect2(10600, 0, 2600, 2900)        # 1.5: aşağıya hayvanat bahçesi eklendi
 const SHUTTLE_CITY := Vector2(1640, 518)          # şehirdeki servis durağı (üst caddenin güney kaldırımı)
 const SHUTTLE_FAIR := Vector2(11300, 1560)        # fuardaki servis durağı (gelince burada)
 const FERRIS := Vector2(10950, 560)               # dönme dolabın merkezi
@@ -215,6 +237,7 @@ const CAMPFIRES := [Vector2(8090, 2380), Vector2(8300, 2450), Vector2(8150, 2530
 const TELESCOPE := Vector2(8400, 2290)
 const WRECK := Vector2(6300, 3600)
 const BOAT_RENT_SPOT := Vector2(1530, 1680)    # deniz iskelesinin başı (Kaptan Rüstem'in solunda)
+const MOORED_BOATS := [Vector2(1712, 1920), Vector2(1712, 2010)]   # 1.5: iskeleye bağlı kiralık tekneler
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
 const PIER_END := Rect2(1550, 1960, 100, 140)   # deniz balıkçılığı alanı
 
@@ -266,7 +289,7 @@ static func in_sea(p: Vector2) -> bool:
 	if p.x > WORLD.end.x:
 		return false      # harita dışı (ev içleri) deniz değildir
 	return p.y > SEA.position.y + sin(p.x / 60.0) * 6.0 and p.y < SOUTH_COAST_Y + sin(p.x / 70.0) * 6.0 \
-		and not PIER.has_point(p) and not ISLAND_PIER.has_point(p) and not on_island(p) \
+		and not PIER.has_point(p) and not ISLAND_PIER.has_point(p) and not on_island(p) and not on_korsan(p) and not KORSAN_PIER.has_point(p) \
 		and not PORT_PIER.has_point(p) and not FERRY_PIER.has_point(p)
 
 
@@ -275,10 +298,19 @@ static func boat_blocked(p: Vector2) -> bool:
 	var d := (p - ISLAND.get_center()) / (ISLAND.size / 2.0 + Vector2(46, 34))
 	if d.length_squared() < 1.0:
 		return true
-	for r in [PIER, ISLAND_PIER, PORT_PIER, FERRY_PIER]:
+	var dk := (p - KORSAN.get_center()) / (KORSAN.size / 2.0 + Vector2(46, 34))
+	if dk.length_squared() < 1.0:
+		return true
+	for r in [PIER, ISLAND_PIER, PORT_PIER, FERRY_PIER, KORSAN_PIER]:
 		if r.grow(24).has_point(p):
 			return true
 	return false
+
+
+## Korsan Adası'nın karası (elips).
+static func on_korsan(p: Vector2) -> bool:
+	var d := (p - KORSAN.get_center()) / (KORSAN.size / 2.0)
+	return d.length_squared() < 1.0
 
 
 ## Martı Adası'nın karası (elips).
@@ -338,6 +370,8 @@ static func fishing_spot(p: Vector2) -> String:
 static func area_name(p: Vector2) -> String:
 	if p.y >= SOUTH_COAST_Y - 200:
 		return "Sanayi Limanı"
+	if on_korsan(p):
+		return "Korsan Adası"
 	if on_island(p) or p.y > DEEP_Y:
 		return "Martı Adası"
 	if p.y > BEACH.position.y - 20:

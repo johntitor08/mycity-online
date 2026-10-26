@@ -126,7 +126,8 @@ func update_buy_button(b: Button, price: int, need_level: int = 0, label: String
 func money_hint(parent: Node) -> Label:
 	_hint_label = add_label(parent, "", 13, Color("#fde68a"))
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	Net.roster_changed.connect(_update_money_hint)
+	if not Net.roster_changed.is_connected(_update_money_hint):
+		Net.roster_changed.connect(_update_money_hint)
 	_update_money_hint()
 	return _hint_label
 

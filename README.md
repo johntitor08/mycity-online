@@ -35,6 +35,38 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.5: Özel günler, spor salonu ve maraton, Korsan Adası, hayvanat bahçesi ve akvaryum
+
+| | |
+|---|---|
+| ![Cadılar Bayramı](docs/ekran/cadilar.png) | ![Yılbaşı](docs/ekran/yilbasi.png) |
+| ![Korsan Adası](docs/ekran/korsan_adasi.png) | ![Hazine haritası](docs/ekran/hazine_haritasi.png) |
+| ![Hayvanat bahçesi](docs/ekran/hayvanat_bahcesi.png) | ![Akvaryum](docs/ekran/akvaryum.png) |
+| ![Spor salonu](docs/ekran/spor_salonu.png) | ![İskeledeki tekneler](docs/ekran/iskele_tekneler.png) |
+
+- **Özel günler (gerçek takvim):**
+  - **Cadılar Bayramı** (25 Eki–2 Kas): bal kabakları, yarasalar, kostümler; **G** ile kapıları çal → şeker mi şaka mı.
+  - **Yılbaşı** (20 Ara–5 Oca): parkta süslü çam, Noel Baba'dan günlük hediye, şehre saçılan hediye kutuları.
+  - **Ramazan/Kurban Bayramı:** NPC'lerin elini öp (G) → harçlık ve lokum.
+  - **Sevgililer Günü:** gül al, G ile ver.
+  - Bayram tarihleri yaklaşık; yönetici `/ozelgun` ile açıp kapatabilir.
+- **Spor salonu** (çarşının doğusu): günlük giriş.
+  - **Koşu bandı:** A/D sırayla, tempoyu yeşilde tut → kondisyon: en fazla +20 maksimum enerji, daha hızlı yürüme.
+  - **Ağırlık:** çubuk yeşildeyken Boşluk → kuvvet: kaya kırarken çift darbe.
+  - Zamanlamayı sunucu denetler.
+  - **Maraton:** salonun önünden başlayan 7 noktalı şehir parkuru (yaya, yol tarifiyle), rekor ve haftalık **Maraton ligi**.
+- **Korsan Adası:** Martı Adası'nın doğusu, tekneyle gidilir.
+  - Korsan Kaptan'dan kürek ve günlük harita parçası alınır.
+  - Parçalar adada kazarken, açık denizde balık tutarken ve batık sandığında da çıkar.
+  - 4 parça birleşince sunucu gizli bir nokta seçer; haritadaki X'e git, kazdıkça "sıcak/ılık/soğuk" ipucu al.
+  - Hazineden para ve Korsan Altını/Pusulası/Yüzüğü çıkar (müzeye bağışlanır).
+  - Hazine bulana **Korsan Papağanı** (şapkalı, göz bantlı; harita parçası şansı ×2).
+- **Hayvanat bahçesi** (fuarın altı):
+  - Biletle turnikeden gir; aslan, fil, zürafa, penguen, maymun, ayı.
+  - **Besleme saatleri** ve **gönüllü bakıcı** işi (yem taşı).
+  - **Akvaryum:** müzeye bağışlanan balıklar canlı yüzer.
+- **Tekne kiralama:** Deniz iskelesine bağlı **görünür kiralık tekneler** ve tabela; teknenin yanında E ile kirala/bin.
+
 ## 1.4: Lunapark, havalimanı ve balon, dedektiflik, okul
 
 | | |
@@ -371,8 +403,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.4
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.4
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.5
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.5
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

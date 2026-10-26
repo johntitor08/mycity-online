@@ -363,7 +363,7 @@ func req_rest(_d: Dictionary) -> void:
 	rec["tent_rest"] = now
 	var r := Rpg.ensure(rec)
 	var lvl := Rpg.level_of(int(r.xp))
-	r["energy"] = float(Rpg.max_energy(lvl))
+	r["energy"] = float(Rpg.max_energy(lvl, r))
 	Net.mark_dirty()
 	Rpg.send_sheet(id)
 	Net.notify(id, "Çadırında güzel bir uyku çektin. Enerjin doldu!")
@@ -447,7 +447,7 @@ func req_wish(_d: Dictionary) -> void:
 	var id := Net.sender()
 	if not Net.players.has(id) or Time.get_ticks_msec() / 1000.0 > _star_until or _wished.has(id):
 		return
-	if not Map.CAMP.grow(260).has_point(_pos(id)):
+	if not Map.CAMP.grow(150).has_point(_pos(id)):
 		return
 	_wished[id] = true
 	Net.add_money(id, STAR_REWARD)
@@ -489,7 +489,7 @@ func _process(delta: float) -> void:
 					var r := Rpg._rec(id)
 					var lvl := Rpg.level_of(int(r.xp))
 					Rpg._update_energy(r, lvl)
-					r["energy"] = minf(float(Rpg.max_energy(lvl)), float(r.energy) + 1.0)
+					r["energy"] = minf(float(Rpg.max_energy(lvl, r)), float(r.energy) + 1.0)
 					Rpg.send_sheet(id)
 	_acc += delta
 	if _acc < SPOT_EVERY:

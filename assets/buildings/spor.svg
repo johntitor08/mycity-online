@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="336" height="312" viewBox="0 0 168 156">
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <rect x="6" y="46" width="156" height="106" rx="4" fill="#e2e8f0" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="6" y="136" width="156" height="16" rx="0" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="0" y="40" width="168" height="12" rx="3" fill="#ea580c" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="64" y="96" width="40" height="56" rx="3" fill="#334155" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M84 96v56" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="14" y="62" width="44" height="30" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="110" y="62" width="44" height="30" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="60" y="68" width="48" height="6" rx="2" fill="#1f2937" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="54" y="60" width="10" height="22" rx="2" fill="#1f2937" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="104" y="60" width="10" height="22" rx="2" fill="#1f2937" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="22.0" y="12" width="124" height="26" rx="6" fill="#1e293b" stroke="#fb923c" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

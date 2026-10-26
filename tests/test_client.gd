@@ -99,6 +99,8 @@ func _on_ok() -> void:
 		_finish()
 		return
 	print("== Bağlandı: %s, para %d" % [Net.my_name, Net.my_money()])
+	if Net.is_server():
+		Holidays.force("yok")          # testler takvimden bağımsız (1.5 testi özel günleri tek tek açar)
 	# hızlı deneme: --bolum=11,13 sadece o bölümleri çalıştırır
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--bolum="):
@@ -283,6 +285,7 @@ func _on_ok() -> void:
 		await _test_12(get_parent().world)
 		await _test_13(get_parent().world)
 		await _test_14(get_parent().world)
+		await _test_15(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -1789,7 +1792,7 @@ func _test_12(w) -> void:
 
 	print("== 1.2: Müze")
 	var bag: Array = rec.get("fish", [])
-	for n in ["Sazan", "İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı"]:
+	for n in ["Sazan", "İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı", "Korsan Altını", "Korsan Pusulası", "Korsan Yüzüğü"]:
 		bag.append({"name": n, "price": 100})
 	Jobs.send_inventory(me)
 	w.my_pos = Map.building("muze").rect.get_center() + Vector2(0, 160)
@@ -1812,12 +1815,12 @@ func _test_12(w) -> void:
 	await _wait(0.3)
 	check(Museum.view.has("barn:f_ammonit"), "fosil bağışlandı")
 	var m5 := Net.my_money()
-	for n in ["İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı"]:
+	for n in ["İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı", "Korsan Altını", "Korsan Pusulası", "Korsan Yüzüğü"]:
 		Museum.donate("fish:" + n)
 		await _wait(0.2)
 	await _wait(0.2)
-	check(Net.my_money() >= m5 + 4 * Museum.DONATE_MONEY + Museum.SET_REWARD, "Deniz Hazineleri koleksiyonu tamamlandı, ödül alındı")
-	check(Museum.progress().x == 6, "müze ilerlemesi 6 parça")
+	check(Net.my_money() >= m5 + 7 * Museum.DONATE_MONEY + Museum.SET_REWARD, "Deniz Hazineleri koleksiyonu tamamlandı, ödül alındı")
+	check(Museum.progress().x == 9, "müze ilerlemesi 9 parça")
 	await get_tree().process_frame
 	w._close_panel()
 
@@ -2195,7 +2198,7 @@ func _test_14(w) -> void:
 	await _wait(0.3)
 	check(int(Detective.state.get("case", -1)) == 0, "delil toplamadan suçlanamıyor")
 	for cl in cs.clues:
-		w.my_pos = cl.pos + Vector2(0, 30)
+		w.my_pos = cl.pos + Vector2(0, 6)
 		await _wait(0.35)
 		w._open_panel()
 		await _wait(0.3)
@@ -2250,9 +2253,16 @@ func _test_14(w) -> void:
 	w.my_pos = npc0 + Vector2(30, 0)
 	Net.positions[me] = w.my_pos
 	Fair.bump("npc:0")
-	await _wait(0.3)
+	await _wait(0.1)
+	w.my_pos = Map.BUMPER.position + Vector2(40, 40)      # boş köşe (gerçek çarpışma kodu tekrar saymasın)
+	for n in Fair._npcs:
+		n.p = Map.BUMPER.end - Vector2(60, 60)
+		n.v = Vector2.ZERO
+	await _wait(0.2)
 	check(Fair.bumper_pts == 1, "NPC arabaya çarpınca puan")
+	Net.positions[me] = npc0 + Vector2(30, 0)
 	Fair.bump("npc:0")
+	Net.positions[me] = w.my_pos
 	await _wait(0.3)
 	check(Fair.bumper_pts == 1, "aynı arabaya hemen tekrar sayılmaz")
 	var b0 := Fair.bilet
@@ -2317,6 +2327,237 @@ func _test_14(w) -> void:
 	check(flights.size() == 1 and w._fair, "uçuş başladı (animasyon)")
 	await _wait(3.3)
 	check(not w._fair and Map.WORLD.has_point(w.my_pos) and w.my_pos.distance_to(Map.SPAWN) < 150, "şehre inildi")
+
+
+## 1.5: özel günler, spor salonu ve maraton, korsan adası, hayvanat bahçesi, iskeledeki tekneler.
+func _test_15(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 60000)
+	Env.force_weather("clear")
+	await _wait(0.3)
+
+	print("== 1.5: Özel günler")
+	check(Holidays.by_date({"year": 2026, "month": 10, "day": 31}) == "cadilar" and Holidays.by_date({"year": 2026, "month": 12, "day": 31}) == "yilbasi"
+		and Holidays.by_date({"year": 2026, "month": 3, "day": 21}) == "ramazan" and Holidays.by_date({"year": 2026, "month": 7, "day": 1}) == "", "takvim doğru")
+	Holidays.force("cadilar")
+	await _wait(0.3)
+	check(Holidays.active == "cadilar", "Cadılar Bayramı açıldı")
+	w.my_pos = Holidays.STALL + Vector2(0, 40)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "bayram", "bayram tezgâhı")
+	Holidays.costume("cadi")
+	await _wait(0.3)
+	check(str(Net.roster[me].get("costume", "")) == "cadi", "cadı kostümü giyildi (herkes görür)")
+	var got := 0
+	for b in ["market", "hospital", "casino", "poker", "galeri", "pazar"]:
+		w.my_pos = Holidays.door_pos("b:" + b) + Vector2(0, 10)
+		await _wait(0.3)
+		if w._g_action.get("kind", "") == "knock":
+			w._do_g_action()
+			await _wait(0.3)
+		got = int(Rpg.sheet.items.get("seker", 0))
+		if got > 0:
+			break
+	check(got > 0, "kapı çalındı, şeker toplandı (%d)" % got)
+	var g0 := int(Rpg.sheet.items.get("seker", 0))
+	w._do_g_action()
+	await _wait(0.3)
+	check(int(Rpg.sheet.items.get("seker", 0)) == g0, "aynı kapı bugün tekrar çalınmaz")
+	Holidays.force("yilbasi")
+	await _wait(0.3)
+	check(not Net.roster[me].has("costume"), "bayram bitince kostüm çıktı")
+	Holidays._spawn_gift()
+	Holidays._broadcast_gifts()
+	await _wait(0.3)
+	var gf: Dictionary = Holidays.gifts[0]
+	w.my_pos = Vector2(float(gf.x), float(gf.y) + 20)
+	await _wait(0.3)
+	var m0 := Net.my_money()
+	var k0 := int(Rpg.sheet.items.get("kurabiye", 0))
+	w._open_panel()
+	await _wait(0.4)
+	check(Holidays.gifts.size() == 0 and (Net.my_money() > m0 or int(Rpg.sheet.items.get("kurabiye", 0)) > k0), "hediye kutusu açıldı")
+	w.my_pos = Holidays.SANTA + Vector2(0, 40)
+	await _wait(0.3)
+	var m1 := Net.my_money()
+	var dep0 := int(Homes.depot.get("yilbasi_agaci", 0))
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.my_money() > m1 or int(Homes.depot.get("yilbasi_agaci", 0)) > dep0, "Noel Baba hediye verdi")
+	var m2 := Net.my_money()
+	Holidays.santa()
+	await _wait(0.3)
+	check(Net.my_money() == m2, "Noel Baba günde bir hediye")
+	Holidays.force("ramazan")
+	await _wait(0.3)
+	w.my_pos = Map.NPCS.muhtar.pos + Vector2(0, 50)
+	await _wait(0.4)
+	check(w._g_action.get("kind", "") == "hand", "bayram: el öpme eylemi")
+	var m3 := Net.my_money()
+	w._do_g_action()
+	await _wait(0.4)
+	check(Net.my_money() >= m3 + 100 and int(Rpg.sheet.items.get("lokum", 0)) == 1, "harçlık ve lokum alındı")
+	var m4 := Net.my_money()
+	w._do_g_action()
+	await _wait(0.3)
+	check(Net.my_money() == m4, "aynı büyükten bir bayramda bir kez")
+	var helper := Net.id_by_name("Yardimci")
+	Holidays.force("sevgililer")
+	await _wait(0.3)
+	w.my_pos = Holidays.STALL + Vector2(0, 40)
+	await _wait(0.3)
+	Holidays.buy_rose()
+	await _wait(0.3)
+	check(int(rec.holiday.get("roses", 0)) == 1, "gül alındı")
+	if helper != 0:
+		w.my_pos = Net.positions[helper] + Vector2(40, 0)
+		await _wait(0.5)
+		check(w._g_action.get("kind", "") == "rose", "yanındaki oyuncuya gül verme eylemi")
+		w._do_g_action()
+		await _wait(0.3)
+		check(int(rec.holiday.get("roses", 0)) == 0 and rec.ach.got.has("roses"), "gül verildi")
+	Holidays.force("yok")
+	await _wait(0.3)
+	check(Holidays.active == "", "özel gün kapandı")
+
+	print("== 1.5: Spor salonu ve maraton")
+	w.my_pos = Map.building("spor").rect.get_center() + Vector2(0, 92)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "spor", "spor salonu kapısı")
+	var maxe0 := int(Rpg.sheet.max_energy)
+	Gym.buy_pass()
+	await _wait(0.3)
+	check(Gym.has_pass, "günlük giriş alındı")
+	Gym.train("cardio")
+	await _wait(1.1)
+	check(Gym.current.get("kind", "") == "cardio", "koşu bandı başladı")
+	var k := 0
+	var t_end := Time.get_ticks_msec() / 1000.0 + 15.2
+	while Time.get_ticks_msec() / 1000.0 < t_end:
+		Gym.step(k % 2)
+		k += 1
+		await _wait(0.18)
+	await _wait(0.6)
+	check(int(Gym.fitness.cardio) >= 3, "ideal tempoda koşuldu, kondisyon %d" % int(Gym.fitness.cardio))
+	Gym.train("strength")
+	await _wait(0.2)
+	var t0: float = Gym.current.get("t0", 0.0)
+	for i in Gym.LIFT_REPS:
+		var target := t0 + Gym.LIFT_PERIOD * (0.25 + 0.5 * (i + 1))
+		var wt: float = target - Time.get_ticks_msec() / 1000.0
+		if wt > 0.0:
+			await _wait(wt)
+		Gym.lift()
+	await _wait(0.5)
+	check(int(Gym.fitness.strength) >= 3, "zamanlı kaldırıldı, kuvvet %d" % int(Gym.fitness.strength))
+	check(int(Rpg.sheet.max_energy) == maxe0 + int(int(Gym.fitness.cardio) / 5.0), "kondisyon maksimum enerjiyi artırdı")
+	w.my_pos = Map.MARATHON[0]
+	await _wait(0.3)
+	Gym.start_marathon()
+	await _wait(0.3)
+	check(not Gym.run.is_empty() and w.nav_target != null, "maraton başladı, yol tarifi var")
+	for i in range(1, Map.MARATHON.size()):
+		w.my_pos = Map.MARATHON[i]
+		await _wait(0.3)
+	await _wait(0.3)
+	check(Gym.run.is_empty() and not Gym.best.is_empty() and League._data().scores.get("marathon", {}).has(Net.my_name), "maraton bitti, rekor ve lig")
+
+	print("== 1.5: Korsan Adası")
+	w.my_pos = Map.KORSAN_CAPTAIN + Vector2(0, 40)
+	await _wait(0.4)
+	check(Map.on_korsan(w.my_pos) and w.zone.get("type", "") == "korsan", "korsan kaptanın yanında")
+	w._open_panel()
+	await _wait(0.3)
+	Pirates.buy("shovel")
+	await _wait(0.3)
+	Pirates.maybe_piece(me, 1.0)
+	Pirates.maybe_piece(me, 1.0)
+	Pirates.maybe_piece(me, 1.0)
+	Pirates.buy("piece")
+	await _wait(0.4)
+	check(Pirates.state.shovel and int(Pirates.state.pieces) == 4, "kürek ve 4 harita parçası")
+	Pirates.combine()
+	await _wait(0.4)
+	check(Pirates.state.has_map and Pirates.map_hint != Vector2.ZERO, "parçalar birleşti, harita var")
+	w._close_panel()
+	var spot := Vector2(float(rec.pirate.spot[0]), float(rec.pirate.spot[1]))
+	var far: Vector2 = Map.KORSAN.get_center() + (Map.KORSAN.get_center() - spot).normalized() * 150.0
+	if not Map.on_korsan(far):
+		far = Map.KORSAN.get_center()
+	w.my_pos = far
+	await _wait(0.3)
+	var hints := []
+	Pirates.dug.connect(func(d): hints.append(d), CONNECT_ONE_SHOT)
+	w._open_panel()
+	await _wait(0.4)
+	check(not hints.is_empty() and str(hints[0].get("hint", "")) != "" and not Pirates.holes.is_empty(), "kazıldı, ipucu: %s" % (hints[0].get("hint", "") if not hints.is_empty() else "-"))
+	w.my_pos = spot + Vector2(10, 0)
+	await _wait(1.3)
+	var m5 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.my_money() >= m5 + 1500 and int(Pirates.state.found) == 1 and not Pirates.state.has_map, "HAZİNE bulundu")
+	check(str(rec.fish[-1].name).begins_with("Korsan"), "korsan eşyası kovada (müzeye bağışlanabilir)")
+	w.my_pos = Map.KORSAN_CAPTAIN + Vector2(0, 40)
+	await _wait(0.3)
+	if rec.get("pet") is Dictionary:
+		rec.erase("pet")
+	Pirates.buy("parrot")
+	await _wait(0.4)
+	check(str(rec.get("pet", {}).get("kind", "")) == "korsan", "Korsan Papağanı alındı")
+
+	print("== 1.5: Hayvanat bahçesi ve akvaryum")
+	w.my_pos = Map.SHUTTLE_CITY + Vector2(0, 20)
+	await _wait(0.3)
+	Fair.shuttle(true)
+	await _wait(0.5)
+	w.my_pos = Map.ZOO_GATE + Vector2(0, -50)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "zoo_ticket", "turnike: bilet bölgesi")
+	check(w._blocked(Map.ZOO_GATE), "biletsiz turnike kapalı")
+	w._open_panel()
+	await _wait(0.4)
+	check(Zoo.has_ticket() and not w._blocked(Map.ZOO_GATE), "bilet alındı, turnike açıldı")
+	w.my_pos = Map.ZOO_KEEPER + Vector2(0, 30)
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.4)
+	check(Zoo.task != "" and w.nav_target != null, "bakıcı işi alındı: %s" % Zoo.task)
+	w.my_pos = Zoo.pen_front(Zoo.task)
+	await _wait(0.3)
+	var m6 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.my_money() >= m6 + Zoo.KEEPER_PAY, "yem teslim edildi, ödeme")
+	w.my_pos = Map.ZOO_BUILDINGS[0].rect.get_center() + Vector2(0, 190)
+	await _wait(0.3)
+	check(w.zone.get("type", "") == "akvaryum", "akvaryum kapısı")
+	w._open_panel()
+	await _wait(0.5)
+	check(w.panel != null and rec.ach.got.has("aquarium"), "akvaryum gezildi")
+	w._close_panel()
+	w.my_pos = Map.SHUTTLE_FAIR + Vector2(0, 20)
+	await _wait(0.3)
+	Fair.shuttle(false)
+	await _wait(0.5)
+
+	print("== 1.5: İskeledeki tekneler")
+	rec.vehicles.erase("boat")
+	Garage.send_state(me)
+	w.my_pos = Vector2(Map.PIER.end.x - 10, Map.MOORED_BOATS[0].y)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "moored", "iskelede bağlı tekne görünüyor ve kiralanabiliyor")
+	var m7 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.my_money() <= m7 - Garage.RENT_PRICE + 300 and Garage.has_boat(), "tekne kiralandı")
+	w._open_panel()
+	await _wait(0.4)
+	check(w.my_ride() == "boat", "bağlı tekneye binildi")
+	Garage.ride("")
+	await _wait(0.2)
 
 
 func _finish() -> void:

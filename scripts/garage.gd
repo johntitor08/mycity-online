@@ -167,7 +167,12 @@ func req_rent(_d: Dictionary) -> void:
 	var id := Net.sender()
 	if not Net.players.has(id):
 		return
-	if Net.positions.get(id, Vector2(-9999, -9999)).distance_to(Map.BOAT_RENT_SPOT) > 220.0:
+	var rp: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
+	var near_moored := false
+	for mb in Map.MOORED_BOATS:
+		if rp.distance_to(mb) < 160.0:
+			near_moored = true
+	if rp.distance_to(Map.BOAT_RENT_SPOT) > 220.0 and not near_moored:
 		Net.notify(id, "Tekne kiralamak için deniz iskelesinin başına git (Kaptan Rüstem).", false)
 		return
 	if Env.weather == "storm":

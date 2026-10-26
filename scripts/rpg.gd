@@ -83,8 +83,11 @@ static func skill_xp_for(level: int) -> int:
 	return 50 * (level - 1) * (level - 1)
 
 
-static func max_energy(level: int) -> int:
-	return 100 + 5 * (level - 1)
+static func max_energy(level: int, r: Dictionary = {}) -> int:
+	var bonus := 0
+	if r.get("fitness") is Dictionary:
+		bonus = mini(20, int(int(r.fitness.get("cardio", 0)) / 5.0))     # 1.5: spor salonu (kondisyon)
+	return 100 + 5 * (level - 1) + bonus
 
 
 # ================================================================== kayıt
@@ -130,6 +133,8 @@ static func level_of_rec(rec: Dictionary) -> int:
 func food_info(k: String) -> Dictionary:
 	if FOODS.has(k):
 		return FOODS[k]
+	if Holidays.HOLIDAY_FOODS.has(k):
+		return Holidays.HOLIDAY_FOODS[k]
 	if Fair.FAIR_FOODS.has(k):
 		return Fair.FAIR_FOODS[k]
 	if Camp.CAMP_FOODS.has(k):
@@ -211,7 +216,7 @@ func rent_mult_by_name(player_name: String) -> float:
 func _update_energy(r: Dictionary, lvl: int) -> void:
 	var now := _now()
 	var gained := (now - float(r.get("energy_t", now))) / ENERGY_REGEN_SEC
-	r["energy"] = minf(float(max_energy(lvl)), float(r.energy) + maxf(gained, 0.0))
+	r["energy"] = minf(float(max_energy(lvl, r)), float(r.energy) + maxf(gained, 0.0))
 	r["energy_t"] = now
 
 
@@ -254,7 +259,7 @@ func add_xp(id: int, skill_key: String, amount: int) -> void:
 	if new_level > old_level:
 		var reward := 100 * new_level
 		_update_energy(r, new_level)
-		r["energy"] = float(max_energy(new_level))
+		r["energy"] = float(max_energy(new_level, r))
 		Net.players[id]["level"] = new_level
 		Ach.set_max(id, "level", new_level)
 		Net.add_money(id, reward)     # roster'ı da yayınlar (yeni seviye görünür)
@@ -406,7 +411,7 @@ func req_use(d: Dictionary) -> void:
 		return
 	var lvl := level_of(int(r.xp))
 	_update_energy(r, lvl)
-	if float(r.energy) >= max_energy(lvl):
+	if float(r.energy) >= max_energy(lvl, r):
 		Net.notify(id, "Enerjin zaten dolu.", false)
 		return
 	r.items[item] = int(r.items[item]) - 1
@@ -423,7 +428,7 @@ func eat(id: int, item: String, verb: String) -> void:
 		return
 	var lvl := level_of(int(r.xp))
 	_update_energy(r, lvl)
-	r["energy"] = minf(float(max_energy(lvl)), float(r.energy) + int(food.energy))
+	r["energy"] = minf(float(max_energy(lvl, r)), float(r.energy) + int(food.energy))
 	var extra := ""
 	if not food.get("buff", []).is_empty():
 		if not r.get("buffs") is Dictionary:
@@ -454,7 +459,7 @@ func send_sheet(id: int) -> void:
 			"goal": int(q.goal), "done": bool(q.done)})
 	Net.tell(self, id, "on_sheet", {
 		"level": lvl, "xp": int(r.xp), "cur": xp_for(lvl), "next": xp_for(lvl + 1),
-		"energy": float(r.energy), "max_energy": max_energy(lvl), "skills": skills,
+		"energy": float(r.energy), "max_energy": max_energy(lvl, r), "skills": skills,
 		"items": r.items.duplicate(), "tools": r.tools.duplicate(), "quests": quests,
 		"regen_beach": _on_beach(id),
 		"buffs": _buffs_left(r),
@@ -502,6 +507,6 @@ func _process(delta: float) -> void:
 				continue
 			var lvl := level_of(int(r.xp))
 			_update_energy(r, lvl)
-			if float(r.energy) < max_energy(lvl):
-				r["energy"] = minf(float(max_energy(lvl)), float(r.energy) + bonus)
+			if float(r.energy) < max_energy(lvl, r):
+				r["energy"] = minf(float(max_energy(lvl, r)), float(r.energy) + bonus)
 				send_sheet(id)

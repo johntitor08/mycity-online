@@ -178,7 +178,7 @@ func _process(delta: float) -> void:
 				Rpg.add_xp(id, "", GUEST_XP)
 				var r := Rpg._rec(id)
 				Rpg._update_energy(r, Rpg.level_of(int(r.xp)))
-				r["energy"] = minf(float(Rpg.max_energy(Rpg.level_of(int(r.xp)))), float(r.energy) + 4.0)
+				r["energy"] = minf(float(Rpg.max_energy(Rpg.level_of(int(r.xp)), r)), float(r.energy) + 4.0)
 				Rpg.send_sheet(id)
 		var oid := Net.id_by_name(p.owner)
 		if oid != 0 and guests > 0:

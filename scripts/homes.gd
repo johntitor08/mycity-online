@@ -30,6 +30,7 @@ const FURNITURE := {
 	"pelus_ayi": {"name": "Peluş Ayı", "price": 250, "size": Vector2i(1, 1), "prize": true},
 	"pelus_zurafa": {"name": "Dev Peluş Zürafa", "price": 500, "size": Vector2i(1, 2), "prize": true},
 	"lunapark_feneri": {"name": "Lunapark Feneri", "price": 800, "size": Vector2i(1, 1), "prize": true, "desc": "Gece renkli ışık saçar"},
+	"yilbasi_agaci": {"name": "Yılbaşı Ağacı", "price": 600, "size": Vector2i(1, 2), "prize": true},
 }
 const MAX_PER_ROOM := 40
 const SELL_BACK := 0.5          # Mobilyacı kullanılmayan mobilyayı yarı fiyatına geri alır

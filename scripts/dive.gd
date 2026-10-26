@@ -173,6 +173,7 @@ func req_pick(d: Dictionary) -> void:
 			got = {"name": "Batık Hazinesi", "price": randi_range(1500, 3500)}
 			_wreck_at = Time.get_unix_time_from_system() + WRECK_EVERY
 			Ach.event(id, "wreck")
+			Pirates.maybe_piece(id, 0.35)
 			Net.announce("%s batık gemide hazine buldu! (%s)" % [Net.players[id].name, U.money(int(got.price))])
 		elif randf() < 0.06:
 			got = {"name": "Siyah İnci", "price": randi_range(900, 1600)}

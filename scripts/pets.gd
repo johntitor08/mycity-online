@@ -12,6 +12,8 @@ const PETS := {
 	"cat": {"name": "Kedi", "price": 3000, "level": 2, "desc": "Mutluyken enerji harcaman %15 azalır", "fish": true},
 	"dog": {"name": "Köpek", "price": 4000, "level": 3, "desc": "Mutluyken nadir balık şansı +%15", "fish": true},
 	"parrot": {"name": "Papağan", "price": 5000, "level": 5, "desc": "Mutluyken hastane ve market maaşı +%10", "fish": false},
+	# 1.5: sadece Korsan Adası'ndaki kaptandan alınır
+	"korsan": {"name": "Korsan Papağanı", "price": 3000, "level": 1, "desc": "Mutluyken hazine haritası parçası bulma şansı ×2", "fish": false, "special": true},
 }
 const FOOD_PRICE := 40            # 1 kutu mama
 const FOOD_PER_CAN := 40          # tokluk
@@ -127,7 +129,7 @@ func req_buy_pet(d: Dictionary) -> void:
 	var id := Net.sender()
 	var rec := _rec(id)
 	var kind := str(d.get("kind", ""))
-	if rec.is_empty() or not PETS.has(kind):
+	if rec.is_empty() or not PETS.has(kind) or PETS[kind].get("special", false):
 		return
 	if not _at_shop(id):
 		Net.notify(id, "Evcil hayvan almak için Pet Shop'a git.", false)
@@ -149,6 +151,18 @@ func req_buy_pet(d: Dictionary) -> void:
 	send_state(id)
 	Net.notify(id, "%s artık seninle! İki kutu mama hediye. (%s)" % [rec.pet.name, p.desc])
 	Net.announce("%s bir %s sahiplendi: %s" % [Net.players[id].name, p.name.to_lower(), rec.pet.name])
+
+
+## Özel evcil hayvan ver (Korsan Kaptan). Zaten bir hayvanı varsa vermez.
+func give(id: int, kind: String, pet_name: String) -> bool:
+	var rec := _rec(id)
+	if rec.is_empty() or not PETS.has(kind) or rec.get("pet") is Dictionary:
+		return false
+	rec["pet"] = {"kind": kind, "name": pet_name, "food": 100.0, "t": Time.get_unix_time_from_system(), "cans": 2}
+	Net.mark_dirty()
+	Ach.event(id, "pet")
+	send_state(id)
+	return true
 
 
 @rpc("any_peer", "call_remote", "reliable")

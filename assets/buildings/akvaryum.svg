@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 560 340">
+  
+  <path d="M10 120Q280 10 550 120Z" fill="#0ea5e9" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="10" y="118" width="540" height="216" rx="6" fill="#e0f2fe" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="10" y="310" width="540" height="24" rx="0" fill="#7dd3fc" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="40" y="160" width="480" height="120" rx="8" fill="#0369a1" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <ellipse cx="120" cy="200" rx="22" ry="12" fill="#f59e0b" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="100,200 84,190 84,210" fill="#f59e0b" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="130" cy="197" r="2" fill="#111827" stroke="none" />
+  <ellipse cx="240" cy="240" rx="22" ry="12" fill="#ef4444" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="220,240 204,230 204,250" fill="#ef4444" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="250" cy="237" r="2" fill="#111827" stroke="none" />
+  <ellipse cx="360" cy="190" rx="22" ry="12" fill="#a3e635" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="340,190 324,180 324,200" fill="#a3e635" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="370" cy="187" r="2" fill="#111827" stroke="none" />
+  <ellipse cx="450" cy="250" rx="22" ry="12" fill="#f472b6" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="430,250 414,240 414,260" fill="#f472b6" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="460" cy="247" r="2" fill="#111827" stroke="none" />
+  <path d="M80 280c10-30 0-50 10-80M500 280c-10-30 0-50-10-80" fill="none" stroke="#15803d" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="250" y="250" width="60" height="84" rx="4" fill="#0c4a6e" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M280 250v84" fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="188.0" y="128" width="184" height="30" rx="7" fill="#0c4a6e" stroke="#7dd3fc" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

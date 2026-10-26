@@ -214,7 +214,7 @@ func req_icecream(_d: Dictionary) -> void:
 	var r := Rpg._rec(id)
 	var lvl := Rpg.level_of(int(r.xp))
 	Rpg._update_energy(r, lvl)
-	r["energy"] = minf(float(Rpg.max_energy(lvl)), float(r.energy) + ICECREAM_ENERGY)
+	r["energy"] = minf(float(Rpg.max_energy(lvl, r)), float(r.energy) + ICECREAM_ENERGY)
 	Rpg.send_sheet(id)
 	Ach.event(id, "icecream")
 	Bank.activity("MRKT", 1)

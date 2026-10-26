@@ -35,6 +35,10 @@ const PANELS := {
 	"terminal": preload("res://scripts/ui/flight_panel.gd"),
 	"fair_gise": preload("res://scripts/ui/fair_panel.gd"),
 	"gallery": preload("res://scripts/ui/gallery_panel.gd"),
+	"spor": preload("res://scripts/ui/gym_panel.gd"),
+	"korsan": preload("res://scripts/ui/pirate_panel.gd"),
+	"akvaryum": preload("res://scripts/ui/aquarium_panel.gd"),
+	"bayram": preload("res://scripts/ui/holiday_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
 const BIZ_TEX := [
@@ -47,6 +51,7 @@ const PET_TEX := {
 	"cat": preload("res://assets/pets/cat.svg"),
 	"dog": preload("res://assets/pets/dog.svg"),
 	"parrot": preload("res://assets/pets/parrot.svg"),
+	"korsan": preload("res://assets/pets/parrot.svg"),
 }
 const NpcSim = preload("res://scripts/npc_sim.gd")
 const BUILDING_TEX := {
@@ -66,6 +71,8 @@ const BUILDING_TEX := {
 	"hara": preload("res://assets/buildings/hara.svg"),
 	"okul": preload("res://assets/buildings/okul.svg"),
 	"terminal": preload("res://assets/buildings/terminal.svg"),
+	"spor": preload("res://assets/buildings/spor.svg"),
+	"akvaryum": preload("res://assets/buildings/akvaryum.svg"),
 	"muhtarlik": preload("res://assets/buildings/muhtarlik.svg"),
 	"karakol": preload("res://assets/buildings/karakol.svg"),
 	"banka": preload("res://assets/buildings/banka.svg"),
@@ -253,6 +260,20 @@ func _ready() -> void:
 		Sfx.play("splash_small", -6.0, 1.4))
 	Family.wedding.connect(func(_d): Sfx.play("success"))
 	hud.phone_requested.connect(open_phone)
+	Gym.marathon.connect(_on_marathon)
+	Zoo.task_changed.connect(func():
+		if Zoo.task != "":
+			set_nav(Zoo.pen_front(Zoo.task)))
+	Pirates.dug.connect(func(d):
+		add_fx("dirt", d.pos, 0.7)
+		if d.get("treasure", false):
+			add_fx("level", d.pos, 1.6)
+			Sfx.play("cash")
+		else:
+			hud.show_toast(str(d.get("hint", "")), str(d.get("hint", "")).begins_with("SICAK"))
+			Sfx.play("place", -4.0, 0.7))
+	Holidays.changed.connect(_rebuild_blockers)
+	Zoo.changed.connect(_rebuild_blockers)
 	Airport.flight.connect(_on_flight)
 	Airport.takeoff.connect(func(): _takeoff_t = _t)
 	Airport.balloon_changed.connect(func():
@@ -307,6 +328,8 @@ func _process(delta: float) -> void:
 			var mult := Garage.speed_of(ride)
 			if (ride == "car" or ride == "bike") and School.has("surucu"):
 				mult *= 1.1                            # sürücü diploması
+			if ride == "":
+				mult *= Gym.walk_mult()                # kondisyon
 			if ride == "" and Map.in_sea(my_pos):
 				mult = 0.55
 			if _dive:
@@ -692,7 +715,11 @@ func _update_zone() -> void:
 		z = dz                                 # ipucu/şüpheli NPC konuşmasından da önce gelir
 	if z.get("type", "") == "npc":
 		zone = z
-		hud.set_hint("" if panel != null else "[%s]  %s" % [Settings.key_name("interact"), z.label])
+		_g_action = _find_g_action()
+		var nh := "[%s]  %s" % [Settings.key_name("interact"), z.label]
+		if not _g_action.is_empty():
+			nh += "\n[%s]  %s" % [Settings.key_name("action"), _g_action.label]
+		hud.set_hint("" if panel != null else nh)
 		return
 	var spot := Map.fishing_spot(my_pos)
 	if spot == "" and my_ride() == "boat" and Map.in_sea(my_pos):
@@ -717,6 +744,7 @@ func _update_zone() -> void:
 		z = {"type": "firestation", "label": "İtfaiye — %s" % ("görevi bırak" if Work.on_duty_fire() else "göreve başla")}
 	if my_pos.distance_to(Map.RECYCLE) < 90.0:
 		z = {"type": "recycle", "label": "Geri dönüşüm (%d torba elinde)" % Work.carrying}
+	z = _korsan_zone(z)
 	if my_pos.distance_to(Map.SHUTTLE_CITY) < 90.0:
 		z = {"type": "shuttle", "fair": true, "label": "Lunapark & Havalimanı servisi (%s)" % U.money(Fair.SHUTTLE_PRICE)}
 	if my_pos.distance_to(Map.DETECTIVE) < 80.0:
@@ -744,10 +772,14 @@ func _update_zone() -> void:
 			if my_pos.distance_to(Vector2(float(t.x), float(t.y))) < 60.0:
 				z = {"type": "trash", "label": "Çöp torbasını topla", "id": int(t.id)}
 				break
+	for mb in Map.MOORED_BOATS:
+		if my_pos.distance_to(mb) < 100.0 and my_ride() == "":
+			z = {"type": "moored", "pos": mb, "label": "Tekneye bin" if Garage.has_boat() else "Tekne kirala ve bin (%s / %d dk)" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
 	if my_pos.distance_to(Map.BOAT_RENT_SPOT) < 70.0:
 		z = {"type": "boatrent", "label": "Tekne kirala (%s / %d dk) — F: bin" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)]}
 	if my_pos.distance_to(Map.RACE_FLAG) < 80.0 or my_pos.distance_to(Map.RACE_START) < 60.0:
 		z = {"type": "race", "label": "Yarış Pisti — tur başlat"}
+	z = _holiday_zone(z)
 	if not dz.is_empty():
 		z = dz
 	zone = z
@@ -760,6 +792,9 @@ func _update_zone() -> void:
 
 ## G tuşu: görevdeki polis için tutuklama; diğerleri için yankesicilik ya da soygun.
 func _find_g_action() -> Dictionary:
+	var hg := _holiday_g_action()
+	if not hg.is_empty():
+		return hg
 	var me = Net.roster.get(Net.my_id())
 	if me == null or int(me.get("level", 1)) < Police.CRIME_LEVEL:
 		return {}
@@ -795,7 +830,16 @@ func _find_g_action() -> Dictionary:
 
 
 func _do_g_action() -> void:
+	if _g_action.is_empty():
+		return
 	match _g_action.kind:
+		"knock":
+			Holidays.knock(str(_g_action.door))
+			Sfx.play("door", -4.0, 1.3)
+		"hand":
+			Holidays.kiss_hand(str(_g_action.npc))
+		"rose":
+			Holidays.give_rose(int(_g_action.to))
 		"arrest":
 			Police.arrest(_g_action.target)
 		"pick":
@@ -817,6 +861,15 @@ func _open_panel() -> void:
 	if zone.type == "boatrent":
 		Garage.rent_boat()
 		return
+	if zone.type == "moored":
+		if Garage.has_boat():
+			my_pos = zone.pos
+			Garage.ride("boat", zone.pos)
+			Sfx.play("splash_small")
+		else:
+			Garage.rent_boat()
+			hud.show_toast("Tekne kiralanınca bir daha E'ye bas (ya da F) ve bin.")
+		return
 	match str(zone.type):
 		"teleferik":
 			Mountain.go_up()
@@ -836,6 +889,33 @@ func _open_panel() -> void:
 			return
 		"roast":
 			Camp.roast(int(zone.i))
+			return
+		"santa":
+			Holidays.santa()
+			Sfx.play("bell")
+			return
+		"gift":
+			Holidays.pick_gift(int(zone.id))
+			Sfx.play("coin")
+			return
+		"dig":
+			Pirates.dig()
+			return
+		"zoo_ticket":
+			Zoo.buy_ticket()
+			return
+		"keeper":
+			var had_task := Zoo.task != ""
+			Zoo.keeper(not had_task)
+			if had_task:
+				nav_target = null
+			return
+		"deliver":
+			Zoo.deliver()
+			Sfx.play("splash_small", -6.0, 0.8)
+			return
+		"watch":
+			Zoo.watch_feeding()
 			return
 		"shuttle":
 			Fair.shuttle(bool(zone.fair))
@@ -1007,6 +1087,21 @@ func _rebuild_blockers() -> void:
 		var mr: Rect2 = b.rect
 		_blockers.append(Rect2(mr.position.x + 6, mr.position.y + 16, mr.size.x - 12, mr.size.y - 26))
 	_blockers.append(Rect2(Map.LIGHTHOUSE.x - 22, Map.LIGHTHOUSE.y - 30, 44, 34))
+	for b in Map.ZOO_BUILDINGS:
+		var zr: Rect2 = b.rect
+		_blockers.append(Rect2(zr.position.x + 6, zr.position.y + 16, zr.size.x - 12, zr.size.y - 26))
+	var zoo: Rect2 = Map.ZOO
+	var gx := Map.ZOO_GATE.x
+	_blockers.append(Rect2(zoo.position.x, zoo.position.y - 6, gx - 50 - zoo.position.x, 12))     # üst çit (turnikenin solu)
+	_blockers.append(Rect2(gx + 50, zoo.position.y - 6, zoo.end.x - gx - 50, 12))                # üst çit (sağı)
+	_blockers.append(Rect2(zoo.position.x - 6, zoo.position.y, 12, zoo.size.y))
+	_blockers.append(Rect2(zoo.end.x - 6, zoo.position.y, 12, zoo.size.y))
+	_blockers.append(Rect2(zoo.position.x, zoo.end.y - 6, zoo.size.x, 12))
+	if not Zoo.has_ticket():
+		_blockers.append(Rect2(gx - 50, zoo.position.y - 6, 100, 12))                            # turnike: biletsiz geçilmez
+	for k in Map.ZOO_PENS:
+		_blockers.append(Map.ZOO_PENS[k].grow(-4))
+	_blockers.append(Rect2(Map.KORSAN_SHIP.x - 120, Map.KORSAN_SHIP.y - 40, 220, 50))
 	for b in Map.FAIR_BUILDINGS:
 		var fr: Rect2 = b.rect
 		_blockers.append(Rect2(fr.position.x + 6, fr.position.y + 16, fr.size.x - 12, fr.size.y - 26))
@@ -1791,7 +1886,11 @@ func _draw() -> void:
 	_draw_mountain()
 	_draw_hippodrome()
 	_draw_fair()
+	_draw_zoo()
+	_draw_korsan()
 	_draw_city_extras()
+	_draw_holiday()
+	_draw_marathon()
 	for lp in Map.lamp_positions():
 		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
 		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
@@ -1858,8 +1957,11 @@ func _draw() -> void:
 			for s in cs.suspects:
 				items.append([s.pos.y, "susp", s])
 	if _fair:
-		for b in Map.FAIR_BUILDINGS:
+		for b in Map.FAIR_BUILDINGS + Map.ZOO_BUILDINGS:
 			_draw_building(b)
+		for k in Map.ZOO_PENS:
+			for a in _zoo_animals(k):
+				items.append([a[0].y, "zooa", [k, a]])
 	if _room < 0 and Map.in_south(my_pos):
 		for li in Horses.race.get("lanes", []).size():
 			var l: Dictionary = Horses.race.lanes[li]
@@ -1921,6 +2023,8 @@ func _draw() -> void:
 			_draw_forage(it[2])
 		elif it[1] == "susp":
 			_draw_suspect(it[2])
+		elif it[1] == "zooa":
+			_draw_zoo_animal(it[2][0], it[2][1])
 		elif it[1] == "tent":
 			_draw_tent(it[2][0], it[2][1])
 		elif it[1] == "cfire":
@@ -2151,11 +2255,19 @@ func _draw_beach() -> void:
 		draw_line(sp, sp + Vector2(14, 0), Color(1, 1, 1, a), 2)
 	_draw_island()
 	_draw_south()
-	# sandal (dalgada sallanır)
-	var bp := Vector2(2050, 2120 + sin(_t * 1.2) * 4.0)
-	draw_set_transform(bp, sin(_t * 0.9) * 0.04, Vector2.ONE)
-	draw_texture_rect(BOAT_TEX, Rect2(-65, -30, 130, 60), false)
-	draw_set_transform(Vector2.ZERO)
+	# iskeleye bağlı kiralık tekneler (dalgada sallanır) ve kiralama tabelası
+	for k in Map.MOORED_BOATS.size():
+		var bp: Vector2 = Map.MOORED_BOATS[k] + Vector2(0, sin(_t * 1.2 + k) * 3.0)
+		draw_line(bp + Vector2(-50, -6), Vector2(Map.PIER.end.x, bp.y - 10), Color("#a16207"), 2)    # halat
+		draw_set_transform(bp, sin(_t * 0.9 + k) * 0.04, Vector2.ONE)
+		draw_texture_rect(BOAT_TEX, Rect2(-65, -30, 130, 60), false)
+		draw_set_transform(Vector2.ZERO)
+	var rs: Vector2 = Map.BOAT_RENT_SPOT + Vector2(-70, -10)
+	draw_rect(Rect2(rs.x - 3, rs.y - 70, 6, 70), Color("#5b3a1e"))
+	draw_rect(Rect2(rs.x - 64, rs.y - 110, 128, 46), Color("#0369a1"))
+	draw_rect(Rect2(rs.x - 64, rs.y - 110, 128, 46), Color("#f8fafc"), false, 3)
+	_text(Vector2(rs.x - 64, rs.y - 92), "TEKNE KİRALAMA", 13, Color.WHITE, 128, false)
+	_text(Vector2(rs.x - 64, rs.y - 74), "%s / %d dk" % [U.money(Garage.RENT_PRICE), int(Garage.RENT_SECONDS / 60.0)], 12, Color("#fde68a"), 128, false)
 	# iskele
 	var pr := Map.PIER
 	for y in range(int(Map.SEA.position.y) + 10, int(pr.end.y), 60):
@@ -2656,7 +2768,7 @@ func _draw_pet(st: Dictionary, pet: Dictionary) -> void:
 	if tex == null:
 		return
 	var p: Vector2 = st.pos
-	var flying: bool = pet.kind == "parrot"
+	var flying: bool = pet.kind == "parrot" or pet.kind == "korsan"
 	var frame := int(_t * (10.0 if flying else 8.0)) % 2 if (st.moving or flying) else 0
 	if not flying:
 		draw_set_transform(p + Vector2(0, 4), 0, Vector2(1, 0.4))
@@ -2665,6 +2777,12 @@ func _draw_pet(st: Dictionary, pet: Dictionary) -> void:
 	draw_set_transform(p + Vector2(0, lift), 0, Vector2(-1 if st.facing == "left" else 1, 1))
 	var mod := Color.WHITE if pet.get("happy", true) else Color(0.7, 0.7, 0.75)
 	draw_texture_rect_region(tex, Rect2(-20, -28, 40, 32), Rect2(frame * 80, 0, 80, 64), mod)
+	if pet.kind == "korsan":
+		# korsan şapkası ve göz bandı
+		draw_colored_polygon(PackedVector2Array([Vector2(-6, -27), Vector2(14, -27), Vector2(10, -36), Vector2(4, -40), Vector2(-2, -36)]), Color("#111827"))
+		draw_circle(Vector2(4, -32), 2.0, Color.WHITE)
+		draw_line(Vector2(-2, -20), Vector2(12, -24), Color("#111827"), 1.5)
+		draw_circle(Vector2(8, -21), 2.6, Color("#111827"))
 	draw_set_transform(Vector2.ZERO)
 	_text(p + Vector2(-60, -30 + lift), pet.name, 12, Color("#e0f2fe") if pet.get("happy", true) else Color("#94a3b8"), 120)
 
@@ -2807,6 +2925,8 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	Avatar.draw(self, p, app, facing, frame, 1.0, swim)
 	if str(extra.get("playing", "")) != "":
 		_draw_instrument(p, str(extra.playing), facing)
+	if str(extra.get("costume", "")) != "":
+		_draw_costume(p, str(extra.costume))
 	if extra.get("roast", false):
 		_draw_roast_stick(p)
 	if Map.SEA_BED.has_point(p):
@@ -3486,7 +3606,8 @@ func _camp_zone(mz: Dictionary) -> Dictionary:
 				mz = {"type": "fire_light", "i": near_fire, "label": "Kamp ateşi yak (2 odun, ambarda %d)" % int(Farm.my_crops.get("odun", 0))}
 	if my_pos.distance_to(Map.TELESCOPE) < 100.0:
 		mz = {"type": "teleskop", "label": "Teleskop — yıldızları izle"}
-	if not Camp.star.is_empty() and Time.get_ticks_msec() / 1000.0 - float(Camp.star.t0) < Camp.STAR_WINDOW and Map.CAMP.grow(260).has_point(my_pos):
+	if not Camp.star.is_empty() and Time.get_ticks_msec() / 1000.0 - float(Camp.star.t0) < Camp.STAR_WINDOW and Map.CAMP.grow(150).has_point(my_pos) \
+			and (mz.is_empty() or str(mz.get("type", "")) in ["tent_pitch", "forage", "tent_rest", "roast", "fire_light", "teleskop"]):
 		mz = {"type": "wish_star", "label": "KAYAN YILDIZ! Dilek tut"}
 	return mz
 
@@ -3898,6 +4019,7 @@ func _update_fair_zone() -> void:
 		z = {"type": "bumper", "label": "Çarpışan arabalar (%d jeton, 60 sn)" % Fair.RIDE_COST}
 	if my_pos.distance_to(Map.BALLOON_FIELD) < 140.0:
 		z = {"type": "balloon", "label": "Sıcak hava balonu turu (%s, 45 sn)" % U.money(Airport.BALLOON_PRICE)}
+	z = _zoo_zone(z)
 	zone = z
 	hud.set_hint("" if panel != null or z.is_empty() else "[%s]  %s" % [Settings.key_name("interact"), z.label])
 
@@ -4160,3 +4282,385 @@ func _draw_fair() -> void:
 	draw_circle(sh + Vector2(-55, 22), 10, Color("#111827"))
 	draw_circle(sh + Vector2(55, 22), 10, Color("#111827"))
 	_text(sh + Vector2(-100, -50), "ŞEHİR SERVİSİ", 14, Color("#fde68a"), 200)
+
+
+
+# ================================================================== 1.5: özel günler, spor, korsan adası, hayvanat bahçesi
+
+func _holiday_g_action() -> Dictionary:
+	match Holidays.active:
+		"cadilar":
+			for b in Map.BUILDINGS:
+				var door := "b:" + str(b.type)
+				if my_pos.distance_to(Holidays.door_pos(door)) < 80.0:
+					return {"kind": "knock", "door": door, "label": "Kapıyı çal: Şeker mi şaka mı?"}
+			for i in mini(Land.view.size(), Map.PLOT_COUNT):
+				var p: Dictionary = Land.view[i]
+				if int(p.level) >= 1 and str(p.get("kind", "home")) == "home" and my_pos.distance_to(Holidays.door_pos("p:%d" % i)) < 80.0:
+					return {"kind": "knock", "door": "p:%d" % i, "label": "Kapıyı çal: Şeker mi şaka mı?"}
+		"ramazan", "kurban":
+			for k in Map.NPCS:
+				if my_pos.distance_to(Map.NPCS[k].pos) < 90.0:
+					return {"kind": "hand", "npc": k, "label": "%s'nın elini öp (harçlık)" % Map.NPCS[k].name}
+		"sevgililer":
+			for id in shown:
+				if shown[id].distance_to(my_pos) < 100.0 and Net.roster.has(id):
+					return {"kind": "rose", "to": id, "label": "%s'e gül ver ♥" % Net.roster[id].name}
+	return {}
+
+
+func _holiday_zone(z: Dictionary) -> Dictionary:
+	var h := Holidays.active
+	if h == "":
+		return z
+	if my_pos.distance_to(Holidays.STALL) < 90.0:
+		z = {"type": "bayram", "label": "%s tezgâhı" % Holidays.NAMES[h]}
+	if h == "yilbasi":
+		if my_pos.distance_to(Holidays.SANTA) < 90.0:
+			z = {"type": "santa", "label": "Noel Baba'dan günlük hediyeni al"}
+		for g in Holidays.gifts:
+			if my_pos.distance_to(Vector2(float(g.x), float(g.y))) < 80.0:
+				z = {"type": "gift", "id": int(g.id), "label": "Hediye kutusunu aç"}
+	return z
+
+
+func _korsan_zone(z: Dictionary) -> Dictionary:
+	if not Map.on_korsan(my_pos) and not Map.KORSAN_PIER.grow(30).has_point(my_pos):
+		return z
+	if my_pos.distance_to(Map.KORSAN_CAPTAIN) < 75.0:
+		return {"type": "korsan", "label": "Korsan Kaptan Tek Göz Rıza"}
+	if Map.on_korsan(my_pos) and z.is_empty():
+		return {"type": "dig", "label": "Kürekle kaz" + (" (haritadaki X'i ara!)" if Pirates.state.get("has_map", false) else "") if Pirates.state.get("shovel", false) else "Kazmak için kaptandan kürek al"}
+	return z
+
+
+func _zoo_zone(z: Dictionary) -> Dictionary:
+	if my_pos.distance_to(Map.ZOO_GATE + Vector2(0, -50)) < 90.0 and not Zoo.has_ticket():
+		z = {"type": "zoo_ticket", "label": "Hayvanat bahçesi bileti (%s, 1 saat; akvaryum dahil)" % U.money(Zoo.TICKET_PRICE)}
+	if my_pos.distance_to(Map.ZOO_KEEPER) < 100.0:
+		z = {"type": "keeper", "label": "Gönüllü bakıcılık: %s" % ("bırak" if Zoo.task != "" else "iş al (yem taşı)")}
+	if Zoo.task != "" and my_pos.distance_to(Zoo.pen_front(Zoo.task)) < 100.0:
+		z = {"type": "deliver", "label": "Yemi %s bölmesine ver" % Zoo.ANIMALS[Zoo.task]}
+	var fp := Zoo.feeding(Land.server_now())
+	if fp != "" and my_pos.distance_to(Zoo.pen_front(fp)) < 140.0 and z.is_empty():
+		z = {"type": "watch", "label": "Besleme saati: %s! İzle (+XP)" % Zoo.ANIMALS[fp]}
+	for b in Map.ZOO_BUILDINGS:
+		if b.rect.grow(26).has_point(my_pos):
+			z = {"type": "akvaryum", "label": "Akvaryum" + ("" if Zoo.has_ticket() else " (bilet gerekir)")}
+	return z
+
+
+func _on_marathon(d: Dictionary) -> void:
+	match str(d.get("state", "")):
+		"start", "cp":
+			var cp := int(Gym.run.get("cp", 1))
+			if cp < Map.MARATHON.size():
+				set_nav(Map.MARATHON[cp])
+			if d.state == "cp":
+				Sfx.play("tick", 0.0, 1.5)
+		"end":
+			nav_target = null
+			if d.get("ok", false):
+				Sfx.play("success")
+
+
+## Bölmedeki hayvanlar: [[konum, yön, hareket]] (zamana bağlı, herkeste aynı).
+func _zoo_animals(pen: String) -> Array:
+	var r: Rect2 = Map.ZOO_PENS[pen]
+	var n: int = {"aslan": 2, "fil": 2, "zurafa": 2, "penguen": 5, "maymun": 4, "ayi": 2}[pen]
+	var feeding := Zoo.feeding(Land.server_now()) == pen
+	var out: Array = []
+	for i in n:
+		var ph: float = i * 1.7 + pen.length()
+		var sp: float = 0.15 + 0.05 * i
+		var p := r.get_center() + Vector2(sin(_t * sp + ph) * r.size.x * 0.32, cos(_t * sp * 0.7 + ph) * r.size.y * 0.25)
+		if feeding:
+			p = Vector2(r.get_center().x - 50 + i * 30, r.end.y - 40)
+		var vx := cos(_t * sp + ph)
+		out.append([p, vx >= 0.0, absf(vx) > 0.2 and not feeding])
+	return out
+
+
+func _draw_zoo_animal(pen: String, a: Array) -> void:
+	var p: Vector2 = a[0]
+	var s := 1.0 if a[1] else -1.0
+	var bob := sin(_t * 8.0) * 1.5 if a[2] else 0.0
+	draw_set_transform(p + Vector2(0, 6), 0, Vector2(1, 0.35))
+	draw_circle(Vector2.ZERO, 22, Color(0, 0, 0, 0.18))
+	draw_set_transform(Vector2.ZERO)
+	match pen:
+		"aslan":
+			draw_set_transform(p + Vector2(0, -14 + bob), 0, Vector2(1.3, 0.8))
+			draw_circle(Vector2.ZERO, 16, Color("#d97706"))
+			draw_set_transform(Vector2.ZERO)
+			draw_circle(p + Vector2(18 * s, -24 + bob), 13, Color("#92400e"))
+			draw_circle(p + Vector2(20 * s, -24 + bob), 8, Color("#f59e0b"))
+			draw_circle(p + Vector2(23 * s, -26 + bob), 1.5, Color.BLACK)
+			draw_line(p + Vector2(-20 * s, -16), p + Vector2(-32 * s, -26), Color("#d97706"), 3)
+		"fil":
+			draw_set_transform(p + Vector2(0, -22 + bob), 0, Vector2(1.4, 1.0))
+			draw_circle(Vector2.ZERO, 22, Color("#9ca3af"))
+			draw_set_transform(Vector2.ZERO)
+			draw_circle(p + Vector2(26 * s, -30 + bob), 14, Color("#9ca3af"))
+			draw_circle(p + Vector2(20 * s, -30 + bob), 10, Color("#d1d5db"))
+			draw_line(p + Vector2(36 * s, -26 + bob), p + Vector2(40 * s, -6 + bob), Color("#9ca3af"), 6)
+			for lx in [-16, -6, 8, 18]:
+				draw_line(p + Vector2(lx * s, -6), p + Vector2(lx * s, 6), Color("#6b7280"), 7)
+		"zurafa":
+			draw_set_transform(p + Vector2(0, -22 + bob), 0, Vector2(1.2, 0.8))
+			draw_circle(Vector2.ZERO, 15, Color("#fbbf24"))
+			draw_set_transform(Vector2.ZERO)
+			draw_line(p + Vector2(10 * s, -26), p + Vector2(18 * s, -70 + bob), Color("#fbbf24"), 7)
+			draw_circle(p + Vector2(22 * s, -72 + bob), 7, Color("#fbbf24"))
+			for sp in [Vector2(-6, -24), Vector2(4, -18), Vector2(14, -48)]:
+				draw_circle(p + Vector2(sp.x * s, sp.y), 3, Color("#b45309"))
+			for lx in [-10, 10]:
+				draw_line(p + Vector2(lx * s, -12), p + Vector2(lx * s, 6), Color("#d97706"), 3)
+		"penguen":
+			draw_set_transform(p + Vector2(0, -12), (sin(_t * 6.0 + p.x) * 0.15 if a[2] else 0.0), Vector2(0.8, 1.2))
+			draw_circle(Vector2.ZERO, 10, Color("#111827"))
+			draw_circle(Vector2(0, 2), 7, Color("#f8fafc"))
+			draw_set_transform(Vector2.ZERO)
+			draw_colored_polygon(PackedVector2Array([p + Vector2(4 * s, -22), p + Vector2(10 * s, -20), p + Vector2(4 * s, -18)]), Color("#f59e0b"))
+		"maymun":
+			var jump := absf(sin(_t * 3.0 + p.x)) * 10.0 if a[2] else 0.0
+			draw_circle(p + Vector2(0, -14 - jump), 10, Color("#78350f"))
+			draw_circle(p + Vector2(0, -28 - jump), 8, Color("#92400e"))
+			draw_circle(p + Vector2(2 * s, -27 - jump), 5, Color("#fcd34d"))
+			draw_arc(p + Vector2(-10 * s, -10 - jump), 10, 0, PI, 10, Color("#78350f"), 3)
+		"ayi":
+			draw_set_transform(p + Vector2(0, -16 + bob), 0, Vector2(1.3, 0.9))
+			draw_circle(Vector2.ZERO, 18, Color("#78350f"))
+			draw_set_transform(Vector2.ZERO)
+			draw_circle(p + Vector2(20 * s, -24 + bob), 11, Color("#78350f"))
+			draw_circle(p + Vector2(26 * s, -22 + bob), 5, Color("#a16207"))
+			draw_circle(p + Vector2(16 * s, -34 + bob), 4, Color("#78350f"))
+
+
+func _draw_zoo() -> void:
+	var z: Rect2 = Map.ZOO
+	var vsize := get_viewport_rect().size / camera.zoom
+	if not Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(200).intersects(z):
+		return
+	draw_rect(z, Color("#86a35f"))
+	draw_rect(Rect2(z.position.x, z.get_center().y + 40, z.size.x, 40), Color("#d6c7a1"))
+	draw_rect(Rect2(Map.ZOO_GATE.x - 30, z.position.y, 60, z.size.y), Color("#d6c7a1"))
+	var terrain := {"aslan": Color("#d9b26a"), "fil": Color("#b8a06a"), "zurafa": Color("#c9b56a"), "penguen": Color("#e0f2fe"), "maymun": Color("#4d7c0f"), "ayi": Color("#6b8e4e")}
+	for k in Map.ZOO_PENS:
+		var r: Rect2 = Map.ZOO_PENS[k]
+		draw_rect(r, terrain[k])
+		if k == "penguen":
+			draw_rect(Rect2(r.position.x + 20, r.position.y + 20, r.size.x * 0.5, r.size.y * 0.45), Color("#38bdf8"))
+		if k == "maymun":
+			for t in 3:
+				draw_line(Vector2(r.position.x + 60 + t * 110, r.end.y - 20), Vector2(r.position.x + 60 + t * 110, r.position.y + 30), Color("#78350f"), 6)
+		if k == "fil":
+			draw_circle(r.position + Vector2(70, 70), 40, Color("#7dd3fc"))
+		draw_rect(r, Color("#57534e"), false, 5)
+		for x in range(int(r.position.x), int(r.end.x), 20):
+			draw_line(Vector2(x, r.position.y), Vector2(x, r.position.y + 6), Color("#44403c"), 2)
+		var label: String = Zoo.ANIMALS[k]
+		if Zoo.feeding(Land.server_now()) == k:
+			label += " — BESLEME SAATİ!"
+			for j in 3:
+				draw_circle(Vector2(r.get_center().x - 40 + j * 40, r.end.y - 14), 7, Color("#a16207"))
+		_text(Vector2(r.position.x, r.end.y + 20), label, 14, Color("#fde68a"), r.size.x)
+	# çit ve turnike
+	draw_rect(z, Color("#44403c"), false, 6)
+	var gx := Map.ZOO_GATE.x
+	draw_rect(Rect2(gx - 50, z.position.y - 8, 100, 16), Color("#16a34a") if Zoo.has_ticket() else Color("#dc2626"))
+	draw_rect(Rect2(gx - 80, z.position.y - 90, 160, 50), Color("#166534"))
+	_text(Vector2(gx - 80, z.position.y - 60), "HAYVANAT BAHÇESİ", 14, Color("#fde68a"), 160, false)
+	# bakıcı ofisi
+	var kp: Vector2 = Map.ZOO_KEEPER
+	draw_rect(Rect2(kp.x - 70, kp.y - 80, 140, 70), Color("#a16207"))
+	draw_colored_polygon(PackedVector2Array([kp + Vector2(-80, -78), kp + Vector2(0, -110), kp + Vector2(80, -78)]), Color("#7c2d12"))
+	_text(Vector2(kp.x - 70, kp.y - 40), "BAKICI", 13, Color.WHITE, 140, false)
+	for j in 3:
+		draw_rect(Rect2(kp.x + 76 + j * 18, kp.y - 24, 14, 18), Color("#6b7280"))
+
+
+func _draw_korsan() -> void:
+	var k: Rect2 = Map.KORSAN
+	var vsize := get_viewport_rect().size / camera.zoom
+	if not Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(300).intersects(k):
+		return
+	var c := k.get_center()
+	draw_set_transform(c, 0, Vector2(1, k.size.y / k.size.x))
+	draw_circle(Vector2.ZERO, k.size.x / 2.0 + 30, Color(0.55, 0.85, 0.95, 0.5))
+	draw_circle(Vector2.ZERO, k.size.x / 2.0, Color("#e9d29c"))
+	draw_circle(Vector2(-30, -10), k.size.x * 0.32, Color("#5a8f3c"))
+	draw_set_transform(Vector2.ZERO)
+	# iskele
+	var pr: Rect2 = Map.KORSAN_PIER
+	draw_rect(pr, Color("#7c5a2b"))
+	for y in range(int(pr.position.y), int(pr.end.y), 14):
+		draw_line(Vector2(pr.position.x, y), Vector2(pr.end.x, y), Color("#5b3a1e"), 2)
+	# kafatası kayası
+	var sk := c + Vector2(-60, 120)
+	draw_circle(sk, 34, Color("#a8a29e"))
+	draw_circle(sk + Vector2(-12, -6), 8, Color("#292524"))
+	draw_circle(sk + Vector2(12, -6), 8, Color("#292524"))
+	draw_rect(Rect2(sk.x - 10, sk.y + 12, 20, 14), Color("#a8a29e"))
+	# karaya oturmuş korsan gemisi
+	var sh: Vector2 = Map.KORSAN_SHIP
+	draw_set_transform(sh, -0.12, Vector2.ONE)
+	draw_colored_polygon(PackedVector2Array([Vector2(-120, -30), Vector2(110, -30), Vector2(90, 10), Vector2(-100, 10)]), Color("#5b3a1e"))
+	for x in range(-110, 100, 24):
+		draw_line(Vector2(x, -30), Vector2(x + 8, 10), Color("#3f2a14"), 2)
+	draw_line(Vector2(-10, -30), Vector2(-14, -150), Color("#3f2a14"), 6)
+	draw_colored_polygon(PackedVector2Array([Vector2(-12, -140), Vector2(60, -126), Vector2(54, -76), Vector2(-12, -86)]), Color("#e7e5e4"))
+	draw_colored_polygon(PackedVector2Array([Vector2(-14, -150), Vector2(-50, -144), Vector2(-14, -136)]), Color("#111827"))
+	draw_circle(Vector2(-30, -143), 3, Color.WHITE)
+	draw_set_transform(Vector2.ZERO)
+	_text(sh + Vector2(-100, -170), "BATIK KORSAN GEMİSİ", 13, Color("#fde68a"), 200)
+	# kazı izleri
+	for hpos in Pirates.holes:
+		var hp := Vector2(float(hpos[0]), float(hpos[1]))
+		draw_set_transform(hp, 0, Vector2(1, 0.5))
+		draw_circle(Vector2.ZERO, 14, Color("#7c5a2b"))
+		draw_circle(Vector2.ZERO, 9, Color("#5b3a1e"))
+		draw_set_transform(Vector2.ZERO)
+	# kaptan
+	var cp: Vector2 = Map.KORSAN_CAPTAIN
+	draw_set_transform(cp + Vector2(0, 10), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 15, Color(0, 0, 0, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	Avatar.draw(self, cp, {"skin": 2, "hair": 4, "hair_color": 0, "shirt": 1, "pants": 3}, _facing_of(my_pos - cp) if my_pos.distance_to(cp) < 160 else "down", 0)
+	draw_colored_polygon(PackedVector2Array([cp + Vector2(-18, -48), cp + Vector2(18, -48), cp + Vector2(12, -60), cp + Vector2(0, -66), cp + Vector2(-12, -60)]), Color("#111827"))
+	draw_circle(cp + Vector2(0, -56), 3, Color.WHITE)
+	draw_line(cp + Vector2(-8, -42), cp + Vector2(8, -38), Color("#111827"), 2)
+	draw_circle(cp + Vector2(4, -38), 3, Color("#111827"))
+	_text(cp + Vector2(-100, -84), "Korsan Kaptan Tek Göz Rıza", 13, Color("#fde68a"), 200)
+	# hazine haritası varsa haritadaki X (kaba)
+	if Pirates.state.get("has_map", false) and my_pos.distance_to(Pirates.map_hint) < 400.0:
+		var x: Vector2 = Pirates.map_hint
+		draw_line(x + Vector2(-14, -8), x + Vector2(14, 8), Color(0.8, 0.1, 0.1, 0.35), 4)
+		draw_line(x + Vector2(-14, 8), x + Vector2(14, -8), Color(0.8, 0.1, 0.1, 0.35), 4)
+
+
+func _draw_costume(p: Vector2, c: String) -> void:
+	match c:
+		"cadi":
+			draw_colored_polygon(PackedVector2Array([p + Vector2(-18, -44), p + Vector2(18, -44), p + Vector2(4, -80), p + Vector2(10, -74)]), Color("#1e1b4b"))
+			draw_rect(Rect2(p.x - 22, p.y - 46, 44, 5), Color("#1e1b4b"))
+			draw_rect(Rect2(p.x - 14, p.y - 50, 28, 4), Color("#a855f7"))
+		"hayalet":
+			draw_colored_polygon(PackedVector2Array([p + Vector2(-18, -50), p + Vector2(18, -50), p + Vector2(20, 8), p + Vector2(10, 2), p + Vector2(0, 8), p + Vector2(-10, 2), p + Vector2(-20, 8)]), Color(0.97, 0.97, 1.0, 0.92))
+			draw_circle(p + Vector2(-6, -34), 3, Color.BLACK)
+			draw_circle(p + Vector2(6, -34), 3, Color.BLACK)
+			draw_circle(p + Vector2(0, -24), 4, Color(0, 0, 0, 0.6))
+		"vampir":
+			draw_colored_polygon(PackedVector2Array([p + Vector2(-16, -26), p + Vector2(16, -26), p + Vector2(24, 4), p + Vector2(-24, 4)]), Color("#111827"))
+			draw_colored_polygon(PackedVector2Array([p + Vector2(-16, -26), p + Vector2(-22, -40), p + Vector2(-8, -28)]), Color("#991b1b"))
+			draw_colored_polygon(PackedVector2Array([p + Vector2(16, -26), p + Vector2(22, -40), p + Vector2(8, -28)]), Color("#991b1b"))
+		"kabak":
+			draw_circle(p + Vector2(0, -36), 15, Color("#f97316"))
+			draw_rect(Rect2(p.x - 2, p.y - 56, 4, 6), Color("#166534"))
+			draw_colored_polygon(PackedVector2Array([p + Vector2(-8, -40), p + Vector2(-3, -40), p + Vector2(-5, -34)]), Color("#111827"))
+			draw_colored_polygon(PackedVector2Array([p + Vector2(3, -40), p + Vector2(8, -40), p + Vector2(5, -34)]), Color("#111827"))
+			draw_line(p + Vector2(-8, -30), p + Vector2(8, -30), Color("#111827"), 2)
+
+
+func _draw_pumpkin(p: Vector2) -> void:
+	draw_set_transform(p, 0, Vector2(1.2, 1.0))
+	draw_circle(Vector2.ZERO, 11, Color("#ea580c"))
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(p.x - 2, p.y - 15, 4, 5), Color("#166534"))
+	var glow := Env.darkness() > 0.3
+	var eye := Color("#fde047") if glow else Color("#111827")
+	draw_colored_polygon(PackedVector2Array([p + Vector2(-7, -3), p + Vector2(-2, -3), p + Vector2(-4, 2)]), eye)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(2, -3), p + Vector2(7, -3), p + Vector2(4, 2)]), eye)
+	draw_line(p + Vector2(-6, 5), p + Vector2(6, 5), eye, 2)
+	if glow:
+		draw_circle(p, 22, Color(1.0, 0.6, 0.1, 0.12))
+
+
+func _draw_holiday() -> void:
+	var h := Holidays.active
+	if h == "" or _room >= 0 or _dive or _mount or _fair:
+		return
+	var vsize := get_viewport_rect().size / camera.zoom
+	var view := Rect2(camera.get_screen_center_position() - vsize / 2.0, vsize).grow(100)
+	# tezgâh
+	var st: Vector2 = Holidays.STALL
+	var col: Color = {"cadilar": Color("#7c3aed"), "yilbasi": Color("#dc2626"), "sevgililer": Color("#ec4899")}.get(h, Color("#dc2626"))
+	draw_rect(Rect2(st.x - 60, st.y - 60, 120, 56), Color("#fef3c7"))
+	for k in 6:
+		draw_rect(Rect2(st.x - 64 + k * 21, st.y - 80, 21, 22), col if k % 2 == 0 else Color.WHITE)
+	_text(Vector2(st.x - 70, st.y - 34), Holidays.NAMES[h].to_upper(), 11, Color("#7c2d12"), 140, false)
+	match h:
+		"cadilar":
+			for b in Map.BUILDINGS:
+				var d: Vector2 = Holidays.door_pos("b:" + str(b.type)) + Vector2(-50, -6)
+				if view.has_point(d):
+					_draw_pumpkin(d)
+			for i in mini(Land.view.size(), Map.PLOT_COUNT):
+				if int(Land.view[i].level) >= 1:
+					var pd := Map.plot_front(i) + Vector2(36, 10)
+					if view.has_point(pd):
+						_draw_pumpkin(pd)
+			if Env.darkness() > 0.3:
+				for k in 10:
+					var bp := view.position + Vector2(fposmod(k * 211.0 + _t * (60.0 + k * 9.0), view.size.x), fmod(k * 97.0, view.size.y * 0.6) + sin(_t * 3.0 + k) * 20.0)
+					var flap := sin(_t * 18.0 + k) * 6.0
+					draw_colored_polygon(PackedVector2Array([bp, bp + Vector2(-14, -6 + flap), bp + Vector2(-8, 2)]), Color("#111827"))
+					draw_colored_polygon(PackedVector2Array([bp, bp + Vector2(14, -6 + flap), bp + Vector2(8, 2)]), Color("#111827"))
+					draw_circle(bp, 3, Color("#111827"))
+		"yilbasi":
+			var t: Vector2 = Holidays.TREE
+			draw_rect(Rect2(t.x - 6, t.y - 14, 12, 16), Color("#78350f"))
+			for k in 4:
+				var w := 46.0 - k * 9.0
+				var y := t.y - 14 - k * 26.0
+				draw_colored_polygon(PackedVector2Array([Vector2(t.x - w, y), Vector2(t.x + w, y), Vector2(t.x, y - 40)]), Color("#166534"))
+			for k in 14:
+				var a := float(k) * 1.7
+				var lp := t + Vector2(sin(a) * (30.0 - k * 1.5), -24.0 - k * 7.0)
+				draw_circle(lp, 3, Color.from_hsv(fmod(k * 0.13 + _t * 0.3, 1.0), 0.8, 1.0))
+			_draw_star(t + Vector2(0, -132), 10, Color("#facc15"))
+			var sa: Vector2 = Holidays.SANTA
+			Avatar.draw(self, sa, {"skin": 1, "hair": 0, "hair_color": 6, "shirt": 1, "pants": 1}, "down", 0)
+			draw_colored_polygon(PackedVector2Array([sa + Vector2(-14, -46), sa + Vector2(14, -46), sa + Vector2(12, -66)]), Color("#dc2626"))
+			draw_circle(sa + Vector2(12, -66), 4, Color.WHITE)
+			draw_circle(sa + Vector2(0, -28), 10, Color(1, 1, 1, 0.95))
+			_text(sa + Vector2(-60, -84), "Noel Baba", 14, Color("#fde68a"), 120)
+			draw_rect(Rect2(sa.x + 18, sa.y - 22, 22, 26), Color("#7c2d12"))
+			for g in Holidays.gifts:
+				var gp := Vector2(float(g.x), float(g.y))
+				if view.has_point(gp):
+					draw_rect(Rect2(gp.x - 11, gp.y - 18, 22, 18), Color("#dc2626"))
+					draw_rect(Rect2(gp.x - 2, gp.y - 18, 4, 18), Color("#facc15"))
+					draw_rect(Rect2(gp.x - 11, gp.y - 11, 22, 4), Color("#facc15"))
+					draw_circle(gp + Vector2(0, -20), 4, Color("#facc15"))
+			for lp in Map.lamp_positions():
+				if view.has_point(lp):
+					for k in 4:
+						draw_circle(lp + Vector2(-9 + k * 6, -30 + (k % 2) * 4), 2.5, Color.from_hsv(fmod(k * 0.25 + _t * 0.5, 1.0), 0.8, 1.0))
+			if Env.season != "winter":
+				for i in 50:
+					var sx := view.position.x + fmod(i * 97.3 + sin(_t * 0.6 + i) * 30.0, view.size.x)
+					var sy := view.position.y + fmod(i * 53.7 + _t * (40.0 + (i % 5) * 10.0), view.size.y)
+					draw_circle(Vector2(sx, sy), 1.8, Color(1, 1, 1, 0.75))
+		"ramazan", "kurban":
+			for lp in Map.lamp_positions():
+				if view.has_point(lp):
+					draw_rect(Rect2(lp.x + 2, lp.y - 34, 18, 12), Color("#dc2626"))
+					draw_circle(lp + Vector2(9, -28), 3, Color.WHITE)
+		"sevgililer":
+			for k in 12:
+				var hp := view.position + Vector2(fmod(k * 173.0, view.size.x), view.size.y - fmod(_t * 25.0 + k * 77.0, view.size.y))
+				draw_circle(hp + Vector2(-4, 0), 5, Color(0.93, 0.28, 0.6, 0.6))
+				draw_circle(hp + Vector2(4, 0), 5, Color(0.93, 0.28, 0.6, 0.6))
+				draw_colored_polygon(PackedVector2Array([hp + Vector2(-9, 1), hp + Vector2(9, 1), hp + Vector2(0, 11)]), Color(0.93, 0.28, 0.6, 0.6))
+
+
+## Maraton noktaları (koşu sürerken).
+func _draw_marathon() -> void:
+	if not Gym.run.is_empty():
+		for i in range(1, Map.MARATHON.size()):
+			var mp: Vector2 = Map.MARATHON[i]
+			var done := i < int(Gym.run.get("cp", 1))
+			draw_rect(Rect2(mp.x - 2, mp.y - 60, 4, 60), Color("#374151"))
+			draw_colored_polygon(PackedVector2Array([mp + Vector2(2, -60), mp + Vector2(30, -52), mp + Vector2(2, -44)]), Color("#94a3b8") if done else Color("#22c55e"))
+			_text(mp + Vector2(-20, -68), str(i), 13, Color.WHITE, 40)

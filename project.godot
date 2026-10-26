@@ -62,6 +62,10 @@ Fair="*res://scripts/fair.gd"
 Airport="*res://scripts/airport.gd"
 Detective="*res://scripts/detective.gd"
 School="*res://scripts/school.gd"
+Holidays="*res://scripts/holidays.gd"
+Gym="*res://scripts/gym.gd"
+Pirates="*res://scripts/pirates.gd"
+Zoo="*res://scripts/zoo.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

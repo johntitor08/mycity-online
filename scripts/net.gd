@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "1.4"
+const VERSION := "1.5"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -259,6 +259,10 @@ func _reset_peer() -> void:
 	Airport.reset()
 	Detective.reset()
 	School.reset()
+	Holidays.reset()
+	Gym.reset()
+	Pirates.reset()
+	Zoo.reset()
 
 
 func _on_connected() -> void:
@@ -287,7 +291,7 @@ func is_admin(id: int) -> bool:
 	return players.has(id) and admins().has(players[id].name)
 
 
-const HELP := "Komutlar: /duyuru metin · /kick isim · /sustur isim dakika · /hava açık|bulutlu|yağmur|fırtına|sis|gökkuşağı · /etkinlik tür · /kaydet · /yedekle · /oyuncular · /yonetici isim"
+const HELP := "Komutlar: /duyuru metin · /kick isim · /sustur isim dakika · /hava açık|bulutlu|yağmur|fırtına|sis|gökkuşağı · /etkinlik tür · /kaydet · /yedekle · /oyuncular · /yonetici isim · /ozelgun cadilar|yilbasi|ramazan|kurban|sevgililer|yok|takvim"
 
 
 ## Yönetici komutları (sohbetten "/" ile).
@@ -312,6 +316,13 @@ func _command(id: int, text: String) -> void:
 	var who := _account_key(parts[1]) if parts.size() > 1 else ""
 	var wid := id_by_name(who)
 	match cmd:
+		"ozelgun":
+			var k := parts[1] if parts.size() > 1 else "takvim"
+			if not k in ["cadilar", "yilbasi", "ramazan", "kurban", "sevgililer", "yok", "takvim"]:
+				notify(id, "Kullanım: /ozelgun cadilar|yilbasi|ramazan|kurban|sevgililer|yok|takvim", false)
+				return
+			Holidays.force(k)
+			notify(id, "Özel gün: %s" % (Holidays.current() if Holidays.current() != "" else "yok"))
 		"duyuru":
 			tell_all(self, "on_chat", {"name": "Duyuru", "text": arg.left(200), "color": Color(1, 0.5, 0.3), "ch": "all"})
 		"kick", "at":
@@ -445,6 +456,9 @@ func _on_peer_disconnected(id: int) -> void:
 	Fair.on_player_left(id)
 	Airport.on_player_left(id)
 	School.on_player_left(id)
+	Gym.on_player_left(id)
+	Pirates.on_player_left(id)
+	Zoo.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -590,6 +604,10 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Fair.send_state(id)
 	Detective.send_state(id)
 	School.send_state(id)
+	Holidays.send_state(id)
+	Gym.send_state(id)
+	Pirates.send_state(id)
+	Zoo.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""

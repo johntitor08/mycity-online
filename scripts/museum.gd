@@ -28,7 +28,7 @@ static func sets() -> Array:
 		if not str(f[0]) in JUNK:
 			fish.append(["fish:" + str(f[0]), str(f[0])])
 	var sea: Array = []
-	for n in ["İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı"]:
+	for n in ["İnci", "Siyah İnci", "Batık Hazinesi", "Hazine Sandığı", "Korsan Altını", "Korsan Pusulası", "Korsan Yüzüğü"]:
 		sea.append(["fish:" + n, n])
 	var fossils: Array = []
 	var minerals: Array = []

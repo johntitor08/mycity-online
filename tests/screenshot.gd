@@ -25,6 +25,12 @@ func _ready() -> void:
 			_shot(part[1])
 		get_tree().quit()
 		return
+	if "--sadece15" in OS.get_cmdline_user_args():
+		Net.add_money(1, 300000)
+		Rpg.add_xp(1, "", 20000)
+		await _shots_15(w)
+		get_tree().quit()
+		return
 	if "--sadece14" in OS.get_cmdline_user_args():
 		Net.add_money(1, 300000)
 		Rpg.add_xp(1, "", 20000)
@@ -251,6 +257,159 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+func _shots_15(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("autumn")
+	Tutorial.finish()
+	w.camera.zoom = Vector2(1, 1)
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0},
+		{"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]
+	var names := ["Ayşe", "Kerem", "Zeynep"]
+	# iskeledeki tekneler (gündüz)
+	Env.hour = 12.0
+	w.my_pos = Vector2(Map.PIER.end.x - 10, Map.MOORED_BOATS[0].y - 60)
+	w.camera.zoom = Vector2(1.3, 1.3)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("iskele_tekneler")
+	w.camera.zoom = Vector2(1, 1)
+	# Cadılar Bayramı gecesi
+	Holidays.force("cadilar")
+	Env.hour = 21.5
+	w.my_pos = Holidays.STALL + Vector2(0, 40)
+	await _wait(0.4)
+	Holidays.costume("cadi")
+	for k in 3:
+		Net.players[9961 + k] = {"name": names[k], "money": 5000, "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 9, "costume": ["hayalet", "vampir", "kabak"][k]}
+	var door: Vector2 = Holidays.door_pos("b:market")
+	Net.positions[9961] = door + Vector2(-60, 30)
+	Net.positions[9962] = door + Vector2(60, 40)
+	Net.positions[9963] = door + Vector2(120, 10)
+	Net._broadcast_roster()
+	w.my_pos = door + Vector2(0, 14)
+	w.camera.zoom = Vector2(1.4, 1.4)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("cadilar")
+	w.camera.zoom = Vector2(1, 1)
+	for k in 3:
+		Net.players.erase(9961 + k)
+		Net.positions.erase(9961 + k)
+	Net._broadcast_roster()
+	# yılbaşı
+	Holidays.force("yilbasi")
+	Env.hour = 18.5
+	for _k in 8:
+		Holidays._spawn_gift()
+	Holidays._gifts.append({"id": 900, "x": Holidays.TREE.x + 90, "y": Holidays.TREE.y + 70})
+	Holidays._broadcast_gifts()
+	w.my_pos = Holidays.TREE + Vector2(60, 90)
+	w.camera.zoom = Vector2(1.5, 1.5)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("yilbasi")
+	w.camera.zoom = Vector2(1, 1)
+	Holidays.force("yok")
+	Env.hour = 13.0
+	# spor salonu
+	w.my_pos = Map.building("spor").rect.get_center() + Vector2(0, 92)
+	await _wait(0.4)
+	Gym.buy_pass()
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.3)
+	Gym.train("strength")
+	await _wait(2.4)
+	Gym.lift()
+	await _wait(0.5)
+	_shot("spor_salonu")
+	await _wait(9.0)
+	w._close_panel()
+	# maraton
+	w.my_pos = Map.MARATHON[0]
+	await _wait(0.3)
+	Gym.start_marathon()
+	await _wait(0.3)
+	w.my_pos = Map.MARATHON[1] + Vector2(-40, 30)
+	await _wait(0.5)
+	w.my_pos = Map.MARATHON[1] + Vector2(-260, 0)
+	w.my_facing = "left"
+	for _k in 30:
+		w.my_pos += Vector2(-3, 0)
+		w.my_moving = true
+		await get_tree().process_frame
+	await _clear_toasts(w)
+	_shot("maraton")
+	Gym._runs.clear()
+	Gym.run = {}
+	w.nav_target = null
+	# korsan adası
+	Env.hour = 16.5
+	var rec: Dictionary = Net.save_data.players["Eren"]
+	w.my_pos = Map.KORSAN_CAPTAIN + Vector2(0, 40)
+	await _wait(0.4)
+	Pirates.buy("shovel")
+	for _k in 4:
+		Pirates.maybe_piece(1, 1.0)
+	await _wait(0.2)
+	Pirates.combine()
+	await _wait(0.3)
+	rec.erase("pet")
+	rec.pirate["found"] = 1
+	Pirates.buy("parrot")
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.6)
+	_shot("hazine_haritasi")
+	w._close_panel()
+	var spot := Vector2(float(rec.pirate.spot[0]), float(rec.pirate.spot[1]))
+	for off in [Vector2(-160, 40), Vector2(140, -30), Vector2(60, 80), Vector2(-60, -50)]:
+		w.my_pos = Map.KORSAN.get_center() + off
+		await _wait(0.2)
+		Pirates._dig_t.clear()
+		Pirates.dig()
+		await _wait(0.2)
+	w.my_pos = spot + Vector2(80, 20)
+	w.camera.zoom = Vector2(1.1, 1.1)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("korsan_adasi")
+	w.camera.zoom = Vector2(1, 1)
+	# hayvanat bahçesi ve akvaryum
+	Env.hour = 12.0
+	w.my_pos = Map.SHUTTLE_CITY + Vector2(0, 20)
+	await _wait(0.3)
+	Fair.shuttle(true)
+	await _wait(0.5)
+	w.my_pos = Map.ZOO_GATE + Vector2(0, -50)
+	await _wait(0.3)
+	Zoo.buy_ticket()
+	await _wait(0.4)
+	w.my_pos = Map.ZOO_GATE + Vector2(0, 180)
+	w.camera.zoom = Vector2(0.8, 0.8)
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("hayvanat_bahcesi")
+	w.camera.zoom = Vector2(1.6, 1.6)
+	w.my_pos = Zoo.pen_front("zurafa") + Vector2(-120, -40)
+	await _wait(1.2)
+	_shot("zurafa")
+	w.camera.zoom = Vector2(1, 1)
+	for n in ["Sazan", "Levrek", "Lüfer", "Kalkan", "Alabalık", "Orkinos", "Hamsi", "Kızılkanat", "Turna", "Palamut", "Köpekbalığı"]:
+		Museum._data()["fish:" + n] = {"by": "Eren", "d": "2026-10-26"}
+	Museum.send_state(1)
+	w.my_pos = Map.ZOO_BUILDINGS[0].rect.get_center() + Vector2(0, 190)
+	await _wait(0.4)
+	w._open_panel()
+	await _wait(1.2)
+	_shot("akvaryum")
+	w._close_panel()
 
 
 func _shots_14(w) -> void:

@@ -26,7 +26,7 @@ func _ready() -> void:
 	shop_box = VBoxContainer.new()
 	shop_box.add_theme_constant_override("separation", 6)
 	body.add_child(shop_box)
-	for k in Pets.PETS:
+	for k in Pets.PETS.keys().filter(func(x): return not Pets.PETS[x].get("special", false)):
 		var p: Dictionary = Pets.PETS[k]
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 10)

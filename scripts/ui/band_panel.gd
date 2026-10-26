@@ -74,6 +74,7 @@ func _ready() -> void:
 	game.add_child(lanes)
 	info = add_label(body, "", 15)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	money_hint(body)
 	Band.changed.connect(_refresh)
 	Band.song_started.connect(_on_start)
 	Band.hit_result.connect(_on_hit)
@@ -90,7 +91,6 @@ func _refresh() -> void:
 		c.queue_free()
 	inst_opt = null
 	add_label(menu, "Sahnede çal: notalar aşağı akar, çizgiye gelince %s tuşlarına bas. Seyirci ve grup (birlikte çalan oyuncular) kazancı artırır." % " ".join(Band.LANE_KEYS.map(func(k): return OS.get_keycode_string(k))), 14, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	money_hint(menu)
 	add_label(menu, "Çalgılar", 18, Color("#facc15"))
 	var r := HBoxContainer.new()
 	r.add_theme_constant_override("separation", 8)
