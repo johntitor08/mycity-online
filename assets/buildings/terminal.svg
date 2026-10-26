@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="460" viewBox="0 0 420 230">
-  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/><stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient></defs>
   <rect x="6" y="70" width="408" height="156" rx="6" fill="#e2e8f0" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="6" y="206" width="408" height="20" rx="0" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M6 70Q210 6 414 70" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="20" y="100" width="380" height="70" rx="6" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="20" y="100" width="380" height="70" rx="6" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" /><polygon points="68.1,167.5 87.3,102.5 98.1,102.5 78.9,167.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="84.3,167.5 103.5,102.5 117.4,102.5 98.1,167.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="21.5" y="101.5" width="377" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="18" y="169" width="384" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <path d="M40 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M80 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M120 100v70" fill="none" stroke="#64748b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />

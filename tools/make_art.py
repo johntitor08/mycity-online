@@ -12,7 +12,8 @@ import os
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
 OL = "#232634"          # dış çizgi rengi
-GLASS = '<linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient>'
+GLASS = ('<linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/>'
+         '<stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient>')
 WARM = '<linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fef3c7"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>'
 
 
@@ -24,8 +25,35 @@ def _st(sw, stroke):
     return f'stroke="{stroke}" stroke-width="{sw}" stroke-linejoin="round" stroke-linecap="round"'
 
 
+WINDOWS = []            # bu dosyada çizilen pencereler (gece ışıkları için windows.json'a yazılır)
+
+
 def rect(x, y, w, h, fill, rx=0, sw=3, stroke=OL, extra=""):
-    return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{fill}" {_st(sw, stroke)} {extra}/>'
+    out = f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{fill}" {_st(sw, stroke)} {extra}/>'
+    if fill == "url(#glass)" and w >= 10 and h >= 10:
+        out += _glass_detail(x, y, w, h)
+        WINDOWS.append([x, y, w, h])
+    return out
+
+
+def _glass_detail(x, y, w, h):
+    """Cam pencereye yansıma (iki çapraz parlama), üstte çerçeve gölgesi ve altta denizlik."""
+    i = 2.5
+    a0, a1 = x + i, x + w - i
+    t0, t1 = y + i, y + h - i
+    k = min(w, h) * 0.55
+    s1 = [(a0 + w * 0.12, t1), (a0 + w * 0.12 + k * 0.5, t0), (a0 + w * 0.12 + k * 0.5 + k * 0.28, t0), (a0 + w * 0.12 + k * 0.28, t1)]
+    s1 = [(min(max(px, a0), a1), py) for px, py in s1]
+    s2 = [(px + k * 0.42, py) for px, py in s1[:2]] + [(px + k * 0.5, py) for px, py in s1[2:]]
+    s2 = [(min(max(px, a0), a1), py) for px, py in s2]
+    pts1 = " ".join(f"{px:.1f},{py:.1f}" for px, py in s1)
+    pts2 = " ".join(f"{px:.1f},{py:.1f}" for px, py in s2)
+    out = f'<polygon points="{pts1}" fill="#ffffff" opacity="0.38" stroke="none"/>'
+    out += f'<polygon points="{pts2}" fill="#ffffff" opacity="0.18" stroke="none"/>'
+    out += f'<rect x="{x + 1.5}" y="{y + 1.5}" width="{max(0, w - 3)}" height="{min(4, h / 6):.1f}" fill="#1e3a5f" opacity="0.25" stroke="none"/>'
+    if h >= 18 and w >= 16:
+        out += f'<rect x="{x - 2}" y="{y + h - 1}" width="{w + 4}" height="3.5" rx="1" fill="#e5e7eb" stroke="{OL}" stroke-width="1.5"/>'
+    return out
 
 
 def circle(cx, cy, r, fill, sw=3, stroke=OL, extra=""):
@@ -53,6 +81,30 @@ def svg(w, h, parts, defs="", scale=2):
 
 
 def save(rel, text):
+    # binaların pencere yerleri (oyun geceleri yakar): assets/buildings/windows.json
+    if WINDOWS and (rel.startswith("buildings/") or rel.startswith("plots/")):
+        import json, re
+        m = re.search(r'viewBox="0 0 ([0-9.]+) ([0-9.]+)"', text)
+        jp = os.path.join(ROOT, "buildings", "windows.json")
+        data = {}
+        if os.path.exists(jp):
+            with open(jp, encoding="utf-8") as f:
+                data = json.load(f)
+        data[rel] = {"size": [float(m.group(1)), float(m.group(2))], "w": [[round(v, 1) for v in r] for r in WINDOWS]}
+        with open(jp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=0)
+        # oyun bu GDScript sabitini okur (dışa aktarımda JSON dosyaları paketlenmeyebilir)
+        gp = os.path.join(ROOT, "..", "scripts", "art_windows.gd")
+        lines = ["extends RefCounted", "## tools/make_art.py üretir: binaların pencere dikdörtgenleri (SVG birimi). Gece ışıkları için.", "",
+                 "const DATA := {"]
+        for k in sorted(data):
+            sz = data[k]["size"]
+            ws = ", ".join(f"Rect2({r[0]}, {r[1]}, {r[2]}, {r[3]})" for r in data[k]["w"])
+            lines.append(f'\t"res://assets/{k}": [Vector2({sz[0]}, {sz[1]}), [{ws}]],')
+        lines.append("}")
+        with open(gp, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    WINDOWS.clear()
     p = os.path.join(ROOT, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
@@ -299,25 +351,39 @@ def tower():
 # ---------------------------------------------------------------- doğa
 
 def trees():
+    # Yuvarlak ağaç: koyu alt katman (gölge), orta ton, ışık alan üst; kabuklu gövde
     W, H = 70, 80
-    p = [rect(30, 48, 10, 26, "#7c4a1e", 2, 2.5)]
-    p += blob([(35, 30, 24), (20, 40, 15), (50, 40, 15)], "#2f7d32")
-    p += [circle(27, 22, 9, "#4caf50", 0), circle(45, 30, 6, "#4caf50", 0), circle(20, 38, 5, "#4caf50", 0)]
+    p = [rect(30, 46, 10, 28, "#7c4a1e", 2, 2.5), path("M33 52v8M37 58v10M34 66v5", "none", 1, "#5b3412"),
+         path("M30 72Q35 76 40 72", "none", 2, "#5b3412")]
+    p += blob([(35, 30, 24), (20, 40, 15), (50, 40, 15)], "#256b2a")
+    p += [circle(35, 27, 20, "#2f7d32", 0), circle(23, 37, 11, "#2f7d32", 0), circle(47, 37, 11, "#2f7d32", 0),
+          circle(29, 21, 11, "#45a049", 0), circle(43, 26, 7, "#45a049", 0), circle(19, 35, 6, "#45a049", 0),
+          circle(26, 17, 5, "#7ccf6e", 0), circle(40, 22, 3, "#7ccf6e", 0), circle(16, 33, 2.5, "#7ccf6e", 0),
+          ellipse(35, 47, 18, 4, "#1b4f1f", 0, extra='opacity="0.45"')]
     save("nature/tree_round.svg", svg(W, H, p))
 
+    # Çam: iki tonlu katlar (sol aydınlık, sağ gölge)
     W, H = 60, 86
-    p = [rect(26, 66, 8, 16, "#7c4a1e", 1, 2.5)]
+    p = [rect(26, 66, 8, 16, "#7c4a1e", 1, 2.5), path("M29 70v8", "none", 1, "#5b3412")]
     tris = [[(30, 4), (50, 32), (10, 32)], [(30, 18), (54, 50), (6, 50)], [(30, 34), (57, 70), (3, 70)]]
     for t in tris:
         p.append(poly(t, OL, 6))
     for t in tris:
         p.append(poly(t, "#166534", 0))
-    p += [poly([(30, 8), (36, 18), (26, 22)], "#22803d", 0), poly([(30, 24), (38, 36), (24, 40)], "#22803d", 0)]
+    for (ax, ay), (bx, by), (cx, cy) in tris:
+        p.append(poly([(ax, ay), (bx, by), (ax + (bx - ax) * 0.15, by)], "#0f4d27", 0))             # sağ gölge
+        p.append(poly([(ax, ay + 4), (ax - (ax - cx) * 0.55, by - 3), (ax - 2, by - 6)], "#2a8f4a", 0))  # sol ışık
+        p.append(path(f"M{cx + 3} {cy - 1}H{bx - 3}", "none", 1.5, "#0b3d1f"))
     save("nature/tree_pine.svg", svg(W, H, p))
 
+    # Çalı: gölgeli, yaprak ışığı ve çiçekler
     W, H = 48, 34
-    p = blob([(14, 20, 11), (26, 15, 12), (36, 21, 10)], "#3f8a3a")
-    p += [circle(22, 11, 4, "#5fb35a", 0), circle(12, 15, 3, "#e11d48", 0), circle(34, 24, 3, "#facc15", 0)]
+    p = blob([(14, 20, 11), (26, 15, 12), (36, 21, 10)], "#357a31")
+    p += [circle(26, 13, 9, "#3f8a3a", 0), circle(14, 19, 8, "#3f8a3a", 0), circle(36, 20, 7, "#3f8a3a", 0),
+          circle(22, 10, 4, "#6cbf63", 0), circle(31, 12, 2.5, "#6cbf63", 0), circle(11, 16, 2.5, "#6cbf63", 0),
+          ellipse(25, 28, 16, 3, "#1f4d1d", 0, extra='opacity="0.4"')]
+    for fx, fy, c in ((12, 15, "#e11d48"), (34, 24, "#facc15"), (25, 21, "#f472b6"), (19, 25, "#ffffff")):
+        p += [circle(fx, fy, 2.6, c, 0.8, "#7f1d1d"), circle(fx, fy, 0.9, "#fde68a", 0)]
     save("nature/bush.svg", svg(W, H, p))
 
 
@@ -383,6 +449,8 @@ def beach():
     ]
     save("beach/boat.svg", svg(W, H, p))
 
+    speedboat()
+
     # Kumdan kale
     W, H = 64, 54
     p = [rect(6, 26, 52, 24, "#e9c97c", 2)]
@@ -433,9 +501,39 @@ HAIR = {
 }
 
 
+EYE = "#3b2a1e"
+BROW = "#4a3424"
+LIP = "#9f3a3a"
+
+
+def face_cell(row):
+    """Boyanmayan yüz katmanı: göz beyazı + iris + parlama, kaşlar, ağız, yanak."""
+    p = []
+    if row == 0:
+        for ex in (19.5, 28.5):
+            p += [ellipse(ex, 19.2, 2.3, 2.7, "#ffffff", 0.8, "#3a2a20"),
+                  ellipse(ex + 0.2, 19.6, 1.5, 1.9, EYE, 0),
+                  circle(ex - 0.4, 18.6, 0.65, "#ffffff", 0)]
+        p += [path("M16.8 15.6Q19.4 14.3 21.8 15.2", "none", 1.15, BROW), path("M26.2 15.2Q28.6 14.3 31.2 15.6", "none", 1.15, BROW),
+              ellipse(24, 21.8, 1.1, 0.7, "#000000", 0, extra='opacity="0.12"'),
+              path("M21.4 24.2Q24 26.8 26.6 24.2", "none", 1.25, LIP),
+              ellipse(15.8, 23.2, 2.3, 1.3, "#fb7185", 0, extra='opacity="0.32"'),
+              ellipse(32.2, 23.2, 2.3, 1.3, "#fb7185", 0, extra='opacity="0.32"')]
+    elif row == 2:
+        p += [ellipse(31.4, 18.8, 1.9, 2.6, "#ffffff", 0.8, "#3a2a20"),
+              ellipse(32.1, 19.2, 1.3, 1.9, EYE, 0),
+              circle(31.6, 18.2, 0.6, "#ffffff", 0),
+              path("M28.8 15.2Q31.5 14.1 34 15.3", "none", 1.15, BROW),
+              path("M31 24.6Q33 25.8 34.6 24.1", "none", 1.25, LIP),
+              ellipse(29.6, 23.2, 2.1, 1.2, "#fb7185", 0, extra='opacity="0.32"')]
+    return p
+
+
 def char_cell(layer, row, frame):
     step = [0, 1, -1][frame]
     p = []
+    if layer == "face":
+        return face_cell(row)
     if layer.startswith("hair_"):
         style = layer[5:]
         p.append(path(HAIR[style][row], WHITE, CSW))
@@ -444,6 +542,13 @@ def char_cell(layer, row, frame):
             p.append(circle(bx, by, 4.6, WHITE, CSW))
         if row != 1 and style != "spiky":
             p.append(path("M18 7.5Q23 5.5 28 7.5" if row == 0 else "M20 8Q26 6 31 8.5", "none", 1, SHADE))
+        # tutam çizgileri (hacim)
+        if row == 0:
+            p.append(path("M15.5 11Q18 7.5 21.5 6.8M30 7.2Q33 8.5 34 11.5", "none", 0.9, SHADE))
+        elif row == 1:
+            p.append(path("M17 9Q24 4.5 31 9M15 15Q24 11 33 15M17 21Q24 18.5 31 21", "none", 0.9, SHADE))
+        else:
+            p.append(path("M17 10Q21 6.5 26 6.5M30 7.5Q34 9 35.5 12", "none", 0.9, SHADE))
         return p
     if row in (0, 1):            # ön ve arka görünüm
         dl, dr = (-2, 0) if step == 1 else ((0, -2) if step == -1 else (0, 0))
@@ -453,7 +558,9 @@ def char_cell(layer, row, frame):
         if layer == "legs":
             p += [
                 rect(17, 44 + dl, 6, 12, WHITE, 2, CSW), rect(25, 44 + dr, 6, 12, WHITE, 2, CSW),
+                rect(28.2, 45 + dr, 2.2, 10, SHADE, 1, 0), rect(17.6, 45 + dl, 1.4, 10, SHADE, 1, 0),
                 ellipse(20, 57 + dl, 4.2, 2.6, SHOE, CSW), ellipse(28, 57 + dr, 4.2, 2.6, SHOE, CSW),
+                ellipse(18.8, 56.2 + dl, 1.6, 0.8, "#6b7280", 0), ellipse(26.8, 56.2 + dr, 1.6, 0.8, "#6b7280", 0),
             ]
         elif layer == "skin":
             p += [
@@ -462,21 +569,19 @@ def char_cell(layer, row, frame):
                 circle(12.5, 18, 2.6, WHITE, CSW), circle(35.5, 18, 2.6, WHITE, CSW),
                 circle(24, 17, 12, WHITE, CSW),
             ]
-            if row == 0:
-                p += [
-                    ellipse(19.5, 19, 1.8, 2.3, OL, 0), ellipse(28.5, 19, 1.8, 2.3, OL, 0),
-                    ellipse(16, 23, 2.2, 1.3, "#f472b6", 0, extra='opacity="0.45"'),
-                    ellipse(32, 23, 2.2, 1.3, "#f472b6", 0, extra='opacity="0.45"'),
-                    path("M21.5 24Q24 26.5 26.5 24", "none", 1.2),
-                ]
+            p += [rect(21.7, 27.6, 4.6, 2.2, SHADE, 1, 0),                       # çene altı gölgesi
+                  circle(12.5, 18, 1.2, SHADE, 0), circle(35.5, 18, 1.2, SHADE, 0)]
         elif layer == "shirt":
             p += [
                 rect(8.5, 30 + al, 6, 12, WHITE, 3, CSW), rect(33.5, 30 + ar, 6, 12, WHITE, 3, CSW),
                 rect(13, 29, 22, 17, WHITE, 5, CSW),
+                path("M28.5 30.5H32Q34 31 34 34V42Q34 45 31.5 45H28.5Z", SHADE, 0),      # sağ yan gölge
+                rect(33.5 + 0.0, 38 + ar, 6, 3, SHADE, 1, 0),                              # kol ağzı
                 path("M15 41h18", "none", 1.2, SHADE),
             ]
             if row == 0:
                 p.append(path("M20 29.5L24 33.5L28 29.5", "none", 1.2, SHADE))
+                p.append(path("M18 36Q19 38 18.5 40", "none", 0.9, SHADE))                 # kırışık
     else:                        # sağa bakan yan görünüm
         back, front = (-3, 3) if step == 1 else ((3, -3) if step == -1 else (0, 0))
         swing = [0, -3, 3][frame]
@@ -490,14 +595,14 @@ def char_cell(layer, row, frame):
                 rect(22, 26, 6, 5, WHITE, 0, CSW),
                 circle(25, 17, 12, WHITE, CSW),
                 path("M36.5 17.5Q39 19 36.6 20.5", WHITE, CSW),
-                ellipse(31.5, 18.6, 1.6, 2.2, OL, 0),
-                ellipse(30, 23, 2, 1.2, "#f472b6", 0, extra='opacity="0.45"'),
-                path("M31 24.5Q33 25.5 34.5 24", "none", 1.2),
+                rect(22.7, 27.6, 4.6, 2.2, SHADE, 1, 0),
+                circle(20.5, 18.5, 2.2, WHITE, CSW), circle(20.5, 18.5, 1.1, SHADE, 0),     # kulak
                 circle(25 + swing * 0.9, 47.5, 2.8, WHITE, CSW),
             ]
         elif layer == "shirt":
             p += [
                 rect(16, 29, 17, 17, WHITE, 5, CSW),
+                path("M16.8 31H20V45H18Q16.8 45 16.8 43Z", SHADE, 0),                      # sırt gölgesi
                 path("M18 41h13", "none", 1.2, SHADE),
                 rect(21.5 + swing * 0.7, 30, 6, 15, "#e3e7ee", 3, CSW),
             ]
@@ -509,7 +614,7 @@ def characters():
     for f in ("base.svg", "base.svg.import", "hair.svg", "hair.svg.import"):
         if os.path.exists(os.path.join(old, f)):
             os.remove(os.path.join(old, f))
-    for layer in ("legs", "skin", "shirt") + tuple("hair_" + h for h in HAIR_STYLES):
+    for layer in ("legs", "skin", "face", "shirt") + tuple("hair_" + h for h in HAIR_STYLES):
         parts = []
         for row in range(3):
             for frame in range(3):
@@ -587,25 +692,40 @@ def pazar():
 # ---------------------------------------------------------------- 0.4: araçlar (üstten, sağa bakar)
 
 def vehicles():
-    # Araba gövdesi (beyaz: oyuncu rengiyle boyanır) + sabit ayrıntılar
+    # Araba gövdesi (beyaz: oyuncu rengiyle boyanır) + sabit ayrıntılar. Üstten, sağa bakar.
     W, H = 96, 52
-    body = [rect(6, 6, 84, 40, "#f8fafc", 14, 3), path("M20 10h40M20 42h40", "none", 1.5, "#cbd5e1")]
-    save("vehicles/car_body.svg", svg(W, H, body))
+    shade = ('<radialGradient id="body" cx="0.5" cy="0.45" r="0.62"><stop offset="0" stop-color="#ffffff"/>'
+             '<stop offset="0.7" stop-color="#eef0f3"/><stop offset="1" stop-color="#b9c0ca"/></radialGradient>')
+    body = [rect(6, 6, 84, 40, "url(#body)", 14, 3),
+            path("M14 9.5H80M14 42.5H80", "none", 1.2, "#d5dae1"),
+            path("M66 12Q74 14 84 16M66 40Q74 38 84 36", "none", 1.2, "#c9cfd8")]      # kaput hatları
+    save("vehicles/car_body.svg", svg(W, H, body, shade))
+    glass = ('<linearGradient id="cglass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0f2fe"/>'
+             '<stop offset="1" stop-color="#3b82c4"/></linearGradient>')
     det = [
         rect(10, 2, 16, 8, "#111827", 3, 1.5), rect(66, 2, 16, 8, "#111827", 3, 1.5),
         rect(10, 42, 16, 8, "#111827", 3, 1.5), rect(66, 42, 16, 8, "#111827", 3, 1.5),
-        path("M58 12L70 16V36L58 40Z", "#7dd3fc", 2),            # ön cam
-        path("M22 14L30 16V36L22 38Z", "#7dd3fc", 2),             # arka cam
-        rect(32, 15, 24, 22, "#000000", 4, 0, OL, 'opacity="0.12"'),  # tavan gölgesi
+        path("M58 12L70 15.5V36.5L58 40Z", "url(#cglass)", 2),                   # ön cam
+        path("M60 15L64 16M60 37L64 36", "none", 1.2, "#ffffff", 'opacity="0.7"'),
+        path("M22 14L30 16V36L22 38Z", "url(#cglass)", 2),                       # arka cam
+        rect(32, 15, 24, 22, "#000000", 4, 0, OL, 'opacity="0.12"'),          # tavan gölgesi
+        path("M35 18H52", "none", 2, "#ffffff", 'opacity="0.45"'),            # tavan parlaması
+        path("M40 7V12M40 40V45M52 7V12M52 40V45", "none", 1, "#000000", 'opacity="0.25"'),   # kapı çizgileri
+        rect(60, 2.5, 6, 4, "#111827", 1.5, 1), rect(60, 45.5, 6, 4, "#111827", 1.5, 1),   # aynalar
         rect(86, 10, 5, 8, "#fef08a", 2, 1), rect(86, 34, 5, 8, "#fef08a", 2, 1),
+        circle(88.5, 14, 1.2, "#ffffff", 0), circle(88.5, 38, 1.2, "#ffffff", 0),
         rect(5, 10, 4, 8, "#ef4444", 1, 1), rect(5, 34, 4, 8, "#ef4444", 1, 1),
+        rect(4, 22, 3, 8, "#9ca3af", 1, 1),                                     # arka tampon plaka yeri
     ]
-    save("vehicles/car_detail.svg", svg(W, H, det))
-    # Bisiklet (üstten)
+    save("vehicles/car_detail.svg", svg(W, H, det, glass))
+    # Bisiklet (üstten): tekerlek, kadro, gidon, sele, pedal
     W, H = 64, 24
     p = [rect(2, 9, 18, 6, "#1f2937", 3, 1.5), rect(44, 9, 18, 6, "#1f2937", 3, 1.5),
-         path("M12 12H52", "none", 3, "#2563eb"), path("M46 4V20", "none", 3, "#374151"),
-         rect(22, 8, 10, 8, "#111827", 3, 1.5)]
+         path("M5 12H17M47 12H59", "none", 1, "#9ca3af"),
+         path("M12 12H52", "none", 3.5, "#f8fafc"), path("M12 12H52", "none", 1.2, "#cbd5e1"),
+         path("M46 3V21", "none", 3, "#374151"), circle(46, 3, 1.8, "#111827", 0), circle(46, 21, 1.8, "#111827", 0),
+         rect(22, 8, 10, 8, "#111827", 3, 1.5), path("M33 9V15", "none", 2, "#6b7280"),
+         circle(36, 7, 2, "#4b5563", 1), circle(36, 17, 2, "#4b5563", 1)]
     save("vehicles/bike.svg", svg(W, H, p))
 
 
@@ -1005,6 +1125,39 @@ def akvaryum():
     save("buildings/akvaryum.svg", svg(W, H, p))
 
 
+def speedboat():
+    """Sürat teknesi (yandan, sağa bakar): beyaz gövde, mavi şerit, ön cam, koltuk ve dıştan takma motor.
+    Oyuncu ortadaki koltukta oturur (dokunun ortası)."""
+    W, H = 150, 64
+    hull_grad = ('<linearGradient id="hull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/>'
+                 '<stop offset="1" stop-color="#dbe3ec"/></linearGradient>'
+                 '<linearGradient id="wind" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0f2fe"/>'
+                 '<stop offset="1" stop-color="#38bdf8" stop-opacity="0.75"/></linearGradient>')
+    p = [
+        # motor (kıçta)
+        rect(2, 18, 16, 24, "#1f2937", 4, 2.5), rect(5, 22, 10, 6, "#ef4444", 2, 0),
+        rect(8, 40, 5, 14, "#374151", 1, 2), path("M6 54h9", "none", 3, "#4b5563"),
+        # gövde
+        path("M14 26H112C126 26 138 30 148 36C138 46 120 54 94 56H24C18 56 14 50 14 44Z", "url(#hull)"),
+        path("M14 44C14 50 18 56 24 56H94C120 54 138 46 148 36C145 38 141 41 136 43C120 50 100 52 80 52H22C17 52 14 48 14 44Z", "#b91c1c", 0),
+        path("M16 36H128C134 36 140 37 145 38", "none", 5, "#1d4ed8"),
+        path("M14 26H112C126 26 138 30 148 36C138 46 120 54 94 56H24C18 56 14 50 14 44Z", "none", 3),
+        # güverte
+        path("M20 26C20 20 24 18 30 18H104C116 18 128 22 136 28H20Z", "#cbd5e1", 2.5),
+        rect(30, 14, 22, 12, "#f8fafc", 4, 2), rect(56, 14, 22, 12, "#f8fafc", 4, 2),       # koltuklar
+        rect(32, 12, 18, 4, "#1d4ed8", 2, 0), rect(58, 12, 18, 4, "#1d4ed8", 2, 0),
+        # ön cam ve direksiyon
+        path("M86 26L96 6H104L100 26Z", "url(#wind)", 2.5),
+        path("M97 9L101 9", "none", 1.5, "#ffffff"),
+        circle(84, 18, 4, "none", 2, "#374151"),
+        # küpeşte ve parlama
+        path("M106 24H126", "none", 2, "#94a3b8"),
+        path("M24 31H96", "none", 2, "#ffffff", 'opacity="0.8"'),
+        circle(140, 33, 1.6, "#fef08a", 0),
+    ]
+    save("beach/speedboat.svg", svg(W, H, p, hull_grad))
+
+
 # ---------------------------------------------------------------- 1.7: sinema
 
 def sinema():
@@ -1064,3 +1217,4 @@ if __name__ == "__main__":
     terminal()
     spor()
     akvaryum()
+    sinema()

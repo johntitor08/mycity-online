@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 300 200">
-  <defs><linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fef3c7"/><stop offset="1" stop-color="#f59e0b"/></linearGradient><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <defs><linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fef3c7"/><stop offset="1" stop-color="#f59e0b"/></linearGradient><linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/><stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient></defs>
   <rect x="14" y="70" width="272" height="126" rx="4" fill="#92400e" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M18 80H282" fill="none" stroke="#78350f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M18 96H282" fill="none" stroke="#78350f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />

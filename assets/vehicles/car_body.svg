@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="104" viewBox="0 0 96 52">
-  
-  <rect x="6" y="6" width="84" height="40" rx="14" fill="#f8fafc" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-  <path d="M20 10h40M20 42h40" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <defs><radialGradient id="body" cx="0.5" cy="0.45" r="0.62"><stop offset="0" stop-color="#ffffff"/><stop offset="0.7" stop-color="#eef0f3"/><stop offset="1" stop-color="#b9c0ca"/></radialGradient></defs>
+  <rect x="6" y="6" width="84" height="40" rx="14" fill="url(#body)" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M14 9.5H80M14 42.5H80" fill="none" stroke="#d5dae1" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M66 12Q74 14 84 16M66 40Q74 38 84 36" fill="none" stroke="#c9cfd8" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />
 </svg>

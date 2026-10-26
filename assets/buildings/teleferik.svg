@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="360" height="232" viewBox="0 0 180 116">
-  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/><stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient></defs>
   <rect x="10" y="40" width="160" height="72" rx="4" fill="#e2e8f0" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="10" y="98" width="160" height="14" rx="0" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <polygon points="2,44 90,8 178,44" fill="#dc2626" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
   <rect x="68" y="62" width="44" height="50" rx="3" fill="#334155" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="22" y="58" width="36" height="26" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="122" y="58" width="36" height="26" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="22" y="58" width="36" height="26" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /><polygon points="28.8,81.5 36.0,60.5 40.0,60.5 32.8,81.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="34.8,81.5 42.0,60.5 47.1,60.5 40.0,81.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="23.5" y="59.5" width="33" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="20" y="83" width="40" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
+  <rect x="122" y="58" width="36" height="26" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /><polygon points="128.8,81.5 136.0,60.5 140.0,60.5 132.8,81.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="134.8,81.5 142.0,60.5 147.1,60.5 140.0,81.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="123.5" y="59.5" width="33" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="120" y="83" width="40" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <rect x="26.0" y="14" width="128" height="26" rx="6" fill="#1e293b" stroke="#fca5a5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
 </svg>

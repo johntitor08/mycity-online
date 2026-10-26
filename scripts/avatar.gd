@@ -30,6 +30,7 @@ const ACCESSORY_SLOTS := ["hat", "glasses", "neck"]
 const TEX := {
 	"legs": preload("res://assets/characters/legs.svg"),
 	"skin": preload("res://assets/characters/skin.svg"),
+	"face": preload("res://assets/characters/face.svg"),
 	"shirt": preload("res://assets/characters/shirt.svg"),
 	"short": preload("res://assets/characters/hair_short.svg"),
 	"long": preload("res://assets/characters/hair_long.svg"),
@@ -92,6 +93,7 @@ static func draw(ci: CanvasItem, pos: Vector2, app: Dictionary, facing: String, 
 	if not swim:
 		ci.draw_texture_rect_region(TEX.legs, dest, src, PANTS_COLORS[a.pants])
 	ci.draw_texture_rect_region(TEX.skin, dest, src, SKIN_TONES[a.skin])
+	ci.draw_texture_rect_region(TEX.face, dest, src)                  # gözler, kaşlar, ağız (boyanmaz)
 	ci.draw_texture_rect_region(TEX.shirt, dest, src, SHIRT_COLORS[a.shirt])
 	var style: String = HAIR_STYLES[a.hair]
 	if style != "bald":

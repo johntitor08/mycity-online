@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="440" viewBox="0 0 320 220">
-  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/><stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient></defs>
   <rect x="4" y="4" width="312" height="70" rx="8" fill="#334155" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M14 40H306" fill="none" stroke="#facc15" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="4" y="72" width="312" height="144" rx="0" fill="#e2e8f0" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="4" y="196" width="312" height="20" rx="0" fill="#94a3b8" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="16" y="120" width="288" height="76" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="16" y="120" width="288" height="76" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><polygon points="53.1,193.5 74.0,122.5 85.7,122.5 64.8,193.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="70.6,193.5 91.5,122.5 106.6,122.5 85.7,193.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="17.5" y="121.5" width="285" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="14" y="195" width="292" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <path d="M112 120v76M208 120v76" fill="none" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M40 180C42 160 60 152 80 150L104 140C116 134 132 134 142 140L160 152C172 154 178 162 178 180Z" fill="#ef4444" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="96" y="144" width="20" height="10" rx="2" fill="#bae6fd" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />

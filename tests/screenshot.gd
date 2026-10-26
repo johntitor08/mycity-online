@@ -35,6 +35,61 @@ func _ready() -> void:
 		await _shots_cover(w)
 		get_tree().quit()
 		return
+	if "--avatar" in OS.get_cmdline_user_args():
+		var layer := CanvasLayer.new()
+		layer.layer = 10
+		add_child(layer)
+		var c := AvatarSheet.new()
+		c.set_anchors_preset(Control.PRESET_FULL_RECT)
+		layer.add_child(c)
+		await _wait(0.8)
+		_shot("avatar_tablo")
+		get_tree().quit()
+		return
+	if "--gorsel" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		Env._sync = -1000000.0
+		Env.force_weather("clear")
+		Env.force_season("summer")
+		Holidays.force("yok")
+		var apps := [["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+			["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+			["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]]
+		_fake_players(apps)
+		for part in [[Vector2(1200, 470), 12.0, "gorsel_gunduz", 1.0], [Vector2(1200, 470), 21.5, "gorsel_gece", 1.0],
+				[Vector2(1640, 470), 13.0, "gorsel_yakin", 2.2], [Vector2(560, 1500), 13.0, "gorsel_park", 1.0]]:
+			Env.hour = float(part[1])
+			w.my_pos = part[0]
+			Net.positions[9981] = part[0] + Vector2(60, 20)
+			Net.positions[9982] = part[0] + Vector2(-50, 30)
+			Net.positions[9983] = part[0] + Vector2(110, -10)
+			w.camera.zoom = Vector2.ONE * float(part[3])
+			await _wait(1.2)
+			await _clear_toasts(w)
+			_shot(part[2])
+		get_tree().quit()
+		return
+	if "--tekne" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		var rec: Dictionary = Net.save_data.players[Net.my_name]
+		if not "boat" in rec.vehicles:
+			rec.vehicles.append("boat")
+		Garage.send_state(1)
+		w.my_pos = Vector2(Map.PIER.end.x + 160, Map.MOORED_BOATS[0].y + 120)
+		await _wait(0.4)
+		Garage.set_ride(1, "boat")
+		for k in 20:
+			w.my_pos += Vector2(5, 0)
+			await _wait(0.03)
+		w.camera.zoom = Vector2(1.4, 1.4)
+		await _wait(1.0)
+		await _clear_toasts(w)
+		_shot("tekne_yeni")
+		get_tree().quit()
+		return
 	if "--hud" in OS.get_cmdline_user_args():
 		var Map = preload("res://scripts/map.gd")
 		Tutorial.finish()
@@ -2297,3 +2352,17 @@ func _shot(n: String) -> void:
 
 func _wait(s: float) -> void:
 	await get_tree().create_timer(s).timeout
+
+
+
+class AvatarSheet extends Control:
+	func _draw() -> void:
+		var Avatar = preload("res://scripts/avatar.gd")
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#7fb069"))
+		var apps := [{"skin": 0, "hair": 0, "hair_color": 0, "shirt": 1, "pants": 0}, {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1},
+			{"skin": 3, "hair": 3, "hair_color": 1, "shirt": 6, "pants": 2}, {"skin": 2, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4},
+			{"skin": 4, "hair": 4, "hair_color": 2, "shirt": 4, "pants": 3, "glasses": 1, "hat": 1}]
+		for i in apps.size():
+			for j in 3:
+				var f: String = ["down", "right", "up"][j]
+				Avatar.draw(self, Vector2(130 + i * 240, 200 + j * 220), apps[i], f, 0, 3.2)

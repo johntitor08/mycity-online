@@ -1,12 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="120" height="172" viewBox="0 0 60 86">
   
   <rect x="26" y="66" width="8" height="16" rx="1" fill="#7c4a1e" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M29 70v8" fill="none" stroke="#5b3412" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" />
   <polygon points="30,4 50,32 10,32" fill="#232634" stroke="#232634" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
   <polygon points="30,18 54,50 6,50" fill="#232634" stroke="#232634" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
   <polygon points="30,34 57,70 3,70" fill="#232634" stroke="#232634" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
   <polygon points="30,4 50,32 10,32" fill="#166534" stroke="none"/>
   <polygon points="30,18 54,50 6,50" fill="#166534" stroke="none"/>
   <polygon points="30,34 57,70 3,70" fill="#166534" stroke="none"/>
-  <polygon points="30,8 36,18 26,22" fill="#22803d" stroke="none"/>
-  <polygon points="30,24 38,36 24,40" fill="#22803d" stroke="none"/>
+  <polygon points="30,4 50,32 33.0,32" fill="#0f4d27" stroke="none"/>
+  <polygon points="30,8 19.0,29 28,26" fill="#2a8f4a" stroke="none"/>
+  <path d="M13 31H47" fill="none" stroke="#0b3d1f" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="30,18 54,50 33.6,50" fill="#0f4d27" stroke="none"/>
+  <polygon points="30,22 16.799999999999997,47 28,44" fill="#2a8f4a" stroke="none"/>
+  <path d="M9 49H51" fill="none" stroke="#0b3d1f" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  <polygon points="30,34 57,70 34.05,70" fill="#0f4d27" stroke="none"/>
+  <polygon points="30,38 15.149999999999999,67 28,64" fill="#2a8f4a" stroke="none"/>
+  <path d="M6 69H54" fill="none" stroke="#0b3d1f" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
 </svg>

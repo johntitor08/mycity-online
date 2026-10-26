@@ -111,7 +111,7 @@ const PROPS := [
 	[preload("res://assets/beach/lifeguard.svg"), 128.0],
 	[preload("res://assets/beach/sandcastle.svg"), 40.0],
 ]
-const BOAT_TEX := preload("res://assets/beach/boat.svg")
+const BOAT_TEX := preload("res://assets/beach/speedboat.svg")   # sürat teknesi (kayık ayrı: _draw_kayik)
 const SPEED := 300.0
 # sahne önündeki seyirciler (biri çalarken görünür): konum, görünüm
 const PADDOCK := Rect2(1322, 3968, 190, 112)       # haranın önündeki padok
@@ -150,6 +150,8 @@ var _dive := false          # deniz tabanında mıyım (dalış)
 var _mount := false         # dağda mıyım (1.2)
 var _fair := false          # fuar ve havalimanında mıyım (1.4)
 var _ocean := false         # Açık Okyanus'ta mıyım (1.6)
+var night_windows: Node2D   # gece yanan pencereler (karartmadan etkilenmesin diye ayrı katmanda)
+var _win_queue: Array = []
 var _ocean_acc := 0.0
 var _ocean_flush := 0.0
 var _harp_t := -10.0
@@ -225,6 +227,8 @@ func _ready() -> void:
 	ll.layer = 1
 	ll.follow_viewport_enabled = true
 	add_child(ll)
+	night_windows = NightWindows.new()
+	ll.add_child(night_windows)
 	labels = LabelDrawer.new()
 	labels.font = font
 	labels.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -1952,6 +1956,7 @@ func _make_nature() -> void:
 
 func _draw() -> void:
 	_label_queue = []
+	_win_queue = []
 	if _ocean:
 		_draw_ocean_world()
 		_draw_snow_fx()
@@ -1960,6 +1965,7 @@ func _draw() -> void:
 		return
 	var winter := Env.season == "winter"
 	draw_rect(Map.WORLD, GRASS.get(Env.season, GRASS.spring))
+	_draw_grass_patches()
 	for d in decor:
 		if winter and d[1] < 3:
 			continue      # kışın çiçek yok
@@ -2172,6 +2178,9 @@ func _draw() -> void:
 	_draw_nav()
 	labels.items = _label_queue
 	labels.queue_redraw()
+	night_windows.items = _win_queue
+	night_windows.dark = Env.darkness() if _room < 0 else 0.0
+	night_windows.queue_redraw()
 
 
 func _text(pos: Vector2, text: String, size: int, color: Color, width: float = -1, outline: bool = true) -> void:
@@ -2183,13 +2192,42 @@ func _draw_tex_at(tex: Texture2D, foot: Vector2, height: float, modulate: Color 
 	var s := tex.get_size()
 	var w := s.x / s.y * height
 	draw_texture_rect(tex, Rect2(foot.x - w / 2.0, foot.y - height, w, height), false, modulate)
+	_queue_windows(tex, Rect2(foot.x - w / 2.0, foot.y - height, w, height))
 
 
 func _draw_roads() -> void:
+	var view := _view_rect().grow(60)
 	for r in Map.ROADS:
-		draw_rect(r.grow(8), Color("#9ca3af"))   # kaldırım
+		var sw: Rect2 = r.grow(10)
+		draw_rect(sw, Color("#a8acb3"))   # kaldırım
+		# kaldırım taşları (sadece görünen kısım)
+		var vr := sw.intersection(view)
+		if vr.has_area():
+			for x in range(int(vr.position.x / 24.0) * 24, int(vr.end.x), 24):
+				draw_line(Vector2(x, maxf(sw.position.y, vr.position.y)), Vector2(x, minf(sw.end.y, vr.end.y)), Color(0, 0, 0, 0.08), 1)
+			for y in range(int(vr.position.y / 24.0) * 24, int(vr.end.y), 24):
+				draw_line(Vector2(maxf(sw.position.x, vr.position.x), y), Vector2(minf(sw.end.x, vr.end.x), y), Color(0, 0, 0, 0.08), 1)
+	for r in Map.ROADS:
+		draw_rect(r.grow(2), Color("#6b7280"))   # bordür
 	for r in Map.ROADS:
 		draw_rect(r, Color("#3f4148"))
+		var vr2: Rect2 = r.intersection(view)
+		if vr2.has_area():
+			# asfalt dokusu (sabit desen)
+			for gx in range(int(vr2.position.x / 36.0) * 36, int(vr2.end.x), 36):
+				for gy in range(int(vr2.position.y / 36.0) * 36, int(vr2.end.y), 36):
+					var hsh := absi(gx * 92821 ^ gy * 68917)
+					var sp := Vector2(gx + hsh % 31, gy + (hsh / 31) % 31)
+					if r.has_point(sp):
+						draw_circle(sp, 1.6 + float(hsh % 3) * 0.5, Color(1, 1, 1, 0.05) if hsh % 2 == 0 else Color(0, 0, 0, 0.12))
+	# yaya geçitleri (kavşaklarda)
+	for zr in [Rect2(962, 506, 86, 22), Rect2(1058, 792, 22, 66), Rect2(938, 392, 22, 106)]:
+		var horiz: bool = zr.size.x > zr.size.y
+		for k in range(0, int(zr.size.x if horiz else zr.size.y), 12):
+			if horiz:
+				draw_rect(Rect2(zr.position.x + k, zr.position.y, 7, zr.size.y), Color(1, 1, 1, 0.75))
+			else:
+				draw_rect(Rect2(zr.position.x, zr.position.y + k, zr.size.x, 7), Color(1, 1, 1, 0.75))
 	var line := Color(1, 1, 1, 0.6)
 	for x in range(0, int(Map.WORLD.size.x), 70):
 		draw_rect(Rect2(x, 442, 34, 6), line)
@@ -2239,6 +2277,8 @@ func _draw_building(b: Dictionary) -> void:
 	var r: Rect2 = b.rect
 	draw_rect(Rect2(r.position + Vector2(10, 14), r.size), Color(0, 0, 0, 0.22))
 	draw_texture_rect(BUILDING_TEX[b.type], r, false)
+	_shade_facade(r)
+	_queue_windows(BUILDING_TEX[b.type], r)
 	# Tabela SVG'de boş bırakıldı (eski binalarda y=86..118, yenilerde sign_y).
 	_text(r.position + Vector2(0, float(b.get("sign_y", 110))), U.upper_tr(b.label), 22, Color.WHITE, r.size.x)
 	if b.type in ["teleferik", "teleferik_dag"]:
@@ -2375,7 +2415,7 @@ func _draw_beach() -> void:
 		var bp: Vector2 = Map.MOORED_BOATS[k] + Vector2(0, sin(_t * 1.2 + k) * 3.0)
 		draw_line(bp + Vector2(-50, -6), Vector2(Map.PIER.end.x, bp.y - 10), Color("#a16207"), 2)    # halat
 		draw_set_transform(bp, sin(_t * 0.9 + k) * 0.04, Vector2.ONE)
-		draw_texture_rect(BOAT_TEX, Rect2(-65, -30, 130, 60), false)
+		draw_texture_rect(BOAT_TEX, Rect2(-62, -36, 150, 64), false)
 		draw_set_transform(Vector2.ZERO)
 	var rs: Vector2 = Map.BOAT_RENT_SPOT + Vector2(-70, -10)
 	draw_rect(Rect2(rs.x - 3, rs.y - 70, 6, 70), Color("#5b3a1e"))
@@ -2936,7 +2976,7 @@ func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color, vstyle:
 					draw_circle(wp, 4.0, Garage.RIM_COLORS[rims])
 					draw_circle(wp, 1.6, Color("#374151"))
 		"bike":
-			var bcol := Color.WHITE
+			var bcol := Color("#60a5fa")           # boyanmamış bisiklet mavi
 			if int(vstyle.get("bike", -1)) >= 0:
 				bcol = Garage.PAINTS[int(vstyle.bike) % Garage.PAINTS.size()].lightened(0.25)
 			draw_set_transform(p + Vector2(0, 8), ang, Vector2.ONE)
@@ -2945,7 +2985,7 @@ func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color, vstyle:
 			var bob := sin(_t * 3.0) * 2.0
 			var flip := -1.0 if facing == "left" else 1.0
 			draw_set_transform(p + Vector2(0, 10 + bob), sin(_t * 1.7) * 0.05, Vector2(0.8 * flip, 0.8))
-			draw_texture_rect(BOAT_TEX, Rect2(-65, -30, 130, 60), false)
+			draw_texture_rect(BOAT_TEX, Rect2(-62, -36, 150, 64), false)
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -5771,3 +5811,80 @@ func _draw_moored_kayik() -> void:
 	draw_rect(Rect2(sp.x - 46, sp.y - 58, 92, 26), Color("#fef3c7"))
 	draw_rect(Rect2(sp.x - 46, sp.y - 58, 92, 26), Color("#7c2d12"), false, 2)
 	_text(Vector2(sp.x - 46, sp.y - 52), "KAYIK (bedava)", 11, Color("#7c2d12"), 92, false)
+
+
+
+# ================================================================== görsel iyileştirme: cephe gölgesi, gece pencereleri
+
+const ArtWindows = preload("res://scripts/art_windows.gd")
+
+
+## Binanın alt kısmına yumuşak zemin gölgesi (ambient occlusion) ve sağ kenara hafif gölge: hacim verir.
+func _shade_facade(r: Rect2) -> void:
+	var y0 := r.position.y + r.size.y * 0.62
+	var clear := Color(0, 0, 0, 0)
+	var dark := Color(0, 0, 0, 0.16)
+	draw_polygon(PackedVector2Array([Vector2(r.position.x + 4, y0), Vector2(r.end.x - 4, y0), Vector2(r.end.x - 4, r.end.y), Vector2(r.position.x + 4, r.end.y)]),
+		PackedColorArray([clear, clear, dark, dark]))
+	var x0 := r.end.x - r.size.x * 0.1
+	draw_polygon(PackedVector2Array([Vector2(x0, r.position.y + r.size.y * 0.3), Vector2(r.end.x - 4, r.position.y + r.size.y * 0.3), Vector2(r.end.x - 4, r.end.y), Vector2(x0, r.end.y)]),
+		PackedColorArray([clear, Color(0, 0, 0, 0.08), Color(0, 0, 0, 0.1), clear]))
+
+
+func _queue_windows(tex: Texture2D, dest: Rect2) -> void:
+	if Env.darkness() < 0.12 or tex == null:
+		return
+	var d = ArtWindows.DATA.get(tex.resource_path)
+	if d == null or not _view_rect().grow(100).intersects(dest):
+		return
+	_win_queue.append([dest, d, hash(tex.resource_path) ^ int(dest.position.x * 7.0 + dest.position.y)])
+
+
+class NightWindows extends Node2D:
+	var items: Array = []
+	var dark := 0.0
+
+	func _draw() -> void:
+		if dark < 0.12:
+			return
+		for it in items:
+			var dest: Rect2 = it[0]
+			var size: Vector2 = it[1][0]
+			var k := dest.size / size
+			var seed_v: int = it[2]
+			var i := 0
+			for w in it[1][1]:
+				i += 1
+				var r := Rect2(dest.position + w.position * k, w.size * k)
+				var on := absi(seed_v + i * 7919) % 10 < 7         # pencerelerin çoğu yanar
+				if not on:
+					continue
+				var a := clampf((dark - 0.12) * 1.6, 0.0, 1.0)
+				draw_rect(r.grow(5), Color(1.0, 0.75, 0.35, 0.12 * a))
+				draw_rect(r.grow(-1.5), Color(1.0, 0.86, 0.5, 0.78 * a))
+				draw_rect(Rect2(r.position + Vector2(1.5, 1.5), Vector2(r.size.x - 3, r.size.y * 0.35)), Color(1.0, 0.95, 0.75, 0.35 * a))
+
+
+
+var _grass_patches: Array = []
+
+
+## Çimde yumuşak ton lekeleri (koyu ve açık), sabit tohumla; sadece görünenler çizilir.
+func _draw_grass_patches() -> void:
+	if _grass_patches.is_empty():
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 4242
+		for k in 520:
+			_grass_patches.append([Vector2(rng.randf_range(0, Map.WORLD.size.x), rng.randf_range(0, Map.BEACH.position.y)),
+				Vector2(rng.randf_range(40, 130), rng.randf_range(18, 50)), rng.randf() < 0.55])
+	var view := _view_rect().grow(140)
+	for gp in _grass_patches:
+		var c: Vector2 = gp[0]
+		if not view.has_point(c):
+			continue
+		var sz: Vector2 = gp[1]
+		var col := Color(0, 0.08, 0, 0.07) if gp[2] else Color(1, 1, 0.8, 0.06)
+		draw_set_transform(c, 0, Vector2(1, sz.y / sz.x))
+		draw_circle(Vector2.ZERO, sz.x, col)
+		draw_circle(Vector2(sz.x * 0.3, 0), sz.x * 0.6, col)
+		draw_set_transform(Vector2.ZERO)

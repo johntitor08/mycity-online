@@ -37,6 +37,22 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.7.1: Görsel yenileme
+
+| | |
+|---|---|
+| ![Gündüz](docs/ekran/gorsel_gunduz.png) | ![Gece pencereleri](docs/ekran/gorsel_gece.png) |
+| ![Karakterler](docs/ekran/karakterler.png) | ![Sürat teknesi](docs/ekran/surat_teknesi.png) |
+
+- **Binalar:** camlarda gökyüzü yansıması ve parlama, denizlikler; cephelerde zemin gölgesi ve yan gölge.
+  Geceleri pencerelerin çoğu sıcak ışıkla yanar (pencere yerleri `tools/make_art.py` ile `scripts/art_windows.gd`'ye yazılır).
+- **Karakterler:** yeni yüz katmanı (göz beyazı, iris, parlama, kaşlar, dudak, yanak), tişört/pantolon gölgeleri,
+  saç tutamları, kulak ve çene gölgesi.
+- **Araçlar:** gerçek bir sürat teknesi (beyaz gövde, ön cam, motor; kayıktan ayrı), arabada hacimli kaporta,
+  yan aynalar, kapı ve kaput çizgileri, tavan parlaması; bisiklette jant ve pedallar.
+- **Doğa ve zemin:** gölgeli ağaçlar ve çiçekli çalılar, çimde ton lekeleri, kaldırım taşları ve bordürler,
+  asfalt dokusu ve yaya geçitleri.
+
 ## 1.7: Tren ve sinema, paintball, özel ada, okyanus ticareti, gölde kayık
 
 | | |
@@ -478,8 +494,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.7
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.7
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.7.1
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.7.1
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)

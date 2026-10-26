@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="440" viewBox="0 0 320 220">
-  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/><stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient></defs>
   <rect x="4" y="68" width="312" height="148" rx="6" fill="#fff7ed" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="4" y="196" width="312" height="20" rx="0" fill="#d6b98a" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="10" y="116" width="96" height="80" rx="3" fill="#fef3c7" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
@@ -10,7 +10,7 @@
   <rect x="74" y="104" width="16" height="14" rx="0" fill="#db2777" stroke="none" />
   <rect x="90" y="104" width="16" height="14" rx="0" fill="#ffffff" stroke="none" />
   <rect x="10" y="104" width="96" height="14" rx="0" fill="none" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="20" y="128" width="44" height="44" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="20" y="128" width="44" height="44" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /><polygon points="27.8,169.5 39.9,130.5 46.7,130.5 34.6,169.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="37.9,169.5 50.0,130.5 58.8,130.5 46.7,169.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="21.5" y="129.5" width="41" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="18" y="171" width="48" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <rect x="72" y="132" width="26" height="64" rx="2" fill="#db2777" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <circle cx="36" cy="158" r="5" fill="none" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
   <circle cx="48" cy="158" r="5" fill="none" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
@@ -23,7 +23,7 @@
   <rect x="176" y="104" width="16" height="14" rx="0" fill="#7c3aed" stroke="none" />
   <rect x="192" y="104" width="16" height="14" rx="0" fill="#ffffff" stroke="none" />
   <rect x="112" y="104" width="96" height="14" rx="0" fill="none" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="122" y="128" width="44" height="44" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="122" y="128" width="44" height="44" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /><polygon points="129.8,169.5 141.9,130.5 148.7,130.5 136.6,169.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="139.9,169.5 152.0,130.5 160.8,130.5 148.7,169.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="123.5" y="129.5" width="41" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="120" y="171" width="48" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <rect x="174" y="132" width="26" height="64" rx="2" fill="#7c3aed" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <ellipse cx="144" cy="156" rx="16" ry="4" fill="#7c3aed" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M135 155Q135 140 144 140Q153 140 153 155Z" fill="#8b5cf6" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
@@ -35,7 +35,7 @@
   <rect x="278" y="104" width="16" height="14" rx="0" fill="#ca8a04" stroke="none" />
   <rect x="294" y="104" width="16" height="14" rx="0" fill="#ffffff" stroke="none" />
   <rect x="214" y="104" width="96" height="14" rx="0" fill="none" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="224" y="128" width="44" height="44" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="224" y="128" width="44" height="44" rx="3" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /><polygon points="231.8,169.5 243.9,130.5 250.7,130.5 238.6,169.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="241.9,169.5 254.0,130.5 262.8,130.5 250.7,169.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="225.5" y="129.5" width="41" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="222" y="171" width="48" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <rect x="276" y="132" width="26" height="64" rx="2" fill="#ca8a04" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <circle cx="246" cy="154" r="9" fill="none" stroke="#facc15" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M240 142l6 -7l6 7l-6 6z" fill="#bae6fd" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />

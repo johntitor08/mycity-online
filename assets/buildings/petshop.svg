@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 320 260">
-  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/><stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient></defs>
   <rect x="4" y="4" width="312" height="80" rx="8" fill="#0d9488" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="4" y="82" width="312" height="174" rx="0" fill="#ccfbf1" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="4" y="236" width="312" height="20" rx="0" fill="#5eead4" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
@@ -19,8 +19,8 @@
   <circle cx="266" cy="30" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
   <circle cx="274" cy="30" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
   <circle cx="281" cy="36" r="4.5" fill="#fef3c7" stroke="#232634" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="18" y="134" width="110" height="82" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="192" y="134" width="110" height="82" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="18" y="134" width="110" height="82" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" /><polygon points="33.7,213.5 56.2,136.5 68.9,136.5 46.3,213.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="52.6,213.5 75.2,136.5 91.4,136.5 68.9,213.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="19.5" y="135.5" width="107" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="16" y="215" width="114" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
+  <rect x="192" y="134" width="110" height="82" rx="4" fill="url(#glass)" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" /><polygon points="207.7,213.5 230.2,136.5 242.9,136.5 220.3,213.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="226.6,213.5 249.2,136.5 265.4,136.5 242.9,213.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="193.5" y="135.5" width="107" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="190" y="215" width="114" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <ellipse cx="60" cy="196" rx="22" ry="14" fill="#f97316" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <circle cx="82" cy="186" r="11" fill="#f97316" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <path d="M76 177l3-8 5 6M86 177l3-8 3 8" fill="#f97316" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="440" viewBox="0 0 320 220">
-  <defs><linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+  <defs><linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#eef7ff"/><stop offset="0.45" stop-color="#9fd0f7"/><stop offset="1" stop-color="#3b82c4"/></linearGradient></defs>
   <polygon points="4,72 160,6 316,72" fill="#e7e5e4" stroke="#232634" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
   <polygon points="40,66 160,18 280,66" fill="#d6d3d1" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
   <circle cx="160" cy="46" r="13" fill="#facc15" stroke="#232634" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
@@ -23,8 +23,8 @@
   <path d="M160 122v74" fill="none" stroke="#93c5fd" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <circle cx="152" cy="160" r="2.5" fill="#facc15" stroke="none" />
   <circle cx="168" cy="160" r="2.5" fill="#facc15" stroke="none" />
-  <rect x="100" y="136" width="18" height="30" rx="2" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-  <rect x="202" y="136" width="18" height="30" rx="2" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+  <rect x="100" y="136" width="18" height="30" rx="2" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /><polygon points="104.7,163.5 109.6,138.5 112.4,138.5 107.4,163.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="108.8,163.5 113.8,138.5 115.5,138.5 112.4,163.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="101.5" y="137.5" width="15" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="98" y="165" width="22" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
+  <rect x="202" y="136" width="18" height="30" rx="2" fill="url(#glass)" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /><polygon points="206.7,163.5 211.6,138.5 214.4,138.5 209.4,163.5" fill="#ffffff" opacity="0.38" stroke="none"/><polygon points="210.8,163.5 215.8,138.5 217.5,138.5 214.4,163.5" fill="#ffffff" opacity="0.18" stroke="none"/><rect x="203.5" y="137.5" width="15" height="4.0" fill="#1e3a5f" opacity="0.25" stroke="none"/><rect x="200" y="165" width="22" height="3.5" rx="1" fill="#e5e7eb" stroke="#232634" stroke-width="1.5"/>
   <rect x="116" y="196" width="88" height="8" rx="2" fill="#d6d3d1" stroke="#232634" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
   <rect x="68.0" y="78" width="184" height="32" rx="7" fill="#1c1917" stroke="#facc15" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
 </svg>
