@@ -1970,7 +1970,7 @@ func _draw() -> void:
 		var info = Net.roster.get(id)
 		if info and info.get("pet") is Dictionary and not info.pet.is_empty():
 			var st: Dictionary = npc.pets[id]
-			items.append([st.pos.y, "pet", [st, info.pet]])
+			items.append([st.pos.y + (6.0 if st.get("in_boat", false) else 0.0), "pet", [st, info.pet]])
 	if _mount:
 		for n in mountain_nature:
 			items.append([n[0].y, "mp", n])
@@ -2806,9 +2806,12 @@ func _draw_pet(st: Dictionary, pet: Dictionary) -> void:
 	if tex == null:
 		return
 	var p: Vector2 = st.pos
-	var flying: bool = pet.kind == "parrot" or pet.kind == "korsan"
+	var boat: bool = st.get("in_boat", false)
+	var flying: bool = (pet.kind == "parrot" or pet.kind == "korsan") and not boat
 	var frame := int(_t * (10.0 if flying else 8.0)) % 2 if (st.moving or flying) else 0
-	if not flying:
+	if boat:
+		p += Vector2(0, sin(_t * 2.2) * 1.5)      # teknede dalgayla sallanır
+	elif not flying:
 		draw_set_transform(p + Vector2(0, 4), 0, Vector2(1, 0.4))
 		draw_circle(Vector2.ZERO, 11, Color(0, 0, 0, 0.2))
 	var lift := -26.0 + sin(_t * 3.0) * 3.0 if flying else 0.0
@@ -2822,7 +2825,8 @@ func _draw_pet(st: Dictionary, pet: Dictionary) -> void:
 		draw_line(Vector2(-2, -20), Vector2(12, -24), Color("#111827"), 1.5)
 		draw_circle(Vector2(8, -21), 2.6, Color("#111827"))
 	draw_set_transform(Vector2.ZERO)
-	_text(p + Vector2(-60, -30 + lift), pet.name, 12, Color("#e0f2fe") if pet.get("happy", true) else Color("#94a3b8"), 120)
+	if not boat:            # teknede adı sahibininkiyle çakışmasın
+		_text(p + Vector2(-60, -30 + lift), pet.name, 12, Color("#e0f2fe") if pet.get("happy", true) else Color("#94a3b8"), 120)
 
 
 func _draw_placement_ghost() -> void:
@@ -4952,6 +4956,11 @@ func _draw_ocean_world() -> void:
 	var mine = Net.roster.get(Net.my_id())
 	if mine:
 		items.append([my_pos.y, "p", [my_pos, mine.get("appearance", {}), _name_of(mine), true, my_facing, my_moving, my_ride(), mine.get("color", Color.WHITE), mine]])
+	for id in npc.pets:
+		var pinfo = Net.roster.get(id)
+		var pst: Dictionary = npc.pets[id]
+		if pinfo and pinfo.get("pet") is Dictionary and not pinfo.pet.is_empty() and OM.in_ocean(pst.pos):
+			items.append([pst.pos.y + (6.0 if pst.get("in_boat", false) else 0.0), "pet", [pst, pinfo.pet]])
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
 		match str(it[1]):
@@ -4981,6 +4990,8 @@ func _draw_ocean_world() -> void:
 				_draw_fuel_pump(it[2])
 			"kraken":
 				_draw_kraken(it[2])
+			"pet":
+				_draw_pet(it[2][0], it[2][1])
 			"p":
 				var a: Array = it[2]
 				_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])

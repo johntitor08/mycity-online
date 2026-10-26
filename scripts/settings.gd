@@ -23,6 +23,7 @@ var zoom := 1.0
 var ui_scale := 1.0
 var colorblind := false
 var tutorial_done := false
+var hud_collapsed := {}            # HUD kutuları: anahtar -> küçültülmüş mü
 
 
 func _ready() -> void:
@@ -38,6 +39,8 @@ func _ready() -> void:
 	ui_scale = float(cfg.get_value("ayar", "arayuz", 1.0))
 	colorblind = bool(cfg.get_value("ayar", "renk_korlugu", false))
 	tutorial_done = bool(cfg.get_value("ayar", "egitim_bitti", false))
+	var hc = cfg.get_value("ayar", "hud_kucuk", {})
+	hud_collapsed = hc if hc is Dictionary else {}
 	var saved = cfg.get_value("ayar", "tuslar", {})
 	if saved is Dictionary:
 		for a in saved:
@@ -57,6 +60,7 @@ func save() -> void:
 	cfg.set_value("ayar", "arayuz", ui_scale)
 	cfg.set_value("ayar", "renk_korlugu", colorblind)
 	cfg.set_value("ayar", "egitim_bitti", tutorial_done)
+	cfg.set_value("ayar", "hud_kucuk", hud_collapsed)
 	cfg.set_value("ayar", "tuslar", keys)
 	cfg.save(PATH)
 

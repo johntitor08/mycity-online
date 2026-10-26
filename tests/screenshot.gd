@@ -29,6 +29,35 @@ func _ready() -> void:
 		await _shots_cover(w)
 		get_tree().quit()
 		return
+	if "--hud" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		Pets.give(1, "dog", "Karabaş")
+		var rec: Dictionary = Net.save_data.players[Net.my_name]
+		if not "boat" in rec.vehicles:
+			rec.vehicles.append("boat")
+		Garage.send_state(1)
+		w.my_pos = Map.ISLAND.get_center() + Vector2(0, -260)
+		await _wait(0.5)
+		Garage.set_ride(1, "boat")
+		await _wait(0.4)
+		for k in 30:
+			w.my_pos += Vector2(6, 0)
+			await _wait(0.03)
+		await _wait(0.8)
+		await _clear_toasts(w)
+		_shot("hud_acik")
+		for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
+			w.hud.set_collapsed(k, true)
+		await _wait(0.6)
+		_shot("hud_kucuk")
+		for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
+			w.hud.set_collapsed(k, false)
+		await _wait(0.3)
+		get_tree().quit()
+		return
 	if "--sadece16" in OS.get_cmdline_user_args():
 		Net.add_money(1, 300000)
 		Rpg.add_xp(1, "", 20000)

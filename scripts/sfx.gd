@@ -81,7 +81,8 @@ func _looping(path: String, db: float) -> AudioStreamPlayer:
 
 
 func _on_node_added(n: Node) -> void:
-	if n is BaseButton:
+	if n is BaseButton and not n.has_meta("_tik"):
+		n.set_meta("_tik", true)               # yeniden yerleştirilen düğmeye ikinci kez bağlama
 		n.pressed.connect(play.bind("click", -8.0))
 
 

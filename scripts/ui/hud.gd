@@ -48,6 +48,9 @@ const CHANNELS := ["all", "clan", "local"]
 const CHANNEL_TAGS := {"clan": ["Klan", "#4ade80"], "local": ["Yakın", "#cbd5e1"], "pm": ["Özel", "#f9a8d4"]}
 
 
+var _collapse := {}                # küçültülebilir kutular: anahtar -> [kutu, içerik, düğme, asıl kenarlar]
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	mouse_filter = MOUSE_FILTER_IGNORE
@@ -111,6 +114,7 @@ func _ready() -> void:
 	_small_button(btns3, "Şehirden Çık", Net.leave)
 	Sfx.settings_changed.connect(_refresh_sound)
 	_refresh_sound()
+	_collapsible(top, "bilgi", "", name_label)
 
 	# Sağ üst: zenginler listesi
 	var right := _box(self)
@@ -118,7 +122,7 @@ func _ready() -> void:
 	_place(right, Vector2(1, 0), Vector2(-262, 12), Vector2(-12, 12))
 	var rv := VBoxContainer.new()
 	right.add_child(rv)
-	_label(rv, "Şehrin Zenginleri", 16, Color("#facc15"))
+	var rich_title := _label(rv, "Şehrin Zenginleri", 16, Color("#facc15"))
 	ranking = RichTextLabel.new()
 	ranking.bbcode_enabled = true
 	ranking.fit_content = true
@@ -128,6 +132,7 @@ func _ready() -> void:
 	ranking.meta_clicked.connect(func(meta): transfer_requested.emit(str(meta)))
 	rv.add_child(ranking)
 	_label(rv, "İsme tıkla: para gönder", 11, Color("#7c859e"))
+	_collapsible(right, "zenginler", "", rich_title)
 
 	# Sol alt: sohbet
 	var chat := _box(self)
@@ -154,10 +159,11 @@ func _ready() -> void:
 	chat_input.size_flags_horizontal = SIZE_EXPAND_FILL
 	chat_input.text_submitted.connect(_on_chat_submit)
 	ci.add_child(chat_input)
+	_collapsible(chat, "sohbet", "Sohbet")
 
 	# Alt orta: bina ipucu
 	hint_panel = _box(self)
-	_place(hint_panel, Vector2(0.5, 1), Vector2(-200, -70), Vector2(200, -24))
+	_place(hint_panel, Vector2(0.5, 1), Vector2(-200, -114), Vector2(200, -68))      # tuş çubuğunun üstünde
 	hint_label = _label(hint_panel, "", 20, Color("#fde68a"))
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint_panel.visible = false
@@ -166,6 +172,7 @@ func _ready() -> void:
 	var help_box := _box(self)
 	_place(help_box, Vector2(1, 1), Vector2(-12, -12), Vector2(-12, -12))
 	help_label = _label(help_box, "", 13, Color(1, 1, 1, 0.8))
+	_collapsible(help_box, "tuslar", "Tuşlar", null, true)
 	_refresh_help()
 	Settings.changed.connect(_refresh_help)
 
@@ -307,8 +314,8 @@ func set_minimap(m: Control) -> void:
 	m.custom_minimum_size = Vector2(150, 150 * 4300.0 / 2800.0)
 	m.mouse_filter = MOUSE_FILTER_IGNORE
 	box.add_child(m)
-	_place(box, Vector2(1, 1), Vector2(-170, -290), Vector2(-12, -46))
-	box.mouse_filter = MOUSE_FILTER_IGNORE
+	_place(box, Vector2(1, 1), Vector2(-170, -306), Vector2(-12, -62))
+	_collapsible(box, "harita", "Harita")
 
 
 func _refresh_status() -> void:
@@ -419,6 +426,75 @@ func _place(c: Control, anchor: Vector2, top_left: Vector2, bottom_right: Vector
 		c.grow_vertical = GROW_DIRECTION_BEGIN
 
 
+## Kutunun üstüne küçült/aç (–/+) düğmesi koyar. Küçükken sadece başlık satırı görünür.
+## head_label verilirse (ör. isim, "Şehrin Zenginleri") başlık satırına o taşınır; yoksa `title` yazılır.
+## Durum ayarlarda saklanır (oyun kapanınca da hatırlanır).
+## inline: başlık satırı açılmaz; düğme içeriğin yanına konur (tek satırlık kutular için).
+func _collapsible(box: PanelContainer, key: String, title: String, head_label: Label = null, inline: bool = false) -> void:
+	var content: Control = box.get_child(0)
+	box.remove_child(content)
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 2)
+	wrap.mouse_filter = MOUSE_FILTER_IGNORE
+	box.add_child(wrap)
+	var head := HBoxContainer.new()
+	head.mouse_filter = MOUSE_FILTER_IGNORE
+	wrap.add_child(head)
+	var small_title: Label = null
+	if head_label != null:
+		head_label.get_parent().remove_child(head_label)
+		head.add_child(head_label)
+		head_label.size_flags_horizontal = SIZE_EXPAND_FILL
+	elif inline:
+		small_title = _label(head, title, 12, Color("#7c859e"))      # sadece küçükken görünür
+	else:
+		_label(head, title, 12, Color("#7c859e")).size_flags_horizontal = SIZE_EXPAND_FILL
+	var btn := Button.new()
+	btn.flat = true
+	btn.focus_mode = FOCUS_NONE
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.custom_minimum_size = Vector2(24, 20)
+	if inline:
+		head.add_child(content)
+	head.add_child(btn)
+	if not inline:
+		wrap.add_child(content)
+		content.size_flags_vertical = SIZE_EXPAND_FILL
+	wrap.size_flags_vertical = SIZE_EXPAND_FILL
+	if small_title != null:
+		small_title.visible = not content.visible
+		content.visibility_changed.connect(func(): small_title.visible = not content.visible)
+	box.mouse_filter = MOUSE_FILTER_STOP
+	var orig := Vector4(box.offset_left, box.offset_top, box.offset_right, box.offset_bottom)
+	_collapse[key] = [box, content, btn, orig]
+	btn.pressed.connect(func(): set_collapsed(key, not bool(Settings.hud_collapsed.get(key, false))))
+	_apply_collapse.call_deferred(box, content, btn, orig, key)
+
+
+func _apply_collapse(box: PanelContainer, content: Control, btn: Button, orig: Vector4, key: String) -> void:
+	var small := bool(Settings.hud_collapsed.get(key, false))
+	content.visible = not small
+	btn.text = "+" if small else "–"
+	btn.tooltip_text = "Aç" if small else "Küçült"
+	box.offset_left = orig.x
+	box.offset_top = orig.y
+	box.offset_right = orig.z
+	box.offset_bottom = orig.w
+	if not small:
+		return
+	await get_tree().process_frame
+	if not content.visible:
+		var m := box.get_combined_minimum_size()
+		if box.anchor_left >= 1.0:
+			box.offset_left = box.offset_right - m.x
+		else:
+			box.offset_right = box.offset_left + m.x
+		if box.anchor_top >= 1.0:
+			box.offset_top = box.offset_bottom - m.y
+		else:
+			box.offset_bottom = box.offset_top + m.y
+
+
 func _box(parent: Node) -> PanelContainer:
 	var p := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
@@ -524,7 +600,19 @@ func add_chat_line(bb: String) -> void:
 
 
 func focus_chat() -> void:
+	if bool(Settings.hud_collapsed.get("sohbet", false)):
+		set_collapsed("sohbet", false)
 	chat_input.grab_focus()
+
+
+## HUD kutusunu küçült/aç (anahtar: bilgi, zenginler, sohbet, tuslar, harita).
+func set_collapsed(key: String, small: bool) -> void:
+	if not _collapse.has(key):
+		return
+	Settings.hud_collapsed[key] = small
+	Settings.save()
+	var c: Array = _collapse[key]
+	_apply_collapse(c[0], c[1], c[2], c[3], key)
 
 
 func is_typing() -> bool:

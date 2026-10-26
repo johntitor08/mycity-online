@@ -4,6 +4,7 @@ extends RefCounted
 ## Dünya sahnesi her karede update() çağırır, çizilecek nesneleri items() ile alır.
 
 const Map = preload("res://scripts/map.gd")
+const OM = preload("res://scripts/ocean_map.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
 const WALKERS_PER_ROUTE := [9, 5, 7, 6]
@@ -122,17 +123,41 @@ func update(delta: float, roster: Dictionary, positions: Dictionary, my_id: int,
 			continue
 		var owner: Vector2 = my_pos if id == my_id else positions.get(id, Vector2(-9999, -9999))
 		var st: Dictionary = pets.get(id, {"pos": owner + Vector2(-30, 10), "facing": "right", "moving": false})
+		var ride := str(roster[id].get("ride", ""))
 		var target: Vector2 = owner + Vector2(-34 if st.facing == "right" else 34, 12)
+		st.in_boat = ride == "boat"
+		if st.in_boat:
+			# sahibi teknedeyse hayvan da teknede oturur (kıçta)
+			var dx := owner.x - float(st.get("ox", owner.x))
+			if absf(dx) > 0.5:
+				st.facing = "right" if dx > 0 else "left"
+			st.ox = owner.x
+			st.pos = owner + Vector2(-36.0 if st.facing == "right" else 36.0, -4.0)
+			st.moving = false
+			pets[id] = st
+			continue
+		if st.pos.distance_to(owner) > 600.0 or wet(st.pos) and not wet(target):
+			st.pos = target                      # ışınlandı ya da sudan çıktı: yanına gel
 		var to: Vector2 = target - st.pos
 		st.moving = to.length() > 6.0
+		var step: Vector2 = to * minf(1.0, delta * 4.0)
+		if st.moving and wet(st.pos + step) and not str(roster[id].pet.get("kind", "")) in ["parrot", "korsan"]:
+			st.moving = false                    # suya girmez: kıyıda bekler (papağan uçar)
 		if st.moving:
-			st.pos += to * minf(1.0, delta * 4.0)
+			st.pos += step
 			if absf(to.x) > 3.0:
 				st.facing = "right" if to.x > 0 else "left"
 		pets[id] = st
 	for id in pets.keys():
 		if not roster.has(id):
 			pets.erase(id)
+
+
+## Hayvanın giremeyeceği su: deniz, göl, nehir, okyanus (ada ve iskele hariç).
+static func wet(p: Vector2) -> bool:
+	if OM.in_ocean(p):
+		return not (OM.is_land(p) or OM.on_pier(p))
+	return Map.in_sea(p) or Map.in_water(p)
 
 
 ## Gece ve yağmurda sokaklar tenhalaşır.

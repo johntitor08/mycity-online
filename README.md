@@ -65,6 +65,10 @@ Menüde:
 - **Kraken:** 20–35 dakikada bir ortaya çıkar ve herkese duyurulur.
   - Oyuncular teknelerinden zıpkınla (E, basılı tut) birlikte saldırır; Kraken yakındaki tekneleri sarsar.
   - Ganimet verilen hasara göre bölüşülür; en çok vurana müzelik **Kraken Dişi**.
+- **1.6.1:**
+  - Evcil hayvan suya girmez: sen yüzerken kıyıda bekler, tekneye binince teknede seninle gelir (okyanusta da).
+  - Ekrandaki kutular (bilgi, zenginler listesi, sohbet, mini harita, tuşlar) köşedeki **–/+** ile küçültülüp açılabilir.
+    Seçim ayarlarda saklanır; sohbet küçükken Enter'a basınca kendiliğinden açılır.
 
 ## 1.5: Özel günler, spor salonu ve maraton, Korsan Adası, hayvanat bahçesi ve akvaryum
 
@@ -434,8 +438,8 @@ bir şifreyi kullanma. Eski (şifresiz) kayıtlarda ilk girişte yazılan şifre
 ## itch.io'ya yükleme
 
 ```sh
-butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.6
-butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.6
+butler push build/windows johntitortheprog/mycity-online:windows --userversion 1.6.1
+butler push build/linux johntitortheprog/mycity-online:linux --userversion 1.6.1
 ```
 
 ## Hazır sürümü derlemek (Windows / Linux)
