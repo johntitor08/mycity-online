@@ -8,6 +8,19 @@ const CharacterPanel = preload("res://scripts/ui/character_panel.gd")
 const SETTINGS_PATH := "user://ayarlar.cfg"
 ## 7/24 açık resmi sunucu (boşsa menüde buton görünmez). Biçim: "adres" ya da "adres:port".
 const OFFICIAL_SERVER := "traded-rolled.tun.ply.gg:12861"
+## Tarayıcı sürümünün resmi sunucusu (VPS'te alan adıyla kurulunca ör. "wss://mycity.duckdns.org/oyun").
+## Boşsa sayfanın kendi adresi kullanılır: oyun VPS'teki Caddy'den açıldıysa aynı sunucuya bağlanır.
+const OFFICIAL_WEB_SERVER := ""
+
+
+static func official_web_url() -> String:
+	if OFFICIAL_WEB_SERVER != "":
+		return OFFICIAL_WEB_SERVER
+	var host := str(JavaScriptBridge.eval("location.host", true))
+	if str(JavaScriptBridge.eval("location.protocol", true)) == "https:":
+		return "wss://%s/oyun" % host
+	# yerel deneme (http): aynı makinedeki sunucunun WebSocket portu
+	return "ws://%s:%d" % [str(JavaScriptBridge.eval("location.hostname", true)), Net.DEFAULT_PORT + 1]
 
 var menu: Control
 var world: Node2D
@@ -104,7 +117,7 @@ func _build_menu() -> void:
 	title.add_theme_color_override("font_color", Color("#facc15"))
 	v.add_child(title)
 	var sub := Label.new()
-	sub.text = "Arsa al • Bahis • Poker • Balık tut • Plaj • Hastane & Market'te çalış"
+	sub.text = "Şehrini kur • Dağ, deniz ve korsan adası • Lunapark • Arkadaşlarınla çok oyunculu"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_color_override("font_color", Color("#94a3b8"))
 	v.add_child(sub)
@@ -119,8 +132,12 @@ func _build_menu() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	v.add_child(row)
-	buttons = [_button(row, "Sunucu Kur ve Oyna", _on_host), _button(row, "Sunucuya Katıl", _on_join)]
-	if OFFICIAL_SERVER != "":
+	if OS.has_feature("web"):
+		# tarayıcıda sunucu kurulamaz; adres alanına wss:// adresi de yazılabilir
+		buttons = [_button(row, "Sunucuya Katıl", _on_join)]
+	else:
+		buttons = [_button(row, "Sunucu Kur ve Oyna", _on_host), _button(row, "Sunucuya Katıl", _on_join)]
+	if OFFICIAL_SERVER != "" or OS.has_feature("web"):
 		var official := _button(v, "Resmi Sunucuya Katıl", _on_join_official)
 		official.add_theme_color_override("font_color", Color("#facc15"))
 		buttons.append(official)
@@ -238,6 +255,10 @@ func _on_join() -> void:
 
 
 func _on_join_official() -> void:
+	if OS.has_feature("web"):
+		ip_edit.text = official_web_url()
+		_on_join()
+		return
 	var parts := OFFICIAL_SERVER.split(":")
 	ip_edit.text = parts[0]
 	port_edit.text = parts[1] if parts.size() > 1 else str(Net.DEFAULT_PORT)

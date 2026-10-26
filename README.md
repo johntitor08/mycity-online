@@ -419,6 +419,18 @@ godot --headless --path . --export-release "Windows" build/windows/MyCityOnline.
 Derlenmiş oyun tek dosyadır. Ekransız sunucu için: `MyCityOnline.exe --headless -- --sunucu`
 (build klasörlerindeki `sunucu-baslat` dosyaları bunu yapar).
 
+## Tarayıcıda oynamak (web sürümü)
+
+Adanmış sunucu masaüstü oyuncular için UDP 7777'nin yanında **tarayıcı oyuncuları için WebSocket**
+(TCP 7778, `--ws-port=N` ile değiştirilir, `--ws-port=0` kapatır) da dinler; iki taraftaki oyuncular aynı dünyada
+oynar (`scripts/dual_peer.gd`). Web sürümü: `godot --headless --export-release "Web" build/web/index.html`.
+Tarayıcılar https sayfasında güvenli bağlantı (wss) istediği için canlıda bir alan adı gerekir:
+`./deploy/kur.sh kullanıcı@IP 7777 alan.adi` Caddy ile oyunu `https://alan.adi/` adresinden yayınlar ve
+`wss://alan.adi/oyun` bağlantısını sunucuya aktarır (sertifikayı kendisi alır). Yerelde denemek için
+`python3 -m http.server -d build/web` ile açıp adres alanına `ws://127.0.0.1:7778` yazılabilir.
+Adım adım VPS + alan adı rehberi: [`docs/tanitim/vps_rehberi.md`](docs/tanitim/vps_rehberi.md).
+itch.io sayfa metni, etiketler, kapak ve paylaşım gönderileri: [`docs/tanitim/`](docs/tanitim/).
+
 ## 7/24 sunucu (VPS)
 
 `deploy/` klasörü oyunu bir Ubuntu VPS'te systemd servisi olarak çalıştırır: çökünce ve sunucu

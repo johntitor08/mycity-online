@@ -13,6 +13,9 @@ var _chats: Array = []
 const PASS := "test1234"
 
 
+var _addr := "127.0.0.1"
+var _tname := "Testci"
+
 func check(cond: bool, what: String) -> void:
 	if cond:
 		print("  OK   ", what)
@@ -45,7 +48,9 @@ func _ready() -> void:
 			if a.begins_with("--port="):
 				port = int(a.trim_prefix("--port="))
 		_port = port
-		err = Net.join("Testci", "127.0.0.1", port, Net.hash_password("Testci", PASS), {"skin": 2, "hair": 1, "hair_color": 4, "shirt": 7, "pants": 1})
+		_addr = "ws://127.0.0.1:%d" % (port + 1) if "--ws" in args else "127.0.0.1"
+		_tname = "WebTestci" if "--ws" in args else "Testci"
+		err = Net.join(_tname, _addr, port, Net.hash_password(_tname, PASS), {"skin": 2, "hair": 1, "hair_color": 4, "shirt": 7, "pants": 1})
 	if err != "":
 		print(err)
 		get_tree().quit(1)
@@ -84,7 +89,7 @@ func _on_failed(reason: String) -> void:
 		check(reason.contains("Şifre yanlış"), "yanlış şifre reddedildi (%s)" % reason)
 		_phase = "right_pass"
 		await _wait(0.5)
-		Net.join("Testci", "127.0.0.1", _port, Net.hash_password("Testci", PASS))
+		Net.join(_tname, _addr, _port, Net.hash_password(_tname, PASS))
 		return
 	print("BAĞLANTI HATASI: ", reason)
 	get_tree().quit(1)
@@ -296,7 +301,7 @@ func _on_ok() -> void:
 	_phase = "wrong_pass"
 	Net.leave()
 	await _wait(0.5)
-	Net.join("Testci", "127.0.0.1", _port, Net.hash_password("Testci", "yanlis"))
+	Net.join(_tname, _addr, _port, Net.hash_password(_tname, "yanlis"))
 
 
 func _helper_listing():

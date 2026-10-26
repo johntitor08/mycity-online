@@ -153,7 +153,24 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 	if err != OK:
 		return "Sunucu açılamadı. Port %d kullanımda olabilir (başka bir sunucu açık mı?) (hata %d)." % [port, err]
 	_tune(peer)
-	multiplayer.multiplayer_peer = peer
+	dedicated = as_dedicated
+	# 1.5.1: adanmış sunucu tarayıcı oyuncuları için WebSocket da dinler (varsayılan port+1, TCP).
+	var ws_port := _ws_port_arg(port if as_dedicated else 0)
+	if ws_port > 0:
+		var ws := WebSocketMultiplayerPeer.new()
+		_tune_ws(ws)
+		var tls := _tls_from_args()
+		var werr := ws.create_server(ws_port, "*", tls)
+		if werr == OK:
+			var dual = preload("res://scripts/dual_peer.gd").new()
+			dual.setup(peer, ws)
+			multiplayer.multiplayer_peer = dual
+			log_line("Tarayıcı oyuncuları için WebSocket%s: %d (TCP)" % [" (TLS)" if tls != null else "", ws_port])
+		else:
+			log_line("UYARI: WebSocket portu %d açılamadı (hata %d), sadece UDP" % [ws_port, werr])
+			multiplayer.multiplayer_peer = peer
+	else:
+		multiplayer.multiplayer_peer = peer
 	dedicated = as_dedicated
 	_load()
 	_started_at = Time.get_unix_time_from_system()
@@ -183,6 +200,21 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 func join(player_name: String, address: String, port: int, pass_hash: String = "", appearance = null) -> String:
 	# Alan adlarında IPv4'ü tercih et: Godot ilk bulduğu adresi (çoğu zaman IPv6) kullanır,
 	# IPv6'sı olmayan ağlarda bağlantı takılır.
+	# Tarayıcıda (ya da ws:// / wss:// adresinde) WebSocket ile bağlan
+	if OS.has_feature("web") or address.begins_with("ws://") or address.begins_with("wss://"):
+		var url := address
+		if not url.begins_with("ws"):
+			url = "%s://%s:%d" % ["wss" if OS.has_feature("web") else "ws", address, port]
+		var wpeer := WebSocketMultiplayerPeer.new()
+		_tune_ws(wpeer)
+		var werr := wpeer.create_client(url)
+		if werr != OK:
+			return "Bağlantı başlatılamadı (hata %d)." % werr
+		multiplayer.multiplayer_peer = wpeer
+		_pending = {"name": player_name, "pass": pass_hash, "version": VERSION}
+		if appearance is Dictionary:
+			_pending["appearance"] = appearance
+		return ""
 	if not address.is_valid_ip_address():
 		var v4 := IP.resolve_hostname(address, IP.TYPE_IPV4)
 		if v4 != "":
@@ -203,6 +235,40 @@ func join(player_name: String, address: String, port: int, pass_hash: String = "
 ## Sunucu ve istemci aynı ayarı kullanmalı (sürüm kontrolü bunu garanti eder).
 func _tune(peer: ENetMultiplayerPeer) -> void:
 	peer.host.compress(ENetConnection.COMPRESS_RANGE_CODER)
+
+
+## WebSocket arabellekleri: arsa/oyuncu listesi gibi büyük paketler sığsın.
+func _tune_ws(peer: WebSocketMultiplayerPeer) -> void:
+	peer.inbound_buffer_size = 1 << 22
+	peer.outbound_buffer_size = 1 << 22
+	peer.max_queued_packets = 8192
+
+
+## --ws-port=N (0: kapalı). Verilmezse adanmış sunucuda oyun portu + 1.
+func _ws_port_arg(game_port: int) -> int:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--ws-port="):
+			return int(a.trim_prefix("--ws-port="))
+	return game_port + 1 if game_port > 0 else 0
+
+
+## --tls-cert=yol --tls-key=yol verilirse WebSocket doğrudan wss olarak açılır (ters vekil yoksa).
+func _tls_from_args() -> TLSOptions:
+	var cert_path := ""
+	var key_path := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--tls-cert="):
+			cert_path = a.trim_prefix("--tls-cert=")
+		elif a.begins_with("--tls-key="):
+			key_path = a.trim_prefix("--tls-key=")
+	if cert_path == "" or key_path == "":
+		return null
+	var cert := X509Certificate.new()
+	var key := CryptoKey.new()
+	if cert.load(cert_path) != OK or key.load(key_path) != OK:
+		log_line("UYARI: TLS sertifikası yüklenemedi, WebSocket şifresiz açılıyor")
+		return null
+	return TLSOptions.server(key, cert)
 
 
 func leave() -> void:

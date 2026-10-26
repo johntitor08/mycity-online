@@ -25,6 +25,10 @@ func _ready() -> void:
 			_shot(part[1])
 		get_tree().quit()
 		return
+	if "--kapak" in OS.get_cmdline_user_args():
+		await _shots_cover(w)
+		get_tree().quit()
+		return
 	if "--sadece15" in OS.get_cmdline_user_args():
 		Net.add_money(1, 300000)
 		Rpg.add_xp(1, "", 20000)
@@ -257,6 +261,80 @@ func _ready() -> void:
 	await _shots_06(w)
 	await _shots_07(w)
 	get_tree().quit()
+
+
+## itch.io kapağı için arayüzsüz, temiz sahneler.
+func _shots_cover(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var Avatar = preload("res://scripts/avatar.gd")
+	Net.add_money(1, 300000)
+	Rpg.add_xp(1, "", 20000)
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Tutorial.finish()
+	Holidays.force("yok")
+	w.hud.visible = false
+	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1},
+		{"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0},
+		{"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4},
+		{"skin": 4, "hair": 4, "hair_color": 0, "shirt": 8, "pants": 5}]
+	var names := ["Ayşe", "Kerem", "Zeynep", "Mehmet"]
+	for k in 4:
+		Net.players[9971 + k] = {"name": names[k], "money": 5000, "color": Avatar.shirt_color(apps[k]), "appearance": apps[k], "level": 9}
+	Net._broadcast_roster()
+	# şehir merkezi (gündüz, kalabalık)
+	Env.hour = 11.0
+	var c := Vector2(1300, 470)
+	for k in 4:
+		Net.positions[9971 + k] = c + Vector2(-140 + k * 90, 40 + (k % 2) * 20)
+	w.my_pos = c
+	w.camera.zoom = Vector2(1.1, 1.1)
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("kapak_sehir")
+	# korsan adası
+	Env.hour = 16.5
+	w.my_pos = Map.KORSAN.get_center() + Vector2(60, 20)
+	Net.positions[9971] = Map.KORSAN.get_center() + Vector2(-60, 60)
+	Net.positions[9972] = Map.KORSAN.get_center() + Vector2(140, -20)
+	w.camera.zoom = Vector2(1.2, 1.2)
+	await _wait(1.6)
+	_shot("kapak_korsan")
+	# dağ köyü
+	Env.hour = 12.0
+	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(0, 70)
+	await _wait(0.3)
+	Mountain.go_up()
+	await _wait(0.5)
+	w.my_pos = Map.MOUNTAIN_SPAWN + Vector2(380, -60)
+	Net.positions[9971] = w.my_pos + Vector2(60, 20)
+	Net.positions[9972] = w.my_pos + Vector2(-50, 40)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(1.6)
+	await _clear_toasts(w)
+	_shot("kapak_dag")
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[1].rect.get_center() + Vector2(0, 80)
+	await _wait(0.3)
+	Mountain.go_down()
+	await _wait(0.5)
+	# lunapark
+	w.my_pos = Map.SHUTTLE_CITY + Vector2(0, 20)
+	await _wait(0.3)
+	Fair.shuttle(true)
+	await _wait(0.5)
+	Net.players[9971]["ride"] = "ferris"
+	Net.players[9971]["seat"] = 3
+	Net.players[9972]["ride"] = "bumper"
+	Net._broadcast_roster()
+	Net.positions[9972] = Map.BUMPER.get_center() + Vector2(-80, 30)
+	w.my_pos = Map.FERRIS + Vector2(320, 160)
+	w.camera.zoom = Vector2(0.85, 0.85)
+	for _k in 60:
+		Net.positions[9971] = Fair.seat_pos(3, Land.server_now())
+		await get_tree().process_frame
+	await _clear_toasts(w)
+	_shot("kapak_luna")
 
 
 func _shots_15(w) -> void:
