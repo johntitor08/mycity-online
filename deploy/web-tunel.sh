@@ -32,6 +32,12 @@ echo "$(date -Is) tünel başlıyor" >> "$LOG"
 "$HOME/.local/bin/cloudflared" tunnel --no-autoupdate --protocol http2 --url http://127.0.0.1:7778 2>&1 |
 while IFS= read -r line; do
 	echo "$line" >> "$LOG"
+	# Cloudflare geçici tüneli silerse (uyku, ağ değişimi) cloudflared ölü tünele sonsuza kadar bağlanmaya
+	# çalışır: çık, systemd yeni bir tünelle yeniden başlatsın (Restart=always).
+	if [[ $line == *"Tunnel not found"* ]]; then
+		echo "$(date -Is) tünel Cloudflare'de silinmiş, yeniden başlatılıyor" >> "$LOG"
+		exit 1
+	fi
 	if [[ $line =~ (https://[a-z0-9-]+\.trycloudflare\.com) ]] && [[ "${BASH_REMATCH[1]}" != "$last" ]]; then
 		last="${BASH_REMATCH[1]}"
 		yayinla "$last" &
