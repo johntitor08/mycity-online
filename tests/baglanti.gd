@@ -1,10 +1,14 @@
 extends SceneTree
 ## Sunucuya sadece ENet bağlantısı kurup çıkar (hesap açmaz, kayda dokunmaz).
 ## Kullanım: godot --headless --path . --script tests/baglanti.gd -- ADRES [PORT]
+##   ADRES ws:// ya da wss:// ile başlarsa WebSocket (tarayıcı yolu) denenir.
 
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	var host := args[0] if args.size() > 0 else "127.0.0.1"
+	if host.begins_with("ws://") or host.begins_with("wss://"):
+		_ws(host)
+		return
 	var port := int(args[1]) if args.size() > 1 else 7777
 	var peer := ENetMultiplayerPeer.new()
 	if peer.create_client(host, port) != OK:
@@ -22,4 +26,24 @@ func _init() -> void:
 			return
 		OS.delay_msec(20)
 	print("ZAMAN AŞIMI: %s:%d sunucusuna ulaşılamadı" % [host, port])
+	quit(1)
+
+
+
+func _ws(url: String) -> void:
+	var peer := WebSocketMultiplayerPeer.new()
+	if peer.create_client(url) != OK:
+		print("BAĞLANTI BAŞLATILAMADI")
+		quit(1)
+		return
+	var start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < 10000:
+		peer.poll()
+		if peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			print("BAĞLANDI: %s (%d ms)" % [url, Time.get_ticks_msec() - start])
+			peer.close()
+			quit(0)
+			return
+		OS.delay_msec(20)
+	print("ZAMAN AŞIMI: %s" % url)
 	quit(1)

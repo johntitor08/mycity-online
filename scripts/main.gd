@@ -11,6 +11,9 @@ const OFFICIAL_SERVER := "traded-rolled.tun.ply.gg:12861"
 ## Tarayıcı sürümünün resmi sunucusu (VPS'te alan adıyla kurulunca ör. "wss://mycity.duckdns.org/oyun").
 ## Boşsa sayfanın kendi adresi kullanılır: oyun VPS'teki Caddy'den açıldıysa aynı sunucuya bağlanır.
 const OFFICIAL_WEB_SERVER := ""
+## Tarayıcı sürümü (ör. itch.io) güncel sunucu adresini buradan okur: {"wss": "wss://…"}.
+## Bilgisayardaki Cloudflare tüneli adresi değişince bu dosya kendiliğinden güncellenir (~/.local/bin/mycity-web-tunel.sh).
+const OFFICIAL_WEB_ADDRESS_URL := "https://raw.githubusercontent.com/johntitor08/mycity-online/sunucu/adres.json"
 
 
 static func official_web_url() -> String:
@@ -256,6 +259,9 @@ func _on_join() -> void:
 
 func _on_join_official() -> void:
 	if OS.has_feature("web"):
+		if OFFICIAL_WEB_SERVER == "" and OFFICIAL_WEB_ADDRESS_URL != "":
+			_fetch_web_address()
+			return
 		ip_edit.text = official_web_url()
 		_on_join()
 		return
@@ -263,6 +269,33 @@ func _on_join_official() -> void:
 	ip_edit.text = parts[0]
 	port_edit.text = parts[1] if parts.size() > 1 else str(Net.DEFAULT_PORT)
 	_on_join()
+
+
+## Tarayıcıda: güncel tünel adresini oku, sonra bağlan (okunamazsa sayfanın kendi adresi denenir).
+func _fetch_web_address() -> void:
+	status.add_theme_color_override("font_color", Color("#fde68a"))
+	status.text = "Sunucu adresi alınıyor..."
+	for b in buttons:
+		b.disabled = true
+	var req := HTTPRequest.new()
+	req.timeout = 8.0
+	add_child(req)
+	req.request_completed.connect(func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray):
+		req.queue_free()
+		var addr := ""
+		if result == HTTPRequest.RESULT_SUCCESS and code == 200:
+			var js = JSON.parse_string(body.get_string_from_utf8())
+			if js is Dictionary:
+				addr = str(js.get("wss", ""))
+		for b in buttons:
+			b.disabled = false
+		ip_edit.text = addr if addr.begins_with("ws") else official_web_url()
+		_on_join())
+	# önbelleğe takılmasın diye zaman damgası
+	if req.request("%s?t=%d" % [OFFICIAL_WEB_ADDRESS_URL, int(Time.get_unix_time_from_system())]) != OK:
+		req.queue_free()
+		ip_edit.text = official_web_url()
+		_on_join()
 
 
 func _on_connected() -> void:

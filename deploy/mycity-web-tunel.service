@@ -1,0 +1,12 @@
+[Unit]
+Description=MyCity Online tarayıcı sürümü için Cloudflare tüneli (wss)
+After=network-online.target mycity-sunucu.service
+
+[Service]
+ExecStart=%h/.local/bin/mycity-web-tunel.sh
+Restart=always
+RestartSec=10
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
