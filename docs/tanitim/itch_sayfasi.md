@@ -6,7 +6,7 @@ itch.io → Dashboard → MyCity Online → **Edit game**. Aşağıdakileri ilgi
 
 ## Short description or tagline (kısa açıklama, 1 satır)
 
-Arkadaşlarınla kendi şehrini kur: çiftlik, dağ, deniz, korsan adası, lunapark — Türkçe çok oyunculu yaşam oyunu.
+Arkadaşlarınla kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — Türkçe çok oyunculu yaşam oyunu.
 
 ---
 
@@ -18,10 +18,17 @@ Arkadaşlarınla kendi şehrini kur: çiftlik, dağ, deniz, korsan adası, lunap
 - 🏙️ **Şehir:** 12 arsa, ev → villa → gökdelen, büfe → kafe → restoran, bina ve araba boyama
 - 💼 **Meslekler:** doktor, kasiyer, polis, itfaiyeci, taksi, kargo, çöpçü, fabrika işçisi, hayvanat bahçesi bakıcısı
 - 🎣 **Balıkçılık ve dalış:** göl, deniz, açık deniz, Martı Adası; deniz altında inci ve batık gemi
+- 🌊 **Açık Okyanus:** 30 ada (tropik, volkanik, buzul, batık şehir...), sandıklar ve hazineler, keşif haritası ve fenerler, fırtınalar ve dev **Kraken**
+- 🏝️ **Kendi adan:** okyanusta ada satın al; ev, havuz, bahçe, fener ve iskele kur
+- ⛵ **Ticaret:** adalar arası kargo taşı, ucuza al pahalıya sat; tersanede tekneni geliştir, korsan baskınlarından kaç
 - 🏴‍☠️ **Korsan Adası:** harita parçalarını birleştir, kürekle kaz, gömülü hazineyi bul
 - 🌾 **Çiftlik:** ekin, ahır (tavuk, inek, koyun), yemek pişirme ve tarifler
 - ⛰️ **Dağ:** teleferik, maden ocağı, kayak pisti, kamp ateşi, çadır, teleskop ve kayan yıldızlar
 - 🎡 **Lunapark ve havalimanı:** dönme dolap, çarpışan arabalar, atış poligonu, sıcak hava balonu, uçuşlar
+- 🚆 **Tren:** şehir, dağ köyü ve lunapark arasında manzaralı tren yolculuğu
+- 🎬 **Sinema ve karaoke:** herkesle aynı anda film izle, karaokede günün rekorunu kır
+- 🎨 **Paintball arenası:** takım maçları, bayrak kapma, haftalık lig (botlarla tek başına da oynanır)
+- 🚣 **Göl:** sığ kıyıda yüz, bedava kayıkla gölün ortasında nadir balık tut
 - 🐴 **At çiftliği ve hipodrom:** atını eğit, yarış, bahis oyna
 - 🕵️ **Dedektiflik:** ipucu topla, şüphelileri sorgula, suçluyu bul
 - 🎓 **Okul ve spor salonu:** kurslar, diplomalar, kondisyon, maraton
@@ -31,12 +38,13 @@ Arkadaşlarınla kendi şehrini kur: çiftlik, dağ, deniz, korsan adası, lunap
 - 🏆 Başarımlar, unvanlar, haftalık ligler, şehir müzesi, mevsimler ve hava durumu
 
 ### Nasıl oynanır?
-1. İndir ve aç (Windows / Linux).
+1. İndir ve aç (Windows / Linux) — ya da indirmeden **tarayıcıda oyna**: https://johntitortheprog.itch.io/mycity-online-web
 2. Bir oyuncu adı ve şifre yaz, **Resmi Sunucuya Katıl**'a bas — hesabın otomatik açılır.
 3. Ya da **Sunucu Kur ve Oyna** ile kendi sunucunu kur, arkadaşların senin adresine bağlansın.
 
 ### Kontroller
-WASD / ok tuşları: yürü · E: gir / konuş / kullan · F: araca bin · H: ata bin · G: eylem · M: harita · C: profil · P: telefon · O: fotoğraf modu · V: dal · Enter: sohbet
+WASD / ok tuşları: yürü · E: gir / konuş / kullan · F: araca / tekneye / kayığa bin · H: ata bin · G: eylem · M: harita · C: profil · P: telefon · O: fotoğraf modu · V: dal · Sol tık: paintball atışı · Enter: sohbet
+Ekrandaki kutular köşedeki –/+ ile küçültülebilir.
 
 Oyun sürekli güncelleniyor; her sürümde yeni özellikler geliyor. Sunucuda görüşmek üzere! 👋
 
@@ -53,14 +61,16 @@ oyun
 
 ## Ekran görüntüleri (Screenshots) — sırasıyla yükle
 `docs/ekran/` klasöründen:
-1. teaser kare: `lunapark.png`
-2. `korsan_adasi.png`
-3. `dag_koyu.png`
-4. `kamp.png`
-5. `konser.png`
-6. `hayvanat_bahcesi.png`
-7. `cadilar.png`
-8. `parti.png`
+1. `gorsel_gunduz.png` (şehir, yeni görseller)
+2. `okyanus_kraken.png`
+3. `ozel_ada.png`
+4. `tren_sehir.png`
+5. `sinema_film.png`
+6. `paintball.png`
+7. `gorsel_gece.png`
+8. `gol_kayik.png`
+9. `lunapark.png`
+10. `dag_koyu.png`
 
 ## Kapak görseli (Cover image, 630×500)
 `docs/tanitim/kapak.png`
