@@ -38,7 +38,7 @@ WASD / ok tuşları: yürü · E: kullan · F: araç · M: harita · C: profil �
 Simulation
 
 ## Tags
-multiplayer, browser, life-simulation, sandbox, fishing, 2d, cozy, turkish, open-world, godot
+multiplayer, life-simulation, sandbox, fishing, 2d, cozy, turkish, open-world, godot, online
 
 ## Screenshots
 `docs/ekran/`: `gorsel_gunduz.png`, `okyanus_kraken.png`, `tren_sehir.png`, `paintball.png`, `gol_kayik.png`

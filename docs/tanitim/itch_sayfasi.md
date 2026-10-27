@@ -6,7 +6,7 @@ itch.io → Dashboard → MyCity Online → **Edit game**. Aşağıdakileri ilgi
 
 ## Short description or tagline (kısa açıklama, 1 satır)
 
-Arkadaşlarınla kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — Türkçe çok oyunculu yaşam oyunu.
+Kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — Türkçe çok oyunculu yaşam oyunu. (itch sınırı 120 karakter)
 
 ---
 
@@ -54,7 +54,7 @@ Oyun sürekli güncelleniyor; her sürümde yeni özellikler geliyor. Sunucuda g
 Simulation
 
 ## Tags (etiketler — itch en fazla 10 kabul eder)
-multiplayer, life-simulation, sandbox, fishing, farming, 2d, cozy, turkish, open-world, godot
+2d, ai-generated, multiplayer, life-simulation, sandbox, fishing, cozy, turkish, open-world, godot
 
 ## Custom noun
 oyun
