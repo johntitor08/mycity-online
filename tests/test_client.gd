@@ -2385,7 +2385,7 @@ func _test_15(w) -> void:
 	var m0 := Net.my_money()
 	var k0 := int(Rpg.sheet.items.get("kurabiye", 0))
 	w._open_panel()
-	await _wait(0.4)
+	await _wait(0.9)          # kurabiye eşyası sheet güncellemesiyle biraz sonra gelebiliyor
 	check(Holidays.gifts.size() == 0 and (Net.my_money() > m0 or int(Rpg.sheet.items.get("kurabiye", 0)) > k0), "hediye kutusu açıldı")
 	w.my_pos = Holidays.SANTA + Vector2(0, 40)
 	await _wait(0.3)

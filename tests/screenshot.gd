@@ -35,6 +35,49 @@ func _ready() -> void:
 		await _shots_cover(w)
 		get_tree().quit()
 		return
+	if "--dokunmatik" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		Settings.touch_mode = "on"
+		w.refresh_touch()
+		await _wait(0.5)
+		var t: Control = w.touch
+		var sz: Vector2 = t.size
+		print("[dokunmatik] görünür=", t.visible, " boyut=", sz)
+		# joystick: sağa sürükle → oyuncu sağa yürümeli
+		var start: Vector2 = w.my_pos
+		var jb: Vector2 = t._joy_base()
+		_touch(0, jb, true)
+		for k in 6:
+			_drag(0, jb + Vector2(15 * (k + 1), 0))
+			await _wait(0.05)
+		await _wait(0.8)
+		_touch(0, jb + Vector2(90, 0), false)
+		await _wait(0.2)
+		print("[dokunmatik] yürüdü: ", start, " -> ", w.my_pos, " (dx=", w.my_pos.x - start.x, ")")
+		# E düğmesi: bir binanın önünde panel açmalı
+		var b: Dictionary = Map.building("market")
+		w.my_pos = Vector2(b.rect.get_center().x, b.rect.end.y + 12)
+		await _wait(0.4)
+		var e_pos: Vector2 = t._btn_pos(t.BUTTONS[0])
+		_touch(1, e_pos, true)
+		await _wait(0.1)
+		_touch(1, e_pos, false)
+		await _wait(0.5)
+		print("[dokunmatik] E ile panel: ", w.panel != null)
+		if w.panel != null:
+			w._close_panel()
+		await _wait(0.3)
+		_touch(2, jb, true)
+		_drag(2, jb + Vector2(-40, -60))
+		await _wait(0.3)
+		await _clear_toasts(w)
+		_shot("dokunmatik")
+		_touch(2, jb, false)
+		get_tree().quit()
+		return
 	if "--avatar" in OS.get_cmdline_user_args():
 		var layer := CanvasLayer.new()
 		layer.layer = 10
@@ -2366,3 +2409,19 @@ class AvatarSheet extends Control:
 			for j in 3:
 				var f: String = ["down", "right", "up"][j]
 				Avatar.draw(self, Vector2(130 + i * 240, 200 + j * 220), apps[i], f, 0, 3.2)
+
+
+
+func _touch(idx: int, p: Vector2, pressed: bool) -> void:
+	var ev := InputEventScreenTouch.new()
+	ev.index = idx
+	ev.position = p
+	ev.pressed = pressed
+	Input.parse_input_event(ev)
+
+
+func _drag(idx: int, p: Vector2) -> void:
+	var ev := InputEventScreenDrag.new()
+	ev.index = idx
+	ev.position = p
+	Input.parse_input_event(ev)

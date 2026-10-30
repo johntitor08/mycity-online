@@ -24,6 +24,8 @@ var ui_scale := 1.0
 var colorblind := false
 var tutorial_done := false
 var hud_collapsed := {}            # HUD kutuları: anahtar -> küçültülmüş mü
+var touch_mode := "auto"           # dokunmatik kontroller: auto (telefonda açık) | on | off
+var touch_dir := Vector2.ZERO      # sanal joystick yönü (dokunmatik kontroller yazar)
 
 
 func _ready() -> void:
@@ -41,6 +43,7 @@ func _ready() -> void:
 	tutorial_done = bool(cfg.get_value("ayar", "egitim_bitti", false))
 	var hc = cfg.get_value("ayar", "hud_kucuk", {})
 	hud_collapsed = hc if hc is Dictionary else {}
+	touch_mode = str(cfg.get_value("ayar", "dokunmatik", "auto"))
 	var saved = cfg.get_value("ayar", "tuslar", {})
 	if saved is Dictionary:
 		for a in saved:
@@ -61,6 +64,7 @@ func save() -> void:
 	cfg.set_value("ayar", "renk_korlugu", colorblind)
 	cfg.set_value("ayar", "egitim_bitti", tutorial_done)
 	cfg.set_value("ayar", "hud_kucuk", hud_collapsed)
+	cfg.set_value("ayar", "dokunmatik", touch_mode)
 	cfg.set_value("ayar", "tuslar", keys)
 	cfg.save(PATH)
 
@@ -91,6 +95,20 @@ func key_name(a: String) -> String:
 func held(a: String) -> bool:
 	if Input.is_physical_key_pressed(key(a)):
 		return true
+	if touch_dir != Vector2.ZERO:          # sanal joystick
+		match a:
+			"up":
+				if touch_dir.y < -0.38:
+					return true
+			"down":
+				if touch_dir.y > 0.38:
+					return true
+			"left":
+				if touch_dir.x < -0.38:
+					return true
+			"right":
+				if touch_dir.x > 0.38:
+					return true
 	match a:
 		"up":
 			return Input.is_physical_key_pressed(KEY_UP)
@@ -101,6 +119,15 @@ func held(a: String) -> bool:
 		"right":
 			return Input.is_physical_key_pressed(KEY_RIGHT)
 	return false
+
+
+## Dokunmatik kontroller açık mı? (otomatik: telefon/tablet tarayıcısı ya da mobil cihaz)
+func touch_enabled() -> bool:
+	if touch_mode == "on":
+		return true
+	if touch_mode == "off":
+		return false
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 
 
 func is_key(e: InputEventKey, a: String) -> bool:

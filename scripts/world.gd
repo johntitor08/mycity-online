@@ -151,6 +151,7 @@ var _mount := false         # dağda mıyım (1.2)
 var _fair := false          # fuar ve havalimanında mıyım (1.4)
 var _ocean := false         # Açık Okyanus'ta mıyım (1.6)
 var night_windows: Node2D   # gece yanan pencereler (karartmadan etkilenmesin diye ayrı katmanda)
+var touch: Control          # dokunmatik kontroller (telefonda)
 var _win_queue: Array = []
 var _ocean_acc := 0.0
 var _ocean_flush := 0.0
@@ -223,6 +224,10 @@ func _ready() -> void:
 	hud.profile_requested.connect(open_profile)
 	hud.transfer_requested.connect(open_transfer)
 	ui_layer.layer = 3
+	touch = preload("res://scripts/ui/touch_controls.gd").new()
+	touch.world = self
+	ui_layer.add_child(touch)
+	refresh_touch()
 	var ll := CanvasLayer.new()
 	ll.layer = 1
 	ll.follow_viewport_enabled = true
@@ -656,7 +661,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_photo_input(event)
 		return
 	if event is InputEventMouseButton and event.pressed and panel == null and Paint.in_match() \
-			and event.button_index == MOUSE_BUTTON_LEFT:
+			and event.button_index == MOUSE_BUTTON_LEFT and not touch.visible:
 		if not Paint.is_out(Net.my_name):
 			Paint.fire(get_global_mouse_position() - (my_pos + Vector2(0, -16)))
 			Sfx.play("splash_small", -10.0, randf_range(1.8, 2.2))
@@ -5888,3 +5893,17 @@ func _draw_grass_patches() -> void:
 		draw_circle(Vector2.ZERO, sz.x, col)
 		draw_circle(Vector2(sz.x * 0.3, 0), sz.x * 0.6, col)
 		draw_set_transform(Vector2.ZERO)
+
+
+
+## Dokunmatik kontrolleri ayara göre aç/kapat. İlk açılışta küçük ekranı kaplayan kutular küçük başlar.
+func refresh_touch() -> void:
+	var on := Settings.touch_enabled()
+	touch.visible = on
+	if not on:
+		touch._release_all()
+		Input.emulate_touch_from_mouse = false
+		return
+	for k in ["sohbet", "zenginler", "tuslar", "harita"]:
+		if not Settings.hud_collapsed.has(k):
+			hud.set_collapsed(k, true)

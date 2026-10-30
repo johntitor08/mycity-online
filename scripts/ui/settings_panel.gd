@@ -32,6 +32,19 @@ func _ready() -> void:
 	cb.button_pressed = Settings.colorblind
 	cb.toggled.connect(func(on): Settings.colorblind = on; _changed())
 	left.add_child(cb)
+	var th := HBoxContainer.new()
+	left.add_child(th)
+	add_label(th, "Dokunmatik kontroller", 14).size_flags_horizontal = SIZE_EXPAND_FILL
+	var tm := OptionButton.new()
+	for t in ["Otomatik (telefonda)", "Açık", "Kapalı"]:
+		tm.add_item(t)
+	tm.selected = ["auto", "on", "off"].find(Settings.touch_mode)
+	tm.item_selected.connect(func(i):
+		Settings.touch_mode = ["auto", "on", "off"][i]
+		_changed()
+		if world and world.has_method("refresh_touch"):
+			world.refresh_touch())
+	th.add_child(tm)
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 6)
