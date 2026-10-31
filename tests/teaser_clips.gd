@@ -168,6 +168,13 @@ func _ready() -> void:
 	Engine.time_scale = FAST
 
 
+## Oyun saatini dondur: hazırlık 10 kat hızlı geçtiği için saat ilerleyip (ve gerçek saate eşitlenip)
+## öğlene kurulan sahneler klipte geceye düşüyordu. Sahnenin kendisinin kurduğu saat korunur.
+func _process(delta: float) -> void:
+	Env._sync = -1000000.0
+	Env.hour = fposmod(Env.hour - delta * 24.0 / Env.DAY_SECONDS, 24.0)
+
+
 func _label(parent: Control, text: String, size: int, col: Color, outline: int) -> Label:
 	var l := Label.new()
 	l.text = text
