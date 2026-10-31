@@ -113,12 +113,23 @@ static func acc_of(rec: Dictionary) -> Dictionary:
 		rec["bank_acc"] = {"bal": 0.0, "t": Time.get_unix_time_from_system(), "debt": 0, "due": 0.0}
 	var a: Dictionary = rec["bank_acc"]
 	var now := Time.get_unix_time_from_system()
+	if bool(a.get("off", false)):
+		a["t"] = now               # 2.1: çevrimdışı geçen süre faiz getirmez
 	var dt := maxf(0.0, now - float(a.t))
 	var bal := float(a.bal)
 	bal += minf(bal, INTEREST_CAP) * INTEREST_PER_DAY * dt / Env.DAY_SECONDS
 	a["bal"] = bal
 	a["t"] = now
 	return a
+
+
+## Oyuncu çıkınca faiz o ana kadar işlenir, sonra durur (döndüğünde kaldığı yerden devam eder).
+func on_player_left(id: int) -> void:
+	var rec := _rec(id)
+	if rec.is_empty():
+		return
+	var a := acc_of(rec)
+	a["off"] = true
 
 
 static func loan_limit(level: int) -> int:
@@ -130,6 +141,7 @@ func send_state(id: int) -> void:
 	if rec.is_empty():
 		return
 	var a := acc_of(rec)
+	a["off"] = false
 	var due_in := float(a.due) - _now() if int(a.debt) > 0 else 0.0
 	Net.tell(self, id, "on_account", {"acc": {"bal": int(a.bal), "debt": int(a.debt), "due_in": due_in,
 		"loan_limit": loan_limit(Rpg.level(id)), "rate": INTEREST_PER_DAY},

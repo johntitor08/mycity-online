@@ -50,6 +50,12 @@ static func ext_of(p: Vector2) -> String:
 		return "mahalle"
 	if Map.DEEP.has_point(p):
 		return "derin"
+	if Map.HIGHWAY.has_point(p):
+		return "otoyol"
+	if Map.YALIKENT.has_point(p):
+		return "yalikent"
+	if Map.CAMLIBEL.has_point(p):
+		return "camlibel"
 	return ""
 
 
@@ -69,6 +75,12 @@ func camera_rect() -> Rect2:
 			return Map.TOWN
 		"derin":
 			return Map.DEEP
+		"otoyol":
+			return Map.HIGHWAY
+		"yalikent":
+			return Map.YALIKENT
+		"camlibel":
+			return Map.CAMLIBEL
 	return Map.WORLD
 
 
@@ -88,6 +100,10 @@ func can_stand(p: Vector2) -> bool:
 			return w.town.can_stand(p)
 		"derin":
 			return w.v20.can_stand_deep(p)
+		"otoyol", "yalikent", "camlibel":
+			if w.my_ride() == "car" and Map.on_road(me) and not Map.on_road(p):
+				return false
+			return w.roads.can_stand(ext, p)
 	return true
 
 
@@ -129,7 +145,7 @@ func status_line() -> String:
 
 func decorate(hint: String) -> String:
 	var s := status_line()
-	for extra: String in [w.town.status_line(), w.v20.status_line()]:
+	for extra: String in [w.town.status_line(), w.v20.status_line(), w.roads.status_line()]:
 		if extra != "":
 			s = extra if s == "" else s + "  ·  " + extra
 	if s == "":
@@ -144,6 +160,9 @@ func update_zone() -> void:
 		return
 	if ext == "derin":
 		w.v20.deep_zone()
+		return
+	if ext in ["otoyol", "yalikent", "camlibel"]:
+		w.roads.update_zone(ext)
 		return
 	var me: Vector2 = w.my_pos
 	var z := {}
@@ -504,7 +523,8 @@ func _flush(items: Array) -> void:
 				w._draw_pet(it[2][0], it[2][1])
 			_:
 				if not w.town.draw_item(str(it[1]), it[2]):
-					w.v20.draw_item(str(it[1]), it[2])
+					if not w.v20.draw_item(str(it[1]), it[2]):
+						w.roads.draw_item(str(it[1]), it[2])
 
 
 func _monster_items(items: Array, wrap: bool = false) -> void:
@@ -562,13 +582,18 @@ func draw_region() -> void:
 			_draw_golf(view, items)
 		"derin":
 			w.v20.draw_deep(view, items)
+		"otoyol":
+			w.roads.draw_highway(view, items)
+		"yalikent", "camlibel":
+			w.roads.draw_town(ext, view, items)
 		"mahalle":
 			w.town.draw_region(view, items)
-			for id in w.npc.pets:
-				var info = Net.roster.get(id)
-				if info and info.get("pet") is Dictionary and not info.pet.is_empty():
-					var st: Dictionary = w.npc.pets[id]
-					items.append([st.pos.y, "pet", [st, info.pet]])
+	if ext in ["mahalle", "yalikent", "camlibel"]:
+		for id in w.npc.pets:
+			var info = Net.roster.get(id)
+			if info and info.get("pet") is Dictionary and not info.pet.is_empty():
+				var st: Dictionary = w.npc.pets[id]
+				items.append([st.pos.y, "pet", [st, info.pet]])
 	_monster_items(items)
 	_players(items)
 	_flush(items)

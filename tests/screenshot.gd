@@ -163,6 +163,12 @@ func _ready() -> void:
 		await _wait(0.3)
 		get_tree().quit()
 		return
+	if "--sadece21" in OS.get_cmdline_user_args():
+		Net.add_money(1, 400000)
+		Rpg.add_xp(1, "", 60000)
+		await _shots_21(w)
+		get_tree().quit()
+		return
 	if "--sadece20" in OS.get_cmdline_user_args():
 		Net.add_money(1, 400000)
 		Rpg.add_xp(1, "", 60000)
@@ -2925,6 +2931,111 @@ func _shots_20(w) -> void:
 	_shot("festival_havai_fisek")
 	Festival.force_stop()
 	Env.hour = 12.0
+
+
+func _shots_21(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Holidays.force("yok")
+	Tutorial.finish()
+	Env.hour = 12.0
+	Zombies.natural = false
+	Festival.natural = false
+	var me := 1
+	var apps := [["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+		["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+		["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]]
+	_fake_players(apps)
+	Garage._list(me).append("car")
+	Garage._style(me)["car"] = 5
+	Garage.send_state(me)
+	await _wait(0.3)
+	# --- şehirde otoyol rampası ve otogar
+	Homes._teleport(me, Map.TOWN_RAMPS.sehir + Vector2(140, 0))
+	await _wait(0.4)
+	Garage.ride("car")
+	Net.positions[9981] = Map.OTOGARS.sehir + Vector2(-40, 50)
+	Net.positions[9982] = Map.OTOGARS.sehir + Vector2(60, 60)
+	Net.positions[9983] = Map.TOWN_RAMPS.sehir + Vector2(260, 90)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("sehir_otoyol_girisi")
+	# --- otoyol
+	Roads.enter_highway()
+	await _wait(0.6)
+	Homes._teleport(me, Vector2(58200, Map.HWY_ROAD.position.y + 60))
+	Players_on_highway(Map)
+	w.camera.zoom = Vector2(0.75, 0.75)
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("otoyol_sahil")
+	Homes._teleport(me, Vector2(66500, Map.HWY_ROAD.position.y + 60))
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("otoyol_dag")
+	Homes._teleport(me, Map.HWY_REST.get_center() + Vector2(-200, -150))
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("dinlenme_tesisi")
+	# --- Yalıkent
+	Homes._teleport(me, Vector2(Map.HWY_RAMPS.yalikent, Map.HWY_ROAD.position.y + 60))
+	await _wait(0.5)
+	Roads.exit_highway("yalikent")
+	await _wait(0.6)
+	Homes._teleport(me, Vector2(51745, 2300))
+	Net.positions[9981] = Vector2(51650, 2930)
+	Net.positions[9982] = Vector2(52430, 3150)
+	Net.positions[9983] = Vector2(51900, 1560)
+	Land.plots[12].owner = "Ayşe"
+	Land.plots[12].level = 2
+	Land.plots[13].owner = "Kerem"
+	Land.plots[13].level = 1
+	Land._broadcast()
+	w.camera.zoom = Vector2(0.7, 0.7)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("yalikent")
+	Homes._teleport(me, Vector2(51000, 1350))
+	w.camera.zoom = Vector2(0.75, 0.75)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("yalikent_carsi")
+	# --- Çamlıbel
+	Garage.ride("")
+	await _wait(0.3)
+	Homes._teleport(me, Map.OTOGARS.camlibel + Vector2(-200, 60))
+	Net.positions[9981] = Map.OTOGARS.camlibel + Vector2(-80, 40)
+	Net.positions[9982] = Vector2(56200, 1720)
+	Net.positions[9983] = Vector2(56500, 1700)
+	Land.plots[16].owner = "Zeynep"
+	Land.plots[16].level = 3
+	Land._broadcast()
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("camlibel")
+	Homes._teleport(me, Vector2(57500, 3120))
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("camlibel_kaplica")
+	# --- otobüs yolculuğu
+	Homes._teleport(me, Map.OTOGARS.camlibel + Vector2(0, 20))
+	await _wait(0.4)
+	Roads.take_bus("yalikent")
+	await _wait(3.0)
+	_shot("sehirlerarasi_otobus")
+	await _wait(6.0)
+
+
+func Players_on_highway(Map) -> void:
+	Net.positions[9981] = Vector2(58500, Map.HWY_ROAD.position.y + 180)
+	Net.positions[9982] = Vector2(57700, Map.HWY_ROAD.position.y + 90)
+	Net.positions[9983] = Vector2(58800, Map.HWY_ROAD.position.y + 30)
+	for k in [9981, 9982, 9983]:
+		Net.players[k]["ride"] = "car"
+	Net._broadcast_roster()
 
 
 func _shot(n: String) -> void:

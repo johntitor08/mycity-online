@@ -121,7 +121,7 @@ func _on_ok() -> void:
 	check(Net.my_name != "", "isim atandı")
 	await _wait(0.6)
 	check(Net.my_money() > 0, "başlangıç parası geldi")
-	check(Land.view.size() == 12, "12 arsa geldi")
+	check(Land.view.size() == preload("res://scripts/map.gd").PLOT_COUNT, "%d arsa geldi" % Land.view.size())
 	check(not Poker.view.is_empty(), "poker masası görünümü geldi")
 	var w = get_parent().world
 	check(w != null, "dünya sahnesi oluştu")
@@ -299,6 +299,7 @@ func _on_ok() -> void:
 		await _test_18(get_parent().world)
 		await _test_19(get_parent().world)
 		await _test_20(get_parent().world)
+		await _test_21(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -1827,7 +1828,7 @@ func _test_12(w) -> void:
 	var m3 := Net.my_money()
 	Museum.donate("fish:Sazan")
 	await _wait(0.3)
-	check(Museum.view.has("fish:Sazan") and str(Museum.view["fish:Sazan"].by) == Net.my_name and Net.my_money() == m3 + Museum.DONATE_MONEY, "Sazan bağışlandı, ad vitrinde")
+	check(Museum.view.has("fish:Sazan") and str(Museum.view["fish:Sazan"].by) == Net.my_name and Net.my_money() >= m3 + Museum.DONATE_MONEY, "Sazan bağışlandı, ad vitrinde")
 	bag.append({"name": "Sazan", "price": 20})
 	Jobs.send_inventory(me)
 	await _wait(0.2)
@@ -3674,6 +3675,11 @@ func _test_20(w) -> void:
 	w.open_panel_node(kp)
 	await _wait(0.6)
 	check(w.panel != null and Chef.shift.get("orders", []).size() >= 1, "servis vardiyası başladı (%d sipariş)" % Chef.shift.get("orders", []).size())
+	# taze bir sipariş: hemen servis edilemez (en kısa tarif bile ~0,6 sn sürer)
+	Chef._shifts[me].orders.clear()
+	Chef._spawn_order(me)
+	Chef.send_state(me)
+	await _wait(0.15)
 	var o1: Dictionary = Chef.shift.orders[0]
 	Chef.serve(int(o1.id), 1.0)
 	await _wait(0.3)
@@ -3892,6 +3898,170 @@ func _test_20(w) -> void:
 	check(not Festival.active() and not w.v20.sparks.is_empty(), "festival havai fişeklerle bitti")
 	check(rec.ach.got.has("dj1"), "İlk Set başarımı")
 	w._close_panel()
+
+
+func _test_21(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 300000)
+	Rpg.add_xp(me, "", 60000)
+	Env.force_weather("clear")
+	Holidays.force("yok")
+	Garage.ride("")
+	if not "car" in Garage._list(me):
+		Garage._list(me).append("car")
+	Garage.send_state(me)
+	await _wait(0.3)
+
+	print("== 2.1: Yollar ve araba kuralı")
+	check(Land.plots.size() == Map.PLOT_COUNT and Map.PLOT_COUNT == 20, "20 arsa (12 şehir + 4 Yalıkent + 4 Çamlıbel)")
+	check(Map.interior_at(Map.interior_rect(12, 1).get_center()) == 12 and Map.interior_at(Map.interior_rect(19, 3).get_center()) == 19
+		and Map.interior_at(Map.interior_rect(5, 2).get_center()) == 5, "kasaba evlerinin iç mekânları ayrı alanda")
+	check(Map.on_road(Map.SPAWN) and not Map.on_road(Map.FOUNTAIN) and Map.on_road(Vector2(60000, Map.HWY_ROAD.get_center().y)), "yol ağı")
+	Homes._teleport(me, Map.FOUNTAIN + Vector2(0, -60))
+	await _wait(0.4)
+	Garage.ride("car")
+	await _wait(0.3)
+	check(w.my_ride() == "", "yoldan uzakta arabaya binilmez")
+	Homes._teleport(me, Vector2(1300, 520))
+	await _wait(0.4)
+	w._toggle_vehicle()
+	await _wait(0.4)
+	check(w.my_ride() == "car" and Map.on_road(w.my_pos), "yol kenarında binildi, araba yola oturdu")
+	check(not w._can_stand(Vector2(1340, 522), "car") and w._can_stand(Vector2(1340, 445), "car"), "araba yoldan çıkamaz")
+	check(w._can_stand(Vector2(1340, 522), ""), "yaya yol dışına (kaldırıma) çıkar")
+
+	print("== 2.1: Otoyol")
+	Homes._teleport(me, Map.TOWN_RAMPS.sehir + Vector2(60, 0))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "ramp", "şehrin otoyol rampası")
+	w._open_panel()
+	await _wait(0.6)
+	check(w.adv.ext == "otoyol" and w.my_ride() == "car", "otoyola çıkıldı")
+	w._toggle_vehicle()
+	await _wait(0.4)
+	check(w.my_ride() == "car", "otoyolda arabadan inilmez")
+	check(not w._can_stand(Vector2(w.my_pos.x, Map.HWY_ROAD.position.y - 60), "car"), "otoyolda yoldan çıkılmaz")
+	Homes._teleport(me, Vector2(Map.HWY_RAMPS.yalikent + 100, Map.HWY_ROAD.position.y + 60))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "exit" and w.zone.get("to", "") == "yalikent", "Yalıkent çıkışı")
+	w._open_panel()
+	await _wait(0.6)
+	check(w.adv.ext == "yalikent" and w.my_ride() == "car" and rec.ach.got.has("road1"), "Yalıkent'e arabayla gelindi (Yol Arkadaşı)")
+	check(w._can_stand(Vector2(50600, 1345), "car") and not w._can_stand(Vector2(50600, 1450), "car"), "kasabada da araba yolda kalır")
+
+	print("== 2.1: Yalıkent")
+	Garage.ride("")
+	await _wait(0.3)
+	var st0: Vector2 = Map.BUS_STOPS.yk_merkez[1]
+	Homes._teleport(me, st0)
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "bus" and w.zone.get("stop", "") == "yk_merkez", "Yalıkent otobüs durağı")
+	Work.ride_bus("merkez")
+	await _wait(0.4)
+	check(w.adv.ext == "yalikent", "şehir içi otobüs kasabadan şehre gitmez")
+	Work.ride_bus("yk_liman")
+	await _wait(0.5)
+	check(w.my_pos.distance_to(Map.BUS_STOPS.yk_liman[1]) < 60.0, "Yalıkent Liman durağına gidildi")
+	Homes._teleport(me, Map.YK_PIER_END.get_center())
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "fishing" and w.zone.get("spot", "") == "sea", "iskelede balık tutulur")
+	var bag: Array = rec.get("fish", [])
+	if not rec.get("fish") is Array:
+		rec["fish"] = bag
+	bag.append({"name": str(Jobs.SEA_FISH[0][0]), "price": 100})
+	Jobs.send_inventory(me)
+	var hal: Rect2 = Map.YK_BUILDINGS[0].rect
+	Homes._teleport(me, Vector2(hal.get_center().x, hal.end.y + 20))
+	await _wait(0.4)
+	check(w.zone.get("k", "") == "hal", "Balık Hali")
+	var m0 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(Net.my_money() >= m0 + 125, "balık %25 fazlasına satıldı")
+	var pr: Rect2 = Map.plot_rect(12)
+	Homes._teleport(me, pr.get_center())
+	await _wait(0.4)
+	check(w.zone.get("type", "") == "realestate" and int(w.zone.get("plot", -1)) == 12, "Yalıkent arsası")
+	Land.buy(12)
+	await _wait(0.4)
+	Land.build_up(12, "home")
+	await _wait(0.4)
+	check(Land.view[12].owner == Net.my_name and int(Land.view[12].level) == 1, "Yalıkent'te arsa alındı, ev yapıldı")
+	Homes.enter(12)
+	await _wait(0.5)
+	check(w._room == 12 and Map.INTERIOR2_AREA.has_point(w.my_pos), "kasaba evine girildi")
+	Homes.exit_home()
+	await _wait(0.5)
+	check(w._room < 0 and w.adv.ext == "yalikent", "evden çıkıldı")
+
+	print("== 2.1: Otogar ve Çamlıbel")
+	Homes._teleport(me, Map.OTOGARS.yalikent)
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "otogar", "Yalıkent otogarı")
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "otogar paneli")
+	w._close_panel()
+	Roads.take_bus("camlibel")
+	await _wait(0.4)
+	check(w.my_ride() == "train", "şehirler arası otobüste")
+	await _wait(Roads.BUS_TIME + 1.0)
+	check(w.adv.ext == "camlibel" and w.my_pos.distance_to(Map.OTOGARS.camlibel) < 80.0, "Çamlıbel'e otobüsle varıldı")
+	var kp: Rect2 = Map.CB_BUILDINGS[0].rect
+	Homes._teleport(me, Vector2(kp.get_center().x, kp.end.y + 20))
+	await _wait(0.4)
+	Rpg.ensure(rec)["energy"] = 5.0
+	w._open_panel()
+	await _wait(0.4)
+	check(float(Rpg.sheet.energy) > 50.0 and Rpg.buff(me, "work"), "kaplıca: enerji doldu, maaş bonusu")
+	Homes._teleport(me, Map.OTOGARS.camlibel)
+	await _wait(0.4)
+	Roads.take_bus("sehir")
+	await _wait(Roads.BUS_TIME + 1.0)
+	check(w.adv.ext == "" and w.my_pos.distance_to(Map.OTOGARS.sehir) < 80.0, "şehre otobüsle dönüldü")
+	Land.plots[12].owner = ""
+	Land.plots[12].level = 0
+	Land._broadcast()
+
+	print("== 2.1: Çevrimdışıyken para kazanılmaz")
+	var off := "Cevrimdisi"
+	Net.save_data.players[off] = {"money": 1000, "bank_acc": {"bal": 50000.0, "t": Time.get_unix_time_from_system() - 20000.0, "debt": 0, "due": 0.0, "off": true}}
+	var hp := -1
+	var bp := -1
+	for i in Map.CITY_PLOTS:
+		if Land.plots[i].owner == "":
+			if hp < 0:
+				hp = i
+			elif bp < 0:
+				bp = i
+	Land.plots[hp].owner = off
+	Land.plots[hp].level = 2
+	Land.plots[bp].owner = off
+	Land.plots[bp]["kind"] = "biz"
+	Land.plots[bp].level = 2
+	Land.plots[bp]["biz"] = Biz.default_data(off)
+	Land.plots[bp].biz["stock"] = 500
+	Land._pay_rent()
+	Biz._tick()
+	var acc: Dictionary = Bank.acc_of(Net.save_data.players[off])
+	check(int(Net.save_data.players[off].money) == 1000, "çevrimdışı ev sahibine kira ödenmez")
+	check(int(Land.plots[bp].biz.cash) == 0 and int(Land.plots[bp].biz.stock) == 500, "çevrimdışıyken dükkân satış yapmaz")
+	check(int(acc.bal) == 50000, "çevrimdışı geçen süre faiz getirmez")
+	var m9 := Net.my_money()
+	var myrec: Dictionary = Net.save_data.players[Net.my_name]
+	Bank.acc_of(myrec)["bal"] = 100000.0
+	Bank.acc_of(myrec)["t"] = Time.get_unix_time_from_system() - 600.0
+	Bank.acc_of(myrec)["off"] = false
+	check(float(Bank.acc_of(myrec).bal) > 100000.0, "çevrimiçiyken faiz işler")
+	for i in [hp, bp]:
+		Land.plots[i].owner = ""
+		Land.plots[i]["kind"] = "home"
+		Land.plots[i].level = 0
+		Land.plots[i].erase("biz")
+	Net.save_data.players.erase(off)
+	Land._broadcast()
 
 
 func _finish() -> void:

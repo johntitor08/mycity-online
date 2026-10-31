@@ -204,6 +204,11 @@ const LIST := {
 	"dj1": ["dj_sets", 1, "İlk Set", "Festivalde DJ olarak bir set çal.", 1000, ""],
 	"dj_hype": ["dj_hype", 90, "Sahnenin Sahibi", "Bir DJ setinde coşkuyu 90'ın üstüne çıkar.", 4000, "DJ"],
 	"dance500": ["dance_points", 500, "Dans Kraliçesi/Kralı", "Bir sette 500 dans puanı topla.", 2500, "Dansçı"],
+	# 2.1
+	"road1": ["road_trips", 1, "Yol Arkadaşı", "Otoyolda arabayla başka bir kasabaya git.", 1000, ""],
+	"road10": ["road_trips", 10, "Uzun Yolcu", "Otoyolda 10 yolculuk yap.", 4000, "Uzun Yolcu"],
+	"bus_trips": ["intercity_bus", 5, "Otogar Müdavimi", "Şehirler arası otobüsle 5 kez yolculuk et.", 1500, ""],
+	"spa": ["spa", 5, "Kaplıca Sever", "Çamlıbel Kaplıcası'nda 5 kez dinlen.", 1500, ""],
 	"kayik": ["kayik", 1, "Kürekçi", "Gölde kayığa bin.", 200, ""],
 }
 

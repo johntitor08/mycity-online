@@ -1,7 +1,7 @@
 extends Node
 ## Pazar meydanı (1.9, Yeni Mahalle): 8 kiralık tezgâh ve alım ilanları panosu.
 ##  Tezgâh günlüğü 400 TL (en fazla 3 gün peşin). Tezgâha balık, yiyecek ve çiftlik ürünü dizip fiyatını
-##  sen belirlersin; adını ve tente rengini seçersin. Oyuncular tezgâhın önünden alır; sen çevrimdışıyken de
+##  sen belirlersin; adını ve tente rengini seçersin. Oyuncular tezgâhın önünden alır; sen oyundayken (2.1: çevrimdışıyken değil)
 ##  meydana gelen müşteriler (NPC) uygun fiyatlı malları satın alır. Fiyat değerinin çok üstündeyse kimse almaz.
 ##  Satışlar kasada birikir (%5 pazar payı); tezgâhın önünde kasayı boşaltırsın. Kira bitince mallar sana döner.
 ##  Alım ilanı: "şu üründen şu kadar, tanesi şu fiyattan alırım" — para emanete alınır, satıcı ilanı doldurur.
@@ -598,6 +598,8 @@ func npc_round() -> int:
 			if pid != 0:
 				Net.notify(pid, "Tezgâh kiran bitti; malların ve kasan sana döndü.", false)
 			continue
+		if Net.id_by_name(str(st.owner)) == 0:
+			continue                     # 2.1: sahibi çevrimdışıyken tezgâh satış yapmaz
 		for idx in range(st.items.size() - 1, -1, -1):
 			var it: Dictionary = st.items[idx]
 			if randf() < npc_chance(int(it.price), int(it.base)) * (2.0 if Projects.market_day() else 1.0):

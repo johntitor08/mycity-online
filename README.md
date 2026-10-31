@@ -37,6 +37,31 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.1: Otoyol, Yalıkent ve Çamlıbel, şehirler arası otobüs; araba sadece yolda
+
+| | |
+|---|---|
+| ![Otoyol (sahil)](docs/ekran/otoyol_sahil.png) | ![Otoyol (dağlar)](docs/ekran/otoyol_dag.png) |
+| ![Yalıkent](docs/ekran/yalikent.png) | ![Çamlıbel](docs/ekran/camlibel.png) |
+| ![Şehirden otoyola](docs/ekran/sehir_otoyol_girisi.png) | ![Şehirler arası otobüs](docs/ekran/sehirlerarasi_otobus.png) |
+
+- **Otoyol:**
+  - Yaklaşık 20 km'lik, dört şeritli, trafikli bir yol. Şehrin batı ucundaki rampadan arabayla çıkılır (E).
+  - Yol boyunca tarlalar, deniz kıyısı ve karlı dağlar var; tabelalar mesafeleri gösterir. Gideceğin yerin çıkışında E'ye basarsın.
+  - Arabadan yalnızca dinlenme tesisinde inilir (çay ve simit). Başka bir yere arabayla varmak başarım kazandırır.
+- **Yalıkent (sahil kasabası):**
+  - Çarşı, liman yolu, plaj, iskele (balık tutulur), deniz feneri ve Martı Kafe var.
+  - Balık Hali balıkları %25 fazlasına alır.
+  - 4 yeni arsa, 3 otobüs durağı ve bir otogar var.
+- **Çamlıbel (dağ kenti):**
+  - Karlı dağlar, çam ormanı, gölet ve ahşap evler var.
+  - Kaplıca: enerji dolar, 15 dk maaş bonusu verir. Yayla Lokantası'nda gözleme ve ayran var.
+  - 4 yeni arsa, 3 otobüs durağı ve bir otogar var.
+- **Çevrimdışıyken para kazanılmaz:** kira, işletme ve tezgâh satışları, banka faizi ve muhtar payı sadece oyuncu oyundayken işler. Ekinler ve ahır yine zamanla büyür/üretir; başka oyuncuların senden yaptığı alışverişlerin parası da gelir.
+- **Otobüs:** Her yerin otogarından şehirler arası otobüse binilir (150 TL). Kasabalardaki şehir içi otobüs sadece kendi durakları arasında gider.
+- **Araba sadece yolda:** Araba yoldan çıkamaz; yol dışındaki yerlere arabadan inip yürüyerek gidilir. Araba ancak yola yakınken çağrılır ve en yakın yola oturur. Bisiklet her yerde kullanılabilir.
+- Arsa sayısı 20 (kasaba evlerinin iç mekânları ayrı); 4 yeni başarım.
+
 ## 2.0: Restoran mutfağı ve aşçılık yarışması, Batık Şehir ve denizaltı, belediye projeleri, plaj festivali
 
 | | |
@@ -79,7 +104,7 @@ Menüde:
 - **Yeni Mahalle:** trenin dördüncü istasyonu. Pazar meydanı, tuning garajı, drift alanı ve evcil hayvan parkı burada.
 - **Oyuncu pazarı:**
   - 8 kiralık tezgâh var (günlüğü 400 TL, en fazla 3 gün peşin). Balık, yiyecek ve çiftlik ürününü dizip fiyatını sen belirlersin; tezgâhın adını ve tente rengini de seçersin.
-  - Sen çevrimdışıyken de meydana gelen müşteriler malın değerine yakın fiyatlı olanları alır. Değerinin yaklaşık 2,5 katından pahalı mala kimse dokunmaz.
+  - Sen oyundayken meydana gelen müşteriler malın değerine yakın fiyatlı olanları alır (2.1: çevrimdışıyken satış yok). Değerinin yaklaşık 2,5 katından pahalı mala kimse dokunmaz.
   - Satışlar kasada birikir (%5 pazar payı). Kira bitince mallar ve kasa sana döner.
   - Alım ilanı panosunda "şunu şu fiyattan alırım" ilanı asılır; para emanete alınır, satıcılar ilanı doldurur.
 - **Evcil hayvan yarışı ve şovu:**
@@ -522,7 +547,7 @@ Menüde:
   Malzeme koy (toptancı 10 birim/60 TL, ya da balık ve yiyecek), fiyatı (×0,5–×2) ve çalışan
   sayısını (0–3) ayarla. Her dakika NPC müşteriler gelir: öğle ve akşam yoğun, gece ve yağmurda
   az; ucuz fiyat, yüksek puan, çalışan ve dükkânda durman müşteriyi artırır. Malzeme bitince
-  müşteri kaçar, puan düşer. Sen çevrimdışıyken de satış sürer; kasayı işletmende topla.
+  müşteri kaçar, puan düşer. Satış sen oyundayken sürer (2.1: çevrimdışıyken dükkân kapalı); kasayı işletmende topla.
 - **Evcil hayvan (Pet Shop):** Kedi (Sv.2, az enerji harcama), köpek (Sv.3, nadir balık),
   papağan (Sv.5, maaş bonusu). Arkandan gelir, herkes görür. Mama ya da balıkla beslenir;
   aç kalırsa bonus durur. HUD'daki "Evcil" butonuyla her yerden beslenir.
@@ -647,7 +672,7 @@ Hesaplar oyuncu adına bağlıdır; aynı adla tekrar girersen paran ve arsalar�
 
 | Yer | Ne yapılır | Kazanç |
 |---|---|---|
-| Emlak Ofisi / arsalar | 12 arsa; satın al, Küçük ev → Villa → Gökdelen dik, %70'e geri sat | Her dakika kira (çevrimdışıyken de) |
+| Emlak Ofisi / arsalar | 12 arsa; satın al, Küçük ev → Villa → Gökdelen dik, %70'e geri sat | Oyundayken her dakika kira |
 | Kumarhane | Rulet (renk/tek-çift x2, sayı x36), Zar (x2 / tam 7 x5), At yarışı (x2.5–x12) | Şans |
 | Poker Salonu | 6 kişilik Texas Hold'em, körler 10/20, yan potlar, bot ekleme | Diğer oyunculardan |
 | Göl iskelesi | Oltayı at, balık vurunca ÇEK; 8 tür göl balığı (Altın Balık 1.500–3.000 TL) | Balık satışı |

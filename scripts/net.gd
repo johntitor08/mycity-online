@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "2.0"
+const VERSION := "2.1"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -350,6 +350,7 @@ func _reset_peer() -> void:
 	Deep.reset()
 	Projects.reset()
 	Festival.reset()
+	Roads.reset()
 
 
 func _on_connected() -> void:
@@ -590,6 +591,8 @@ func _on_peer_disconnected(id: int) -> void:
 	Deep.on_player_left(id)
 	Projects.on_player_left(id)
 	Festival.on_player_left(id)
+	Roads.on_player_left(id)
+	Bank.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -760,6 +763,7 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Deep.send_state(id)
 	Projects.send_state(id)
 	Festival.send_state(id)
+	Roads.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -898,12 +902,12 @@ func send_pos(p: Vector2) -> void:
 	if Map.OCEAN.has_point(p):
 		positions[id] = p.clamp(Map.OCEAN.position, Map.OCEAN.end)
 		return
-	for r in [Map.DUNGEON, Map.MOON, Map.SPACEPORT, Map.GOLF, Map.TOWN, Map.DEEP]:
+	for r in [Map.DUNGEON, Map.MOON, Map.SPACEPORT, Map.GOLF, Map.TOWN, Map.DEEP, Map.HIGHWAY, Map.YALIKENT, Map.CAMLIBEL]:
 		if (r as Rect2).has_point(p):
 			positions[id] = p.clamp(r.position, r.end)
 			return
 	var room := Map.interior_at(p)
-	if Map.INTERIOR_AREA.has_point(p):
+	if Map.INTERIOR_AREA.has_point(p) or Map.INTERIOR2_AREA.has_point(p):
 		# Ev içleri harita dışında: sadece izinli olunan odada bulunulabilir.
 		if room >= 0 and Homes.may_be_in(id, room):
 			positions[id] = p
@@ -1080,6 +1084,11 @@ func _load() -> void:
 				save_data[k] = parsed[k]
 		if parsed.get("players") is Dictionary:
 			save_data["players"] = parsed["players"]
+			# 2.1: sunucu kapalıyken/oyuncular yokken faiz işlemez (herkes "çevrimdışı" başlar)
+			for pn in save_data.players:
+				var pr = save_data.players[pn]
+				if pr is Dictionary and pr.get("bank_acc") is Dictionary:
+					pr.bank_acc["off"] = true
 		if parsed.get("plots") is Array:
 			save_data["plots"] = parsed["plots"]
 		if not save_data.get("bazaar") is Array:

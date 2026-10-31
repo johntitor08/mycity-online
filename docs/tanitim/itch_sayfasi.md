@@ -19,7 +19,7 @@ Kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — T
 - 🌊 **Batık Şehir:** denizaltınla karanlık derinlikleri keşfet, 16 canlıyı tara, antik eserler bul
 - 🏛️ **Belediye projeleri:** oyla, bağış yap; şehre park, fıskiye, kule ve heykel kazandır
 - 🎧 **Plaj festivali:** DJ ol, dans et, havai fişekleri patlat
-- 🏘️ **Yeni Mahalle:** kendi pazar tezgâhını kur, fiyatını belirle; sen yokken de müşteriler alışveriş yapar
+- 🏘️ **Yeni Mahalle:** kendi pazar tezgâhını kur, fiyatını belirle; oyuncular ve meydanın müşterileri alışveriş yapar
 - 🐶 **Evcil hayvan şovu:** hayvanını eğit, aksesuar tak, parkur yarışında ve güzellik şovunda kupa kazan
 - 🏎️ **Tuning ve sokak yarışı:** motor, nitro, neon; drift yap, botlarla ve arkadaşlarınla yarış, rekorun hayaletini yen
 - 🌪️ **Afetler:** deprem, sel ve kar fırtınasında şehri birlikte kurtar

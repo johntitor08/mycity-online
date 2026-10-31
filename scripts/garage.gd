@@ -48,6 +48,10 @@ static func speed_of(ride: String) -> float:
 
 ## Bu araç bu noktada kullanılabilir mi?
 static func usable_at(ride: String, p: Vector2) -> bool:
+	if Map.HIGHWAY.has_point(p):
+		return ride == "car"                 # 2.1: otoyola sadece arabayla girilir
+	if ride == "car" and not Map.on_road(p, 80.0):
+		return false                         # 2.1: araba yola yakınken çağrılır (yoldan çıkamaz)
 	if OM.in_ocean(p):
 		return OM.island_at(p, 20.0) < 0 if ride == "boat" else (ride == "" or ride == "horse") and (OM.is_land(p) or OM.on_pier(p))
 	if ride == "kayik":
@@ -261,6 +265,9 @@ func req_ride(d: Dictionary) -> void:
 		Ach.event(id, "ride_horse")
 		set_ride(id, kind)
 		return
+	if kind == "" and Map.HIGHWAY.has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+		Net.notify(id, "Otoyolda arabadan inilmez; bir çıkışa ya da dinlenme tesisine git.", false)
+		return
 	if kind != "":
 		if not _list(id).has(kind) and not (kind == "boat" and _rent_left(id) > 0.0):
 			if kind == "boat":
@@ -278,7 +285,7 @@ func req_ride(d: Dictionary) -> void:
 				Net.positions[id] = q
 		if not usable_at(kind, p):
 			Net.notify(id, "Tekneye sadece denizde, kara araçlarına sadece karada binilir." if kind == "boat"
-				else "Buraya araçla giremezsin.", false)
+				else ("Araba yolda durur: yola yaklaş, sonra F'ye bas." if kind == "car" else "Buraya araçla giremezsin."), false)
 			return
 		if kind == "boat" and Env.weather == "storm":
 			Net.notify(id, "Fırtınada denize tekneyle açılamazsın!", false)

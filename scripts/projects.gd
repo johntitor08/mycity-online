@@ -428,10 +428,8 @@ func rent_paid(amount: int) -> void:
 		return
 	var cut := int(amount * 0.1)
 	var pid := Net.id_by_name(str(m.muhtar))
-	if pid != 0:
+	if pid != 0:                         # 2.1: çevrimdışıyken para kazanılmaz
 		Net.add_money(pid, cut)
-	else:
-		Net.add_money_by_name(str(m.muhtar), cut)
 
 
 func _process(delta: float) -> void:

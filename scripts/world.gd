@@ -155,6 +155,7 @@ var touch: Control          # dokunmatik kontroller (telefonda)
 var adv                     # 1.8: zindan, zombi gecesi, uzay, golf, bowling (world_adventure.gd)
 var town                    # 1.9: Yeni Mahalle, tuning ve drift, sokak yarışı, afetler (world_town.gd)
 var v20                     # 2.0: Batık Şehir, belediye projeleri, festival, akademi (world_v20.gd)
+var roads                   # 2.1: otoyol, Yalıkent ve Çamlıbel, otogar (world_roads.gd)
 var _win_queue: Array = []
 var _ocean_acc := 0.0
 var _ocean_flush := 0.0
@@ -230,6 +231,7 @@ func _ready() -> void:
 	adv = preload("res://scripts/world_adventure.gd").new(self)
 	town = preload("res://scripts/world_town.gd").new(self)
 	v20 = preload("res://scripts/world_v20.gd").new(self)
+	roads = preload("res://scripts/world_roads.gd").new(self)
 	touch = preload("res://scripts/ui/touch_controls.gd").new()
 	touch.world = self
 	ui_layer.add_child(touch)
@@ -490,6 +492,8 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 func _can_stand(p: Vector2, ride: String) -> bool:
 	if _room >= 0 or _jail or _dive:
 		return true
+	if ride == "car" and Map.on_road(my_pos) and not Map.on_road(p):
+		return false              # 2.1: araba yoldan çıkamaz (inip yürü)
 	if adv.ext != "":
 		return adv.can_stand(p)
 	if _ocean:
@@ -623,11 +627,20 @@ func _toggle_vehicle() -> void:
 			Garage.ride("boat", spot)
 			Sfx.play("splash_small")
 			return
+	var far_road := false
 	for k in ["car", "bike"]:
 		if Garage.owned.has(k):
+			if k == "car":
+				if not Map.on_road(my_pos, 80.0):
+					far_road = true
+					continue          # 2.1: araba yolda durur
+				my_pos = Map.nearest_road(my_pos) if not Map.on_road(my_pos) else my_pos
 			Garage.ride(k)
 			Sfx.play("bell" if k == "bike" else "door")
 			return
+	if far_road:
+		hud.show_toast("Araban yolda: arabaya binmek için yola yaklaş.", false)
+		return
 	hud.show_toast("Aracın yok. Galeri'den bisiklet ya da araba alabilirsin.", false)
 
 
@@ -921,6 +934,7 @@ func _update_zone() -> void:
 	z = adv.extra_zone(z)
 	z = town.extra_zone(z)
 	z = v20.extra_zone(z)
+	z = roads.extra_zone(z)
 	if not dz.is_empty():
 		z = dz
 	zone = z
@@ -1009,6 +1023,8 @@ func _open_panel() -> void:
 	if town.open(zone):
 		return
 	if v20.open(zone):
+		return
+	if roads.open(zone):
 		return
 	if zone.type == "exit_home":
 		Homes.exit_home()
@@ -2085,6 +2101,7 @@ func _draw() -> void:
 	adv.draw_ground()
 	town.draw_ground()
 	v20.draw_ground()
+	roads.draw_city_ground()
 	_draw_city_extras()
 	_draw_holiday()
 	_draw_marathon()

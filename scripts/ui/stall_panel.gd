@@ -27,7 +27,7 @@ func _refresh() -> void:
 	var v := _v()
 	var open := not v.is_empty() and bool(v.get("open", false))
 	if not open or v.owner == Net.my_name and float(v.get("left", 0.0)) <= 0.0:
-		add_label(box, "Bu tezgâh boş. Kiralayıp mallarını sat; sen yokken de meydana gelen müşteriler alışveriş yapar.", 15).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		add_label(box, "Bu tezgâh boş. Kiralayıp mallarını sat; sen oyundayken meydana gelen müşteriler de alışveriş yapar (çevrimdışıyken tezgâh satış yapmaz).", 15).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var mine := Stalls.my_stall()
 		if mine >= 0 and mine != stall:
 			add_label(box, "Zaten %d numaralı tezgâhın var." % (mine + 1), 14, Color("#fca5a5"))

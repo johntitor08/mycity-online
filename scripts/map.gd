@@ -140,6 +140,12 @@ static func region_of(p: Vector2) -> String:
 		return "mahalle"
 	if DEEP.has_point(p):
 		return "derin"
+	if HIGHWAY.has_point(p):
+		return "otoyol"
+	if YALIKENT.has_point(p):
+		return "yalikent"
+	if CAMLIBEL.has_point(p):
+		return "camlibel"
 	if MOUNTAIN.has_point(p):
 		return "dag"
 	if FAIR.has_point(p):
@@ -296,6 +302,11 @@ const BUS_STOPS := {
 	"merkez": ["Merkez", Vector2(1300, 518)], "bati": ["Hastane / Nehir", Vector2(300, 518)],
 	"dogu": ["Doğu Mahallesi", Vector2(2480, 518)], "arsalar": ["Arsalar", Vector2(1095, 790)],
 	"plaj": ["Plaj / Park", Vector2(1095, 1600)],
+	# 2.1: kasabaların şehir içi durakları (otobüs sadece aynı kasabanın durakları arasında gider)
+	"yk_merkez": ["Yalıkent Çarşı", Vector2(50900, 1410)], "yk_liman": ["Yalıkent Liman", Vector2(51650, 2880)],
+	"yk_otogar": ["Yalıkent Otogar", Vector2(52790, 1410)],
+	"cb_merkez": ["Çamlıbel Meydan", Vector2(55500, 1710)], "cb_kaplica": ["Çamlıbel Kaplıca", Vector2(57500, 3110)],
+	"cb_otogar": ["Çamlıbel Otogar", Vector2(57250, 1710)],
 }
 # Meslek noktaları
 const TAXI_STAND := Vector2(1465, 520)
@@ -361,14 +372,20 @@ const MOORED_BOATS := [Vector2(1712, 1920), Vector2(1712, 2010)]   # 1.5: iskele
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
 const PIER_END := Rect2(1550, 1960, 100, 140)   # deniz balıkçılığı alanı
 
-const PLOT_COUNT := 12
+const PLOT_COUNT := 20               # 2.1: 12 şehirde, 4 Yalıkent'te (12–15), 4 Çamlıbel'de (16–19)
+const CITY_PLOTS := 12
 const PLOT_ORIGIN := Vector2(1080, 890)
 const PLOT_SIZE := Vector2(260, 180)
 const PLOT_GAP := 30.0
-const PLOT_PRICES := [2000, 2000, 2500, 2500, 3500, 3500, 5000, 5000, 8000, 8000, 12000, 20000]
+const PLOT_PRICES := [2000, 2000, 2500, 2500, 3500, 3500, 5000, 5000, 8000, 8000, 12000, 20000,
+	3000, 3000, 4500, 4500, 3000, 3000, 4500, 4500]
 
 
 static func plot_rect(i: int) -> Rect2:
+	if i >= CITY_PLOTS:
+		var k := (i - CITY_PLOTS) % 4
+		var o: Vector2 = YALIKENT.position + Vector2(250, 480) if i < CITY_PLOTS + 4 else CAMLIBEL.position + Vector2(1400, 770)
+		return Rect2(o + Vector2(k * (PLOT_SIZE.x + 40), 0), PLOT_SIZE)
 	var col := i % 4
 	var row := int(i / 4.0)
 	return Rect2(PLOT_ORIGIN + Vector2(col * (PLOT_SIZE.x + PLOT_GAP), row * (PLOT_SIZE.y + PLOT_GAP)), PLOT_SIZE)
@@ -491,6 +508,8 @@ static func water_near(p: Vector2) -> bool:
 static func fishing_spot(p: Vector2) -> String:
 	if DOCK.grow(30).has_point(p):
 		return "lake"
+	if YK_PIER_END.grow(30).has_point(p):
+		return "sea"                     # 2.1: Yalıkent iskelesi
 	if PIER_END.grow(30).has_point(p):
 		return "sea"
 	if ISLAND_SPOT.grow(30).has_point(p):
@@ -548,6 +567,8 @@ static func building(type: String) -> Dictionary:
 const INTERIOR_ORIGIN := Vector2(3200, 200)
 const INTERIOR_CELL := Vector2(1100, 800)
 const INTERIOR_AREA := Rect2(3000, 0, 4700, 2700)
+const INTERIOR2_ORIGIN := Vector2(90200, 200)
+const INTERIOR2_AREA := Rect2(90000, 0, 4700, 1800)
 const TILE := 48.0
 const ROOM_TILES := {1: Vector2i(12, 8), 2: Vector2i(16, 10), 3: Vector2i(18, 12)}
 
@@ -559,12 +580,22 @@ static func room_tiles(level: int) -> Vector2i:
 ## Arsanın ev içi odası (dünya koordinatı).
 static func interior_rect(i: int, level: int) -> Rect2:
 	var cell := INTERIOR_ORIGIN + Vector2((i % 4) * INTERIOR_CELL.x, int(i / 4.0) * INTERIOR_CELL.y)
+	if i >= CITY_PLOTS:                  # 2.1: kasaba evleri ikinci ev içi alanında
+		var j := i - CITY_PLOTS
+		cell = INTERIOR2_ORIGIN + Vector2((j % 4) * INTERIOR_CELL.x, int(j / 4.0) * INTERIOR_CELL.y)
 	var t := room_tiles(level)
 	return Rect2(cell, Vector2(t.x, t.y) * TILE)
 
 
 ## Noktanın bulunduğu ev içi (arsa indeksi) ya da -1.
 static func interior_at(p: Vector2) -> int:
+	if INTERIOR2_AREA.has_point(p):
+		var rel2 := p - INTERIOR2_ORIGIN
+		var c2 := int(floor(rel2.x / INTERIOR_CELL.x))
+		var r2 := int(floor(rel2.y / INTERIOR_CELL.y))
+		if c2 < 0 or c2 > 3 or r2 < 0 or r2 > 1:
+			return -1
+		return CITY_PLOTS + r2 * 4 + c2
 	if not INTERIOR_AREA.has_point(p):
 		return -1
 	var rel := p - INTERIOR_ORIGIN
@@ -613,3 +644,77 @@ static func stall_rect(i: int) -> Rect2:
 static func stall_front(i: int) -> Vector2:
 	var r := stall_rect(i)
 	return Vector2(r.get_center().x, r.end.y + 40)
+
+
+# ================================================================== 2.1: otoyol ve kasabalar
+# Otoyol (ayrı bölge): şehir, Yalıkent ve Çamlıbel rampaları; arabayla yolculuk ~30 sn.
+const HIGHWAY := Rect2(50000, 4000, 20000, 700)
+const HWY_ROAD := Rect2(50000, 4200, 20000, 240)          # 4 şerit (üst ikisi doğu, alt ikisi batı yönü)
+const HWY_REST := Rect2(63200, 4440, 640, 200)            # dinlenme tesisi (otopark dahil)
+const HWY_RAMPS := {"sehir": 50300.0, "yalikent": 58500.0, "camlibel": 69700.0}
+const TOWN_NAMES := {"sehir": "Şehir", "yalikent": "Yalıkent", "camlibel": "Çamlıbel"}
+# Yalıkent: sahil kasabası (güneyi deniz)
+const YALIKENT := Rect2(50000, 1000, 3600, 2400)
+const YK_ROADS := [Rect2(50000, 1300, 3600, 90), Rect2(51700, 1390, 90, 1500), Rect2(50000, 2890, 3600, 80)]
+const YK_SEA_Y := 3050.0
+const YK_PIER := Rect2(52400, 2970, 80, 330)
+const YK_PIER_END := Rect2(52390, 3200, 100, 100)
+const YK_BUILDINGS := [
+	{"type": "balikhali", "label": "Balık Hali", "rect": Rect2(52000, 1450, 420, 240), "sign_y": 40},
+	{"type": "otogar_yk", "label": "Yalıkent Otogarı", "rect": Rect2(52600, 1450, 380, 220), "sign_y": 40},
+	{"type": "yk_kafe", "label": "Martı Kafe", "rect": Rect2(50300, 2620, 320, 200), "sign_y": 34},
+]
+const YK_LIGHTHOUSE := Vector2(53300, 3200)
+# Çamlıbel: dağ kenti (çam ormanları, kaplıca)
+const CAMLIBEL := Rect2(54500, 1000, 3600, 2400)
+const CB_ROADS := [Rect2(54500, 1600, 3600, 90), Rect2(55700, 1690, 90, 1310), Rect2(55700, 3000, 2400, 90)]
+const CB_BUILDINGS := [
+	{"type": "kaplica", "label": "Kaplıca", "rect": Rect2(57300, 2700, 500, 240), "sign_y": 40},
+	{"type": "lokanta", "label": "Yayla Lokantası", "rect": Rect2(54800, 1750, 380, 220), "sign_y": 40},
+	{"type": "otogar_cb", "label": "Çamlıbel Otogarı", "rect": Rect2(57400, 1360, 380, 220), "sign_y": 40},
+]
+# rampalar (kasabada otoyola çıkış) ve otogarlar (şehirler arası otobüs)
+const TOWN_RAMPS := {"sehir": Vector2(60, 445), "yalikent": Vector2(50080, 1345), "camlibel": Vector2(58020, 1645)}
+const OTOGARS := {"sehir": Vector2(170, 575), "yalikent": Vector2(52790, 1700), "camlibel": Vector2(57590, 1610)}
+
+
+## Arabanın gidebildiği yollar (bütün bölgeler).
+static func road_rects() -> Array:
+	var out: Array = ROADS.duplicate()
+	out.append(PORT_ROAD)
+	out.append_array([TOWN_ROAD, TOWN_AVE, TOWN_AVE2, DRIFT])
+	out.append_array(YK_ROADS)
+	out.append_array(CB_ROADS)
+	out.append(HWY_ROAD)
+	out.append(HWY_REST)
+	return out
+
+
+static func on_road(p: Vector2, margin: float = 0.0) -> bool:
+	for r: Rect2 in road_rects():
+		if r.grow(margin).has_point(p):
+			return true
+	return false
+
+
+## Bir yol üstündeki en yakın nokta (arabayı yola koymak için).
+static func nearest_road(p: Vector2) -> Vector2:
+	var best := p
+	var bd := INF
+	for r: Rect2 in road_rects():
+		var q := p.clamp(r.position + Vector2(20, 20), r.end - Vector2(20, 20))
+		var d := q.distance_to(p)
+		if d < bd:
+			bd = d
+			best = q
+	return best
+
+
+static func town_of(p: Vector2) -> String:
+	if YALIKENT.has_point(p):
+		return "yalikent"
+	if CAMLIBEL.has_point(p):
+		return "camlibel"
+	if WORLD.has_point(p):
+		return "sehir"
+	return ""

@@ -9,8 +9,9 @@ var here := ""
 func _ready() -> void:
 	build("Otobüs Durağı — %s" % Map.BUS_STOPS.get(here, ["?"])[0], Vector2(440, 0))
 	add_label(body, "Nereye gitmek istersin? Bilet: %s" % U.money(Work.BUS_FARE), 16, Color("#fde68a"))
+	var town := Map.town_of(Map.BUS_STOPS.get(here, ["", Vector2.ZERO])[1])
 	for k in Map.BUS_STOPS:
-		if k == here:
+		if k == here or Map.town_of(Map.BUS_STOPS[k][1]) != town:
 			continue
 		var b := add_button(body, Map.BUS_STOPS[k][0], _go.bind(k))
 		b.custom_minimum_size = Vector2(0, 38)

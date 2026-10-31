@@ -115,7 +115,7 @@ static func where(p: Vector2) -> String:
 		return "Deniz altı"
 	if Map.JAIL.has_point(p):
 		return "Karakol (hapiste)"
-	if Map.INTERIOR_AREA.has_point(p):
+	if Map.INTERIOR_AREA.has_point(p) or Map.INTERIOR2_AREA.has_point(p):
 		return "bir evin içinde"
 	return Map.area_name(p)
 

@@ -116,7 +116,8 @@ func _pay_rent() -> void:
 		return
 	var totals := {}
 	for p in plots:
-		if p.owner != "":
+		# 2.1: çevrimdışıyken para kazanılmaz (kira sadece oyundaki ev sahiplerine)
+		if p.owner != "" and Net.id_by_name(str(p.owner)) != 0:
 			totals[p.owner] = totals.get(p.owner, 0) + income_of(p)
 	for owner in totals:
 		totals[owner] = Election.take_tax(int(totals[owner] * Rpg.rent_mult_by_name(owner)))

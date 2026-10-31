@@ -86,7 +86,7 @@ func _draw() -> void:
 	_rect(Map.PIER, Color("#a0703c"))
 	_rect(Map.ISLAND_PIER, Color("#a0703c"))
 	_rect(Map.DOCK, Color("#a0703c"))
-	for i in mini(Land.view.size(), Map.PLOT_COUNT):
+	for i in mini(Land.view.size(), Map.CITY_PLOTS):
 		var p: Dictionary = Land.view[i]
 		var c := Color("#b8a06a")
 		if p.owner == Net.my_name:

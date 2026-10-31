@@ -2,7 +2,7 @@ extends Node
 ## İşletmeler: boş arsaya ev yerine büfe açılır (büfe → kafe → restoran).
 ## Sahip malzeme koyar (toptancıdan ya da balık/yiyecekle), fiyatı ve çalışan sayısını ayarlar.
 ## Her dakika NPC müşteriler gelir (saat, hava, fiyat, puan, çalışanlara göre), kasaya para birikir;
-## sahip çevrimdışıyken de çalışır. Kasa işletmede toplanır.
+## sahip çevrimiçiyken çalışır (2.1: çevrimdışıyken dükkân kapalı). Kasa işletmede toplanır.
 ## 1.2 Menü: kafe ve restoranda pişirdiğin yemekleri menüye koy, fiyatını belirle. NPC müşteriler menüden
 ## sipariş verir (fiyat yemeğin değerine göre makulse), oyuncular da gelip yemek yer. Menü çeşidi puanı artırır.
 ## Veri: plots[i]["kind"] = "biz", plots[i]["biz"] = {stock, price, staff, cash, rating, last_customers,
@@ -368,6 +368,8 @@ func _tick() -> void:
 		var p: Dictionary = Land.plots[i]
 		if not is_biz(p) or p.owner == "" or not p.get("biz") is Dictionary:
 			continue
+		if Net.id_by_name(str(p.owner)) == 0:
+			continue          # 2.1: sahibi çevrimdışıyken dükkân kapalı (çevrimdışı para kazanılmaz)
 		var b: Dictionary = p.biz
 		var lvl := int(p.level)
 		var f: float = BASE_CUSTOMERS[lvl] * _hour_factor() * _weather_factor(lvl)

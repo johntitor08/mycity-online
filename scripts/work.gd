@@ -448,6 +448,8 @@ func req_bus(d: Dictionary) -> void:
 	var to := str(d.get("to", ""))
 	if from == "" or not Map.BUS_STOPS.has(to) or to == from:
 		return
+	if Map.town_of(Map.BUS_STOPS[from][1]) != Map.town_of(Map.BUS_STOPS[to][1]):
+		return                  # 2.1: şehir içi otobüs kasabalar arasında gitmez (otogar var)
 	if not Net.try_spend(id, BUS_FARE):
 		Net.notify(id, "Otobüs bileti %s." % U.money(BUS_FARE), false)
 		return
