@@ -1,6 +1,6 @@
 # Büyük tanıtım videosu: yayın metinleri
 
-Video: `build/teaser/mycity-teaser-dev.mp4` (1080p, 5:16, 214 MB; YouTube'a bunu yükle)
+Video: `build/teaser/mycity-teaser-dev.mp4` (1080p, 5:05, 212 MB; YouTube'a bunu yükle)
 Hafif sürüm: `build/teaser/mycity-teaser-dev-hafif.mp4` (74 MB; itch, Discord, WhatsApp)
 Kapak (1280×720): `docs/tanitim/youtube_kapak.png`
 Yeniden çekmek için: `tools/teaser_dev.sh`
@@ -26,20 +26,20 @@ MyCity Online; arkadaşlarınla aynı şehirde yaşadığın ücretsiz, Türkçe
 
 Bölümler
 0:00 Şehir hayatı: meslekler, kumarhane, ev, işletme, polis, banka, seçim
-1:10 Otobüs, taksi, itfaiye ve ev partisi
-1:23 Spor, langırt, harita, kış; feribot ve fabrika
-1:48 Ahır, galeri, mutfak ve dalış
-2:02 Dağ: maden, kayak, müze, konser
-2:15 Balıkçılık, telefon, takas, atlar, kamp
-2:34 Okul, dedektif, lunapark, balon ve havalimanı
-2:48 Özel günler, korsan adası, hayvanat bahçesi, açık okyanus ve Kraken
-3:13 Tren, sinema, karaoke, paintball, özel ada
-3:35 Mağara zindanı, zombi gecesi, uzay üssü ve Ay, mini golf, bowling
-3:54 Yeni Mahalle: tuning, sokak yarışı, evcil hayvan şovu, afetler
-4:13 Restoran, aşçılık yarışması, Batık Şehir, belediye projeleri, plaj festivali
-4:32 Otoyol, Yalıkent ve Çamlıbel
-4:48 Yeni: kurumların içi (hastane, karakol, banka, kaplıca…)
-5:05 Her platformda ve sunucu listesi
+1:06 Otobüs, taksi, itfaiye ve ev partisi
+1:20 Spor, langırt, harita, kış; feribot ve fabrika
+1:41 Ahır, galeri, mutfak ve dalış
+1:54 Dağ: maden, kayak, müze, konser
+2:08 Balıkçılık, telefon, takas, atlar, kamp
+2:26 Okul, dedektif, lunapark, balon ve havalimanı
+2:39 Özel günler, korsan adası, hayvanat bahçesi, açık okyanus ve Kraken
+3:04 Tren, sinema, karaoke, paintball, özel ada
+3:25 Mağara zindanı, zombi gecesi, uzay üssü ve Ay, mini golf, bowling
+3:43 Yeni Mahalle: tuning, sokak yarışı, evcil hayvan şovu, afetler
+4:02 Restoran, aşçılık yarışması, Batık Şehir, belediye projeleri, plaj festivali
+4:20 Otoyol, Yalıkent ve Çamlıbel
+4:37 Yeni: kurumların içi (hastane, karakol, banka, kaplıca…)
+4:53 Her platformda ve sunucu listesi
 
 Oyun hakkında
 • Arsa al, evini küçük evden gökdelene büyüt, büfeni restorana çevir
