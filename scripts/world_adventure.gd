@@ -46,6 +46,8 @@ static func ext_of(p: Vector2) -> String:
 		return "uzay"
 	if Map.GOLF.has_point(p):
 		return "golf"
+	if Map.TOWN.has_point(p):
+		return "mahalle"
 	return ""
 
 
@@ -61,6 +63,8 @@ func camera_rect() -> Rect2:
 			return Map.SPACEPORT
 		"golf":
 			return Map.GOLF
+		"mahalle":
+			return Map.TOWN
 	return Map.WORLD
 
 
@@ -76,6 +80,8 @@ func can_stand(p: Vector2) -> bool:
 			return Dungeon.client_free(p) or not Dungeon.client_free(me)
 		"uzay":
 			return not (_hangar().grow(-6).has_point(p) and not _hangar().grow(-6).has_point(me))
+		"mahalle":
+			return w.town.can_stand(p)
 	return true
 
 
@@ -117,6 +123,9 @@ func status_line() -> String:
 
 func decorate(hint: String) -> String:
 	var s := status_line()
+	var ts: String = w.town.status_line()
+	if ts != "":
+		s = ts if s == "" else s + "  ·  " + ts
 	if s == "":
 		return hint
 	return s if hint == "" else hint + "\n" + s
@@ -124,6 +133,9 @@ func decorate(hint: String) -> String:
 
 ## Kendi bölgelerimde (zindan, Ay, uzay üssü, golf) ipucu ve E alanı.
 func update_zone() -> void:
+	if ext == "mahalle":
+		w.town.update_zone()
+		return
 	var me: Vector2 = w.my_pos
 	var z := {}
 	match ext:
@@ -470,6 +482,10 @@ func _flush(items: Array) -> void:
 				_draw_defense(it[2])
 			"hangar":
 				_draw_hangar()
+			"pet":
+				w._draw_pet(it[2][0], it[2][1])
+			_:
+				w.town.draw_item(str(it[1]), it[2])
 
 
 func _monster_items(items: Array, wrap: bool = false) -> void:
@@ -525,6 +541,13 @@ func draw_region() -> void:
 			_draw_spaceport(view, items)
 		"golf":
 			_draw_golf(view, items)
+		"mahalle":
+			w.town.draw_region(view, items)
+			for id in w.npc.pets:
+				var info = Net.roster.get(id)
+				if info and info.get("pet") is Dictionary and not info.pet.is_empty():
+					var st: Dictionary = w.npc.pets[id]
+					items.append([st.pos.y, "pet", [st, info.pet]])
 	_monster_items(items)
 	_players(items)
 	_flush(items)

@@ -122,7 +122,7 @@ static func train_x(st: Dictionary, k: float) -> float:
 
 
 static func rail_region(key: String) -> String:
-	return {"sehir": "sehir", "dag": "dag", "fuar": "fuar"}[key]
+	return {"sehir": "sehir", "dag": "dag", "fuar": "fuar", "mahalle": "mahalle"}[key]
 
 
 static func region_of(p: Vector2) -> String:
@@ -136,6 +136,8 @@ static func region_of(p: Vector2) -> String:
 		return "uzay"
 	if GOLF.has_point(p):
 		return "golf"
+	if TOWN.has_point(p):
+		return "mahalle"
 	if MOUNTAIN.has_point(p):
 		return "dag"
 	if FAIR.has_point(p):
@@ -149,6 +151,7 @@ const RAIL := {
 	"sehir": {"name": "Şehir Garı", "y": 36.0, "x0": -500.0, "x1": 3300.0, "stop": 2230.0, "booth": Vector2(2230, 84), "arrive": Vector2(2230, 140)},
 	"dag": {"name": "Dağ İstasyonu", "y": 2866.0, "x0": 7400.0, "x1": 10800.0, "stop": 8560.0, "booth": Vector2(8560, 2826), "arrive": Vector2(8620, 2790)},
 	"fuar": {"name": "Lunapark İstasyonu", "y": 36.0, "x0": 10100.0, "x1": 13700.0, "stop": 11560.0, "booth": Vector2(11560, 84), "arrive": Vector2(11640, 150)},
+	"mahalle": {"name": "Yeni Mahalle İstasyonu", "y": 36.0, "x0": 39000.0, "x1": 42600.0, "stop": 40800.0, "booth": Vector2(40800, 84), "arrive": Vector2(40880, 150)},
 }
 const RAIL_PERIOD := 80.0          # tarife: 0-10 sn giriş, 10-30 peronda, 30-40 çıkış
 const TRAIN_LEN := 480.0
@@ -175,6 +178,24 @@ const SPACE_SHOP := Vector2(33900, 3350)           # roket atölyesi ve uzay paz
 const SPACE_STRIP := Vector2(34900, 3560)          # uzay üssünün uçak pisti (havalimanına dönüş)
 const GOLF := Rect2(37000, 0, 1800, 1200)
 const GOLF_BOOTH := Vector2(12880, 1120)           # fuarda mini golf gişesi
+# 1.9: Yeni Mahalle (trenle gidilir): pazar meydanı ve tezgâhlar, tuning garajı ve drift alanı, evcil hayvan parkı
+const TOWN := Rect2(39500, 0, 2600, 1800)
+const TOWN_ROAD := Rect2(39500, 196, 2600, 74)
+const TOWN_AVE := Rect2(40556, 270, 74, 1530)
+const MARKET_SQ := Rect2(39620, 320, 880, 720)
+const STALL_COUNT := 8
+const WANTED_BOARD := Vector2(40060, 1000)          # alım ilanları panosu
+const TUNING := {"type": "tuning", "label": "Tuning Garajı", "rect": Rect2(39660, 1110, 420, 230), "sign_y": 60}
+const DRIFT := Rect2(39620, 1420, 880, 340)          # drift alanı (puanlar burada sayılır)
+const PET_PARK := Rect2(40700, 320, 1340, 1440)
+const PET_TRACK := [Vector2(40820, 520), Vector2(41900, 520), Vector2(41900, 800), Vector2(40820, 800), Vector2(40820, 1060), Vector2(41900, 1060)]
+const PET_BOOTH := Vector2(40780, 430)               # parkur yarışı gişesi
+const PET_STAGE := Rect2(41260, 1250, 440, 170)      # güzellik şovu sahnesi
+const PET_SPOTS := {"kosu": Vector2(40830, 1280), "slalom": Vector2(40830, 1520), "bakim": Vector2(41060, 1640)}
+const PET_KIOSK := Vector2(41880, 1330)              # aksesuar dükkânı
+# 1.9: afetlerde yardım çadırı (şehirde, sahil yolunun başında)
+const AID_TENT := Vector2(1260, 1585)
+
 const BOWLING := {"type": "bowling", "label": "Bowling", "rect": Rect2(12660, 700, 440, 260), "sign_y": 70}
 
 # 1.6: Açık Okyanus (harita dışında; adalar ocean_map.gd'de)
@@ -559,3 +580,14 @@ static func in_mountain(p: Vector2) -> bool:
 static func plot_front(i: int) -> Vector2:
 	var r := plot_rect(i)
 	return Vector2(r.get_center().x, r.end.y - 20)
+
+
+## 1.9: tezgâh i'nin dikdörtgeni (pazar meydanında iki sıra).
+static func stall_rect(i: int) -> Rect2:
+	return Rect2(MARKET_SQ.position + Vector2(40 + (i % 4) * 210, 60 + (i / 4) * 320), Vector2(180, 110))
+
+
+## Tezgâhın önü (alışveriş buradan yapılır).
+static func stall_front(i: int) -> Vector2:
+	var r := stall_rect(i)
+	return Vector2(r.get_center().x, r.end.y + 40)

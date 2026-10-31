@@ -110,6 +110,8 @@ func _update_roster(id: int) -> void:
 	var info := {}
 	if pet is Dictionary:
 		info = {"kind": pet.kind, "name": pet.name, "happy": is_happy(pet)}
+		if pet.get("show") is Dictionary and not pet.show.get("wear", {}).is_empty():
+			info["wear"] = pet.show.wear.duplicate()          # 1.9: aksesuarlar herkese görünür
 	if Net.players[id].get("pet", {}) != info:
 		Net.players[id]["pet"] = info
 		Net._broadcast_roster()

@@ -37,6 +37,37 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.9: Yeni Mahalle — pazar meydanı, evcil hayvan şovu, araba tuning ve sokak yarışı; afetler
+
+| | |
+|---|---|
+| ![Pazar meydanı](docs/ekran/pazar_meydani.png) | ![Tuning ve drift](docs/ekran/tuning_drift.png) |
+| ![Parkur yarışı](docs/ekran/parkur_yarisi.png) | ![Güzellik şovu](docs/ekran/guzellik_sovu.png) |
+| ![Sokak yarışı](docs/ekran/sokak_yarisi.png) | ![Deprem](docs/ekran/deprem.png) |
+| ![Sel ve yardım çadırı](docs/ekran/sel_yardim.png) | ![Kar fırtınası](docs/ekran/kar_firtinasi.png) |
+
+- **Yeni Mahalle:** trenin dördüncü istasyonu. Pazar meydanı, tuning garajı, drift alanı ve evcil hayvan parkı burada.
+- **Oyuncu pazarı:**
+  - 8 kiralık tezgâh var (günlüğü 400 TL, en fazla 3 gün peşin). Balık, yiyecek ve çiftlik ürününü dizip fiyatını sen belirlersin; tezgâhın adını ve tente rengini de seçersin.
+  - Sen çevrimdışıyken de meydana gelen müşteriler malın değerine yakın fiyatlı olanları alır. Değerinin yaklaşık 2,5 katından pahalı mala kimse dokunmaz.
+  - Satışlar kasada birikir (%5 pazar payı). Kira bitince mallar ve kasa sana döner.
+  - Alım ilanı panosunda "şunu şu fiyattan alırım" ilanı asılır; para emanete alınır, satıcılar ilanı doldurur.
+- **Evcil hayvan yarışı ve şovu:**
+  - Eğitim yerleri: koşu bandı (hız), slalom (çeviklik) ve bakım masası (çekicilik).
+  - Aksesuarlar: kurdele, parti şapkası, taç, papyon, fular, altın tasma ve gözlükler. Hayvanın üstünde herkese görünür.
+  - Engelli parkur yarışı NPC hayvanlarla birlikte koşulur (çember, slalom, engel, tünel). Ayrıca 3 jürili güzellik şovu var. Kazananlara kupa ve ödül verilir.
+- **Araba tuning ve sokak yarışı:**
+  - Tuning parçaları: motor (3 kademe), spor lastik, nitro (N tuşu), spoyler ve 6 renk neon.
+  - Araba artık kayarak döner. Hızlıyken keskin dönünce drift yapılır; Drift Alanı'nda puan rekoru tutulur ve sunucu hileye karşı denetler.
+  - Damalı bayrakta çok oyunculu sokak yarışı: 3 tur, botlu, ödül havuzlu.
+  - Pist turunda rekor sahibinin yarı saydam **hayalet arabası** seninle yarışır.
+- **Afetler (deprem, sel, kar fırtınası):**
+  - Arada bir şehri vurur; herkes birlikte toparlar. Görevler: enkaz ve kar yığınlarını temizlemek (E basılı), hasarlı binaları onarmak (onarılana dek kapalı), yardım çadırından ilk yardım çantası, kum torbası ya da battaniye alıp yaralılara, su baskınına ve donanlara götürmek, mahsur kalanları kurtarmak.
+  - Depremde ekran sallanır; selde su baskınında yavaş yürünür, kar fırtınasında yollar kapanır.
+  - İtfaiye görevindekiler iki kat hızlı temizler. Bitince katkı veren herkes ödül alır.
+  - Yönetici komutu: `/afet deprem|sel|kar|bitir`.
+- 10 yeni başarım; ayarlarda yeni "Nitro" tuşu.
+
 ## 1.8: Mağara zindanı, zombi gecesi, uzay üssü ve Ay, mini golf ve bowling
 
 | | |

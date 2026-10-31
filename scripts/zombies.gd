@@ -33,6 +33,7 @@ var _bar: Array = []                 # [{p, hp, owner}]
 var _spawn_acc := 0.0
 var _sync := 0.0
 var _last_day := -1
+var _skipped_night := -1            # yönetici bu doğal geceyi bitirdiyse aynı gece yeniden başlamaz
 
 
 func _ready() -> void:
@@ -134,16 +135,22 @@ func force_start(minutes: float = 8.0) -> void:
 
 func force_stop() -> void:
 	_forced_until = -1.0
+	_skipped_night = _night_key()
 	if _active:
 		_end()
 
 
-func _night_due() -> bool:
+func _night_key() -> int:
 	var day := int(Time.get_unix_time_from_system() / Env.DAY_SECONDS)
-	var h := Env.hour
-	if h < END_HOUR:
+	if Env.hour < END_HOUR:
 		day -= 1                 # gece yarısından sonra hâlâ önceki günün gecesi
-	return day % 2 == 0 and (h >= START_HOUR or h < END_HOUR)
+	return day
+
+
+func _night_due() -> bool:
+	var h := Env.hour
+	var day := _night_key()
+	return day % 2 == 0 and (h >= START_HOUR or h < END_HOUR) and day != _skipped_night
 
 
 func _start() -> void:

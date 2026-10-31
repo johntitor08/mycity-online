@@ -78,6 +78,11 @@ Zombies="*res://scripts/zombies.gd"
 Space="*res://scripts/space.gd"
 Golf="*res://scripts/golf.gd"
 Bowling="*res://scripts/bowling.gd"
+Tuning="*res://scripts/tuning.gd"
+Street="*res://scripts/street.gd"
+PetShow="*res://scripts/petshow.gd"
+Stalls="*res://scripts/stalls.gd"
+Disasters="*res://scripts/disasters.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

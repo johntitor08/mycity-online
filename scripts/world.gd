@@ -153,6 +153,7 @@ var _ocean := false         # Açık Okyanus'ta mıyım (1.6)
 var night_windows: Node2D   # gece yanan pencereler (karartmadan etkilenmesin diye ayrı katmanda)
 var touch: Control          # dokunmatik kontroller (telefonda)
 var adv                     # 1.8: zindan, zombi gecesi, uzay, golf, bowling (world_adventure.gd)
+var town                    # 1.9: Yeni Mahalle, tuning ve drift, sokak yarışı, afetler (world_town.gd)
 var _win_queue: Array = []
 var _ocean_acc := 0.0
 var _ocean_flush := 0.0
@@ -226,6 +227,7 @@ func _ready() -> void:
 	hud.transfer_requested.connect(open_transfer)
 	ui_layer.layer = 3
 	adv = preload("res://scripts/world_adventure.gd").new(self)
+	town = preload("res://scripts/world_town.gd").new(self)
 	touch = preload("res://scripts/ui/touch_controls.gd").new()
 	touch.world = self
 	ui_layer.add_child(touch)
@@ -335,8 +337,8 @@ func _process(delta: float) -> void:
 		if Airport.in_balloon():
 			my_pos = Map.balloon_at(Airport.balloon_elapsed())
 			my_moving = true
-	elif my_ride() == "train" or Paint.in_match() and Paint.is_out(Net.my_name):
-		pass                                   # trende ya da boyanıp oyun dışıyken yürünmez
+	elif my_ride() == "train" or Paint.in_match() and Paint.is_out(Net.my_name) or Street.frozen():
+		pass                                   # trende, boyanıp oyun dışıyken ya da yarış geri sayımında yürünmez
 	elif panel == null and not hud.is_typing():
 		var dir := Vector2.ZERO
 		if Settings.held("up"):
@@ -347,8 +349,9 @@ func _process(delta: float) -> void:
 			dir.x -= 1
 		if Settings.held("right"):
 			dir.x += 1
-		if dir != Vector2.ZERO:
-			my_facing = _facing_of(dir)
+		if dir != Vector2.ZERO or my_ride() == "car" and town.coasting():
+			if dir != Vector2.ZERO:
+				my_facing = _facing_of(dir)
 			var ride := my_ride()
 			var mult := Garage.speed_of(ride)
 			if (ride == "car" or ride == "bike") and School.has("surucu"):
@@ -361,14 +364,21 @@ func _process(delta: float) -> void:
 				mult *= Ocean.speed_mult(Ocean.my.up, float(Ocean.my.fuel)) * (0.6 if Ocean.storm_at(my_pos) else 1.0)
 			if _dive:
 				mult = 0.6
+			mult *= town.move_mult(my_pos)               # 1.9: sel baskını
 			var step := dir.normalized() * SPEED * delta * mult
+			if ride == "car":
+				step = town.car_step(dir, SPEED * mult, delta)     # 1.9: kayarak sürüş, nitro
 			# Eksen eksen dene ki kıyı/duvar boyunca kayabilelim.
+			var moved := false
 			for s in [step, Vector2(step.x, 0), Vector2(0, step.y)]:
 				var np: Vector2 = _clamp_to_area(my_pos + s)
 				if _can_stand(np, ride):
 					my_moving = np != my_pos
 					my_pos = np
+					moved = true
 					break
+			if not moved and ride == "car":
+				town.car_bump()
 	_push_from_bus()
 	if _fish_state != "idle" and _t - _fish_since > 15.0:
 		_fish_state = "idle"        # sunucudan haber gelmedi (ör. olta iptal): takılı kalma
@@ -384,6 +394,7 @@ func _process(delta: float) -> void:
 			_spray_acc = 0.0
 			Work.spray(int(zone.id))
 	adv.tick(delta)
+	town.tick(delta)
 	Net.update_my_pos(my_pos, delta)
 	if _ocean:
 		_ocean_tick(delta)
@@ -486,6 +497,8 @@ func _can_stand(p: Vector2, ride: String) -> bool:
 		return false              # bina, ev ya da araba (içindeysen çıkabilirsin)
 	if adv.barricade_at(p) and not adv.barricade_at(my_pos):
 		return false              # zombi gecesi barikatı
+	if town.blocked_at(p) and not town.blocked_at(my_pos):
+		return false              # 1.9: enkaz ya da kar yığını
 	if my_ride() == "kayik" or ride == "kayik":
 		return Map.in_lake(p)     # kayık gölde kalır (karaya ve iskeleye çıkmaz)
 	if Map.in_water(p):
@@ -673,7 +686,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event is InputEventKey and event.pressed and not event.echo:
 			_photo_input(event)
 		return
-	if adv.input(event):
+	if adv.input(event) or town.input(event):
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton and event.pressed and panel == null and Paint.in_match() \
@@ -897,6 +910,7 @@ func _update_zone() -> void:
 		z = {"type": "ocean_gate", "label": "AÇIK OKYANUS'a açıl (30 ada, hazineler, Kraken!)"}
 	z = _holiday_zone(z)
 	z = adv.extra_zone(z)
+	z = town.extra_zone(z)
 	if not dz.is_empty():
 		z = dz
 	zone = z
@@ -976,6 +990,8 @@ func _open_panel() -> void:
 	if zone.is_empty():
 		return
 	if adv.open(zone):
+		return
+	if town.open(zone):
 		return
 	if zone.type == "exit_home":
 		Homes.exit_home()
@@ -2041,6 +2057,7 @@ func _draw() -> void:
 	_draw_rails()
 	_draw_arena()
 	adv.draw_ground()
+	town.draw_ground()
 	_draw_city_extras()
 	_draw_holiday()
 	_draw_marathon()
@@ -2051,6 +2068,7 @@ func _draw() -> void:
 		_draw_plot(i)
 	for b in Map.BUILDINGS:
 		_draw_building(b)
+	town.draw_after_buildings()
 	if _mount:
 		for b in Map.MOUNTAIN_BUILDINGS:
 			_draw_building(b)
@@ -2144,10 +2162,13 @@ func _draw() -> void:
 	if Events.treasure_pos != null and Events.current.get("kind", "") == "treasure":
 		items.append([Events.treasure_pos.y, "t", Events.treasure_pos])
 	adv.add_items(items)
+	town.add_items(items)
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
 		if it[1] == "adv":
 			adv.draw_item(it[2])
+		elif it[1] == "town":
+			town.draw_city_item(it[2])
 		elif it[1] == "n":
 			_draw_nature(it[2])
 		elif it[1] == "w":
@@ -2218,6 +2239,7 @@ func _draw() -> void:
 	_draw_sky()
 	_draw_fx()
 	adv.draw_overlay()
+	town.draw_overlay()
 	_draw_placement_ghost()
 	_draw_snow_fx()
 	_draw_nav()
@@ -2986,6 +3008,8 @@ func _draw_pet(st: Dictionary, pet: Dictionary) -> void:
 		draw_circle(Vector2(4, -32), 2.0, Color.WHITE)
 		draw_line(Vector2(-2, -20), Vector2(12, -24), Color("#111827"), 1.5)
 		draw_circle(Vector2(8, -21), 2.6, Color("#111827"))
+	if pet.get("wear") is Dictionary:
+		town.draw_pet_wear(str(pet.kind), pet.wear)          # 1.9: aksesuarlar
 	draw_set_transform(Vector2.ZERO)
 	if not boat:            # teknede adı sahibininkiyle çakışmasın
 		_text(p + Vector2(-60, -30 + lift), pet.name, 12, Color("#e0f2fe") if pet.get("happy", true) else Color("#94a3b8"), 120)
@@ -3013,8 +3037,10 @@ func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color, vstyle:
 			draw_set_transform(p + Vector2(4, 6), ang, Vector2.ONE)
 			draw_rect(Rect2(-46, -24, 92, 48), Color(0, 0, 0, 0.25))
 			draw_set_transform(p, ang, Vector2.ONE)
+			town.draw_car_under(vstyle)
 			draw_texture_rect(CAR_BODY, Rect2(-48, -26, 96, 52), false, col)
 			draw_texture_rect(CAR_DETAIL, Rect2(-48, -26, 96, 52), false)
+			town.draw_car_over(vstyle)
 			var rims := int(vstyle.get("rims", 0))
 			if rims > 0:      # jantlar (tekerlek göbekleri)
 				for wp in [Vector2(-28, -24), Vector2(28, -24), Vector2(-28, 24), Vector2(28, 24)]:
@@ -3067,6 +3093,7 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	var name_col := Color("#fde68a") if me else Color.WHITE
 	match ride:
 		"car":
+			town.draw_flame(p, facing, str(extra.get("name", Net.my_name if me else "")))
 			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
 			_name(p, -40, pname, name_col, extra)
 			return

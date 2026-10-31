@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "1.8"
+const VERSION := "1.9"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -341,6 +341,11 @@ func _reset_peer() -> void:
 	Space.reset()
 	Golf.reset()
 	Bowling.reset()
+	Tuning.reset()
+	Street.reset()
+	PetShow.reset()
+	Stalls.reset()
+	Disasters.reset()
 
 
 func _on_connected() -> void:
@@ -369,7 +374,7 @@ func is_admin(id: int) -> bool:
 	return players.has(id) and admins().has(players[id].name)
 
 
-const HELP := "Komutlar: /duyuru metin · /kick isim · /sustur isim dakika · /hava açık|bulutlu|yağmur|fırtına|sis|gökkuşağı · /etkinlik tür · /kaydet · /yedekle · /oyuncular · /yonetici isim · /ozelgun cadilar|yilbasi|ramazan|kurban|sevgililer|yok|takvim · /zombi başlat|bitir"
+const HELP := "Komutlar: /duyuru metin · /kick isim · /sustur isim dakika · /hava açık|bulutlu|yağmur|fırtına|sis|gökkuşağı · /etkinlik tür · /kaydet · /yedekle · /oyuncular · /yonetici isim · /ozelgun cadilar|yilbasi|ramazan|kurban|sevgililer|yok|takvim · /zombi başlat|bitir · /afet deprem|sel|kar|bitir"
 
 
 ## Yönetici komutları (sohbetten "/" ile).
@@ -401,6 +406,15 @@ func _command(id: int, text: String) -> void:
 				return
 			Holidays.force(k)
 			notify(id, "Özel gün: %s" % (Holidays.current() if Holidays.current() != "" else "yok"))
+		"afet":
+			if parts.size() > 1 and parts[1] == "bitir":
+				Disasters.stop(false)
+				notify(id, "Afet bitirildi.")
+			elif parts.size() > 1 and Disasters.KINDS.has(parts[1]):
+				Disasters.start(parts[1])
+				notify(id, "%s başlatıldı." % Disasters.KINDS[parts[1]].name)
+			else:
+				notify(id, "Kullanım: /afet deprem|sel|kar|bitir", false)
 		"zombi":
 			if parts.size() > 1 and parts[1] == "bitir":
 				Zombies.force_stop()
@@ -556,6 +570,11 @@ func _on_peer_disconnected(id: int) -> void:
 	Space.on_player_left(id)
 	Golf.on_player_left(id)
 	Bowling.on_player_left(id)
+	Tuning.on_player_left(id)
+	Street.on_player_left(id)
+	PetShow.on_player_left(id)
+	Stalls.on_player_left(id)
+	Disasters.on_player_left(id)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -717,6 +736,11 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	Space.send_state(id)
 	Golf.send_state(id)
 	Bowling.send_state(id)
+	Tuning.send_state(id)
+	Street.send_state(id)
+	PetShow.send_state(id)
+	Stalls.send_state(id)
+	Disasters.send_state(id)
 	announce(("%s şehre taşındı. Hoş geldin!" if is_new else "%s şehre geldi.") % pname)
 	log_line("%s %s (%d oyuncu çevrimiçi)" % [pname, "yeni hesap açtı" if is_new else "girdi", players.size()])
 	return ""
@@ -855,7 +879,7 @@ func send_pos(p: Vector2) -> void:
 	if Map.OCEAN.has_point(p):
 		positions[id] = p.clamp(Map.OCEAN.position, Map.OCEAN.end)
 		return
-	for r in [Map.DUNGEON, Map.MOON, Map.SPACEPORT, Map.GOLF]:
+	for r in [Map.DUNGEON, Map.MOON, Map.SPACEPORT, Map.GOLF, Map.TOWN]:
 		if (r as Rect2).has_point(p):
 			positions[id] = p.clamp(r.position, r.end)
 			return
@@ -876,6 +900,8 @@ func _speed_ok(id: int, p: Vector2) -> bool:
 	var dt := clampf(now - float(_pos_t.get(id, now - 1.0)), 0.03, 2.0)
 	var ride := str(players[id].get("ride", ""))
 	var speed := 300.0 * Garage.speed_of(ride)
+	if ride == "car":
+		speed *= Tuning.max_mult(id)          # 1.9: motor, spoyler ve nitro
 	var allowed := speed * dt * 1.6 + 90.0
 	if Map.interior_at(p) != Map.interior_at(last) or Map.JAIL.has_point(last):
 		allowed = 1e9          # ev kapısı / hapisten çıkış: sunucu ışınladı

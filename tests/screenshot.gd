@@ -12,6 +12,7 @@ func _ready() -> void:
 	var w = get_parent().world
 	if "--genel" in OS.get_cmdline_user_args():
 		Tutorial.finish()
+		await _wait(2.0)
 		w.hud.visible = false
 		Env.hour = 12.0
 		Env.force_weather("clear")
@@ -160,6 +161,12 @@ func _ready() -> void:
 		for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
 			w.hud.set_collapsed(k, false)
 		await _wait(0.3)
+		get_tree().quit()
+		return
+	if "--sadece19" in OS.get_cmdline_user_args():
+		Net.add_money(1, 400000)
+		Rpg.add_xp(1, "", 60000)
+		await _shots_19(w)
 		get_tree().quit()
 		return
 	if "--sadece18" in OS.get_cmdline_user_args():
@@ -2589,6 +2596,171 @@ func _shots_18(w) -> void:
 	await _wait(1.25)
 	_shot("bowling")
 	w._close_panel()
+
+
+func _shots_19(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Holidays.force("yok")
+	Tutorial.finish()
+	Env.hour = 12.0
+	var me := 1
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	var apps := [["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+		["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+		["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]]
+	_fake_players(apps)
+	Garage._list(me).append("car")
+	Garage.send_state(me)
+	Pets.give(me, "dog", "Karabaş")
+	await _wait(0.3)
+	# --- pazar meydanı: tezgâhlar dolu
+	var goods := [["crop", "domates", 18], ["crop", "misir", 30], ["crop", "yun", 50], ["food", "simit", 20]]
+	var names := ["Ayşe'nin Bahçesi", "Kerem Market", "Zeynep Şarküteri", "Eren'in Tezgâhı", "Taze Balık", "Organik Köşe"]
+	var now := Time.get_unix_time_from_system()
+	for i in 6:
+		var items: Array = []
+		for k in 3:
+			var gd: Array = goods[(i + k) % goods.size()]
+			items.append({"kind": gd[0], "item": gd[1], "label": Farm.item_info(gd[1]).get("name", "Simit") if gd[0] == "crop" else "Simit", "price": gd[2], "base": gd[2], "qty": 5})
+		Stalls._store()[i] = {"owner": (["Ayşe", "Kerem", "Zeynep", Net.my_name, "Ayşe", "Kerem"])[i], "name": names[i], "color": i, "until": now + 86400.0, "items": items, "till": 0, "sold": 3}
+	Net.save_data["wanted"] = [{"id": 1, "buyer": "Kerem", "kind": "crop", "key": "misir", "label": "Mısır", "qty": 10, "price": 32},
+		{"id": 2, "buyer": "Ayşe", "kind": "food", "key": "simit", "label": "Simit", "qty": 5, "price": 18}]
+	Stalls._broadcast()
+	var sq: Rect2 = Map.MARKET_SQ
+	Homes._teleport(me, Map.stall_front(1) + Vector2(20, 30))
+	Net.positions[9981] = Map.stall_front(0) + Vector2(0, 10)
+	Net.positions[9982] = Map.stall_front(2) + Vector2(-30, 20)
+	Net.positions[9983] = Map.WANTED_BOARD + Vector2(40, 40)
+	w.camera.zoom = Vector2(0.95, 0.95)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("pazar_meydani")
+	# --- tuning garajı ve drift alanı
+	var t: Dictionary = Tuning._data(rec)
+	t["engine"] = 3
+	t["tires"] = 2
+	t["nitro"] = 1
+	t["spoiler"] = true
+	Garage._style(me)["neon"] = 0
+	Garage._style(me)["spoiler"] = true
+	Garage._style(me)["car"] = 5
+	Garage.send_state(me)
+	Tuning.send_state(me)
+	Homes._teleport(me, Map.DRIFT.get_center() + Vector2(-120, 30))
+	await _wait(0.5)
+	Garage.ride("car")
+	await _wait(0.5)
+	var dc: Vector2 = Map.DRIFT.get_center() + Vector2(-120, 30)
+	for k in 40:
+		var a := k * 0.16
+		w.town.skids.append([dc + Vector2(cos(a) * 140.0, sin(a) * 60.0), Time.get_ticks_msec() / 1000.0])
+	w.town.drifting = true
+	w.town.drift_pts = 742.0
+	Tuning.fire_nitro()
+	await _wait(0.2)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(0.3)
+	_shot("tuning_drift")
+	w.town.drifting = false
+	Garage.ride("")
+	# --- evcil hayvan parkı: parkur yarışı
+	rec.pet["show"] = {"speed": 70, "agility": 65, "charm": 60, "day": Time.get_date_string_from_system(), "trains": 2, "cups": {"gold": 2, "silver": 1, "bronze": 3},
+		"acc": ["tac", "papyon"], "wear": {"head": "tac", "neck": "papyon"}}
+	Pets._update_roster(me)
+	PetShow.send_state(me)
+	Homes._teleport(me, Map.PET_BOOTH + Vector2(60, 60))
+	await _wait(0.4)
+	PetShow.join_race()
+	await _wait(0.3)
+	PetShow._race_t -= PetShow.RACE_LOBBY
+	await _wait(0.3)
+	var ds := [620.0, 560.0, 540.0, 470.0]
+	var k2 := 0
+	for k in PetShow._runners:
+		PetShow._runners[k]["d"] = ds[k2]
+		k2 += 1
+	Net.positions[9981] = PetShow.track_pos(500.0) + Vector2(-40, -80)
+	Net.positions[9982] = PetShow.track_pos(640.0) + Vector2(60, -80)
+	Net.positions[9983] = PetShow.track_pos(700.0) + Vector2(0, 90)
+	Homes._teleport(me, PetShow.track_pos(560.0) + Vector2(-30, 100))
+	w.camera.zoom = Vector2(1.1, 1.1)
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("parkur_yarisi")
+	# --- güzellik şovu sonucu
+	Homes._teleport(me, Vector2(Map.PET_STAGE.get_center().x, Map.PET_STAGE.end.y + 30))
+	await _wait(0.6)
+	PetShow.enter_show()
+	await _wait(0.8)
+	_shot("guzellik_sovu")
+	w._close_panel()
+	await _wait(5.0)
+	# --- sokak yarışı
+	Homes._teleport(me, Map.RACE_FLAG + Vector2(0, 60))
+	await _wait(0.5)
+	Garage.ride("car")
+	await _wait(0.4)
+	Street.join()
+	await _wait(0.3)
+	Street._t -= Street.LOBBY_TIME
+	await _wait(0.4)
+	Street._t -= Street.COUNTDOWN
+	await _wait(1.6)
+	Homes._teleport(me, Street.bot_pos(700.0) + Vector2(60, 0))
+	w.town.car_vel = Vector2(-600, 0)
+	Tuning.fire_nitro()
+	await _wait(0.6)
+	await _clear_toasts(w)
+	_shot("sokak_yarisi")
+	Street._finish()
+	Garage.ride("")
+	await _wait(1.0)
+	# --- deprem
+	Disasters.start("deprem")
+	await _wait(0.4)
+	var b0: Dictionary = Map.building(str(Disasters.state.bld[0][0]))
+	Disasters._piles[0]["p"] = Vector2(b0.rect.get_center().x - 120, b0.rect.end.y + 60)
+	Disasters._people[0]["p"] = Vector2(b0.rect.get_center().x + 110, b0.rect.end.y + 70)
+	Disasters._bld[0]["prog"] = 5
+	Disasters._broadcast()
+	Homes._teleport(me, Vector2(b0.rect.get_center().x, b0.rect.end.y + 90))
+	Net.positions[9981] = Vector2(b0.rect.get_center().x - 60, b0.rect.end.y + 70)
+	Net.positions[9982] = Vector2(b0.rect.get_center().x + 60, b0.rect.end.y + 110)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(6.0)
+	await _clear_toasts(w)
+	_shot("deprem")
+	Disasters.stop(false)
+	await _wait(0.4)
+	# --- sel ve yardım çadırı
+	Disasters.start("sel")
+	await _wait(0.4)
+	Disasters._pools[0]["p"] = Map.AID_TENT + Vector2(330, -60)
+	Disasters._people[0]["p"] = Map.AID_TENT + Vector2(330, -60)
+	Disasters._broadcast()
+	Homes._teleport(me, Map.AID_TENT + Vector2(130, 40))
+	Net.positions[9981] = Map.AID_TENT + Vector2(-60, 40)
+	Net.positions[9982] = Map.AID_TENT + Vector2(260, 30)
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("sel_yardim")
+	Disasters.stop(false)
+	# --- kar fırtınası
+	Disasters.start("kar")
+	await _wait(0.4)
+	Disasters._piles[0]["p"] = Map.SPAWN + Vector2(-120, 0)
+	Disasters._piles[1]["p"] = Map.SPAWN + Vector2(180, 10)
+	Disasters._people[0]["p"] = Map.SPAWN + Vector2(60, 70)
+	Disasters._broadcast()
+	Homes._teleport(me, Map.SPAWN + Vector2(-20, 60))
+	Net.positions[9981] = Map.SPAWN + Vector2(-140, 50)
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("kar_firtinasi")
+	Disasters.stop(false)
 
 
 func _shot(n: String) -> void:

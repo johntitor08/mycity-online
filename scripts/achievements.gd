@@ -179,6 +179,17 @@ const LIST := {
 	"bowl_strike": ["bowling_strikes", 1, "Strike!", "Bowlingde strike yap.", 300, ""],
 	"bowl200": ["bowling_best", 200, "Bowling Ustası", "Bir bowling oyununda 200 puan yap.", 4000, "Bowling Ustası"],
 	"bowl300": ["bowling_best", 300, "Mükemmel Oyun", "Bowlingde 300 puan yap.", 20000, "Mükemmel"],
+	# 1.9
+	"full_tune": ["full_tune", 1, "Tam Donanım", "Arabana motor, lastik, nitro ve spoylerin hepsini en üst kademede tak.", 3000, "Tuning Ustası"],
+	"drift1000": ["drift", 1000, "Drift Kralı", "Drift Alanı'nda tek seferde 1000 drift puanı topla.", 2500, "Drift Kralı"],
+	"street1": ["street_races", 1, "Sokakların Tozu", "Bir sokak yarışını bitir.", 500, ""],
+	"street_win5": ["street_wins", 5, "Sokak Şampiyonu", "5 sokak yarışı kazan.", 6000, "Sokak Şampiyonu"],
+	"pet_train50": ["pet_trains", 50, "Sabırlı Eğitmen", "Evcil hayvanını 50 kez eğit.", 2000, "Eğitmen"],
+	"pet_gold": ["pet_gold", 1, "Altın Pati", "Evcil hayvanınla parkur yarışında birinci ol.", 1500, ""],
+	"pet_show": ["pet_show_win", 3, "Jürinin Gözdesi", "Güzellik şovunda 3 kez birinci ol.", 4000, "Şov Yıldızı"],
+	"stall50": ["stall_sales", 50, "Pazarcı", "Tezgâhından ya da alım ilanlarından 50 satış yap.", 2500, "Pazarcı"],
+	"disaster_tasks": ["disaster_tasks", 25, "Gönüllü", "Afetlerde 25 görev tamamla.", 3000, "Gönüllü"],
+	"disasters3": ["disasters", 3, "Şehrin Kalkanı", "3 afetin atlatılmasına yardım et.", 4000, "Şehrin Kalkanı"],
 	"kayik": ["kayik", 1, "Kürekçi", "Gölde kayığa bin.", 200, ""],
 }
 

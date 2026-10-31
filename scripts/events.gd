@@ -54,6 +54,8 @@ var next_kind := ""
 var next_at := 0.0                 # yerel saat (sn)
 var race: Dictionary = {}          # {state, go (yerel sn), next, total, last, best}
 var records: Array = []            # [{name, time, ride}]
+var ghost := {}                    # 1.9: pist rekorunun hayaleti {name, time, ride, path: [x, y, x, y...] (0,1 sn arayla)}
+const GHOST_STEP := 0.1
 var treasure_pos = null            # yakındaysa sandığın yeri
 
 # --- sunucu
@@ -136,6 +138,7 @@ func on_race(d: Dictionary) -> void:
 	match st:
 		"countdown":
 			race = {"state": "countdown", "go": local_now() + float(d.t), "next": 0, "total": Map.RACE_CPS.size(), "best": d.get("best", 0.0)}
+			ghost = d.get("ghost", {})
 		"go":
 			race["state"] = "running"
 			race["go"] = local_now()
@@ -371,9 +374,10 @@ func req_race_start(_d: Dictionary) -> void:
 		return
 	if Police.is_jailed(id):
 		return
-	_racers[id] = {"go": _now() + RACE_COUNTDOWN, "next": 0, "started": false, "ride": str(Net.players[id].get("ride", ""))}
+	_racers[id] = {"go": _now() + RACE_COUNTDOWN, "next": 0, "started": false, "ride": str(Net.players[id].get("ride", "")), "path": [], "ps": 0.0}
 	var best := float(Net.save_data.players[Net.players[id].name].get("race_best", 0.0))
-	Net.tell(self, id, "on_race", {"state": "countdown", "t": RACE_COUNTDOWN, "best": best})
+	var g = Net.save_data.get("race_ghost", {})
+	Net.tell(self, id, "on_race", {"state": "countdown", "t": RACE_COUNTDOWN, "best": best, "ghost": g if g is Dictionary else {}})
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -402,6 +406,11 @@ func _race_tick(now: float) -> void:
 		var ride := str(Net.players[id].get("ride", ""))
 		if ride != "":
 			r.ride = ride        # turda kullanılan araç kayda geçer
+		# hayalet için yol kaydı (sunucunun gördüğü konumlar, 0,1 sn arayla)
+		while now - float(r.go) >= float(r.ps) and r.path.size() < 4000:
+			r.path.append(snappedf(p.x, 1.0))
+			r.path.append(snappedf(p.y, 1.0))
+			r.ps = float(r.ps) + GHOST_STEP
 		if now - float(r.go) > RACE_TIMEOUT:
 			_racers.erase(id)
 			Net.notify(id, "Süre doldu, tur tamamlanamadı.", false)
@@ -412,12 +421,12 @@ func _race_tick(now: float) -> void:
 			r.next = int(r.next) + 1
 			if int(r.next) >= cps.size():
 				_racers.erase(id)
-				_lap_done(id, now - float(r.go), str(r.ride))
+				_lap_done(id, now - float(r.go), str(r.ride), r.path)
 			else:
 				Net.tell(self, id, "on_race", {"state": "cp", "next": r.next})
 
 
-func _lap_done(id: int, t: float, ride: String) -> void:
+func _lap_done(id: int, t: float, ride: String, path: Array = []) -> void:
 	var who: String = Net.players[id].name
 	var rec: Dictionary = Net.save_data.players[who]
 	var best := float(rec.get("race_best", 0.0))
@@ -453,5 +462,6 @@ func _lap_done(id: int, t: float, ride: String) -> void:
 	Net.tell(self, id, "on_race", {"state": "finish", "time": t, "best": best, "record": is_record})
 	if is_record:
 		Ach.event(id, "record")
+		Net.save_data["race_ghost"] = {"name": who, "time": snappedf(t, 0.01), "ride": ride, "path": path}
 		Net.announce("YENİ PİST REKORU! %s turu %.2f saniyede tamamladı%s." % [who, t, " (%s)" % Garage.VEHICLES[ride].name.to_lower() if Garage.VEHICLES.has(ride) else " (yaya)"])
 	_broadcast()

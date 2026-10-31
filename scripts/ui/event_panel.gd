@@ -8,6 +8,7 @@ var cur_box: VBoxContainer
 var rec_box: VBoxContainer
 var race_label: Label
 var start_btn: Button
+var street_box: VBoxContainer
 var _tick := 0.0
 
 
@@ -35,6 +36,14 @@ func _ready() -> void:
 	rec_box = VBoxContainer.new()
 	rec_box.add_theme_constant_override("separation", 2)
 	right.add_child(rec_box)
+	right.add_child(HSeparator.new())
+	add_label(right, "Sokak Yarışı (çok oyunculu)", 18, Color("#f472b6"))
+	add_label(right, "Arabayla katıl (%s), 20 sn sonra %d tur. Az kişi varsa botlar da yarışır. Havuz ilk üçe dağıtılır." % [U.money(Street.FEE), Street.LAPS],
+		13, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	street_box = VBoxContainer.new()
+	right.add_child(street_box)
+	Street.changed.connect(_refresh_street)
+	_refresh_street()
 	Events.changed.connect(_refresh)
 	Events.race_changed.connect(_refresh_race)
 	_refresh()
@@ -103,3 +112,22 @@ func _process(delta: float) -> void:
 	if _tick >= 1.0:
 		_tick = 0.0
 		_refresh()
+
+
+func _refresh_street() -> void:
+	for c in street_box.get_children():
+		c.queue_free()
+	var st := str(Street.st.get("state", "idle"))
+	var inside := Street.in_race(Net.my_name)
+	if st in ["", "idle", "lobby"]:
+		if inside:
+			add_label(street_box, "Katıldın — %d sn sonra başlıyor (havuz %s)" % [int(Street.st.get("left", 0)), U.money(int(Street.st.get("pot", 0)))], 14, Color("#86efac"))
+			add_button(street_box, "Vazgeç (ücret iade)", Street.leave)
+		else:
+			var b := add_button(street_box, "Sokak yarışına katıl (%s)" % U.money(Street.FEE), func(): Street.join(); close())
+			b.disabled = not at_track
+			if Garage.owned.has("car") == false:
+				b.text = "Sokak yarışı için araba gerekli"
+				b.disabled = true
+	else:
+		add_label(street_box, "Sokak yarışı sürüyor (%d araba)." % Street.st.get("racers", []).size(), 14, Color("#fde68a"))
