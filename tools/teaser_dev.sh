@@ -41,11 +41,11 @@ pairs = list(zip(a, b))
 if not pairs:
     print("  klip yok:", log); sys.exit(0)
 vs = "+".join("between(n,%d,%d)" % (x, y) for x, y in pairs)
-aus = "+".join("between(t,%.4f,%.4f)" % (x / 30, (y + 1) / 30) for x, y in pairs)
-fc = "[0:v]select='%s',setpts=N/30/TB[v];[0:a]aselect='%s',asetpts=N/SR/TB,aresample=48000[a]" % (vs, aus)
-subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", avi, "-filter_complex", fc, "-map", "[v]", "-map", "[a]",
-    "-r", "30", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
-    "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", mp4], check=True)
+# Sadece görüntü: hızlandırılmış hazırlık yüzünden AVI'deki ses zaman çizelgesi görüntüyle örtüşmüyor
+# (kesilen ses görüntüden uzun kalıyor, birleşince son kare donuyordu). Altına müzik döşenir.
+fc = "[0:v]select='%s',setpts=N/30/TB[v]" % vs
+subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", avi, "-filter_complex", fc, "-map", "[v]", "-an",
+    "-r", "30", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", mp4], check=True)
 print("  %s: %d klip, %.1f sn" % (mp4, len(pairs), sum(y - x + 1 for x, y in pairs) / 30))
 PY
 	rm -f "$OUT/$s.avi"
@@ -60,9 +60,13 @@ done
 LIST="$OUT/liste.txt"
 : > "$LIST"
 for s in $ALL; do
-	[ -f "$OUT/$s.mp4" ] && echo "file '$PWD/$OUT/$s.mp4'" >> "$LIST"
+	if [ -f "$OUT/$s.mp4" ]; then
+		# sadece görüntü (eski kayıtlarda uzun kalan ses izi birleşince boşluk bırakıyordu)
+		ffmpeg -y -loglevel error -i "$OUT/$s.mp4" -map 0:v -c copy "$OUT/$s.v.mp4"
+		echo "file '$PWD/$OUT/$s.v.mp4'" >> "$LIST"
+	fi
 done
-ffmpeg -y -loglevel error -f concat -safe 0 -i "$LIST" -c copy "$OUT/ham.mp4"
+ffmpeg -y -loglevel error -f concat -safe 0 -i "$LIST" -map 0:v -c copy "$OUT/ham.mp4"
 DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/ham.mp4")
 # müzik: şehir → yaz → gece → kış, video boyunca döner
 M=assets/sounds
@@ -70,7 +74,7 @@ ffmpeg -y -loglevel error -i $M/music_city.wav -i $M/music_summer.wav -i $M/musi
 	-filter_complex "[0:a][1:a][2:a][3:a]concat=n=4:v=0:a=1,aresample=48000,aformat=channel_layouts=stereo[m]" -map "[m]" "$OUT/muzik.wav"
 FO=$(python3 -c "print(max(0, $DUR - 2.5))")
 ffmpeg -y -loglevel error -i "$OUT/ham.mp4" -stream_loop -1 -i "$OUT/muzik.wav" \
-	-filter_complex "[0:a]volume=0.55[g];[1:a]volume=0.9,atrim=0:$DUR[m];[g][m]amix=inputs=2:duration=first:normalize=0,afade=t=in:d=1.5,afade=t=out:st=$FO:d=2.5,loudnorm=I=-16[a]" \
+	-filter_complex "[1:a]atrim=0:$DUR,afade=t=in:d=1.5,afade=t=out:st=$FO:d=2.5,loudnorm=I=-16[a]" \
 	-map 0:v -map "[a]" -vf "scale=1920:1080:flags=lanczos" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart -shortest build/teaser/mycity-teaser-dev.mp4
 ls -la build/teaser/mycity-teaser-dev.mp4
 echo "süre: $DUR sn"
