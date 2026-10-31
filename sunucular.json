@@ -1,0 +1,6 @@
+{
+	"aciklama": "Oyun içi sunucu listesi (2.2+). Kendi sunucunu eklemek için GitHub'da issue aç ya da bu dosyaya PR gönder. Alanlar: ad, aciklama, adres + port (bilgisayar/Android), wss (tarayıcı, isteğe bağlı).",
+	"sunucular": [
+		{"ad": "MyCity Resmi Sunucu", "aciklama": "7/24 açık ana şehir", "adres": "traded-rolled.tun.ply.gg", "port": 12861, "resmi": true}
+	]
+}

@@ -12,12 +12,13 @@ signal disconnected(reason: String)
 signal roster_changed
 signal chat_received(from_name: String, text: String, color: Color, channel: String)
 signal toast(text: String, good: bool)
+signal probe_done(info: Dictionary)      # 2.2: sunucu listesi sondası bitti ({"ok": false} = yanıt yok)
 
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "2.1.1"
+const VERSION := "2.2"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -56,6 +57,17 @@ var _status_server: TCPServer
 const BACKUP_EVERY := 6 * 3600.0
 const BACKUP_KEEP := 14
 var status_port := 7780             # oyun portu + 3
+
+# --- 2.2: sunucu listesi ---
+const DISCOVERY_PORT := 7779        # yerel ağ duyurusu (UDP yayın)
+const PROBE_TIMEOUT_MS := 5000
+var server_name := ""               # --ad="..." (boşsa varsayılan)
+var server_desc := ""               # --aciklama="..."
+var _probe_t0 := 0                  # >0: menüde bir sunucu yoklanıyor (msec)
+var _probe_sent := 0
+var _lan_udp: PacketPeerUDP
+var _lan_accum := 0.0
+var _game_port := 0
 
 
 func _ready() -> void:
@@ -148,12 +160,14 @@ static func hash_password(player_name: String, password: String) -> String:
 
 func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash: String = "",
 		appearance = null) -> String:
+	cancel_probe()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(port, MAX_CLIENTS)
 	if err != OK:
 		return "Sunucu açılamadı. Port %d kullanımda olabilir (başka bir sunucu açık mı?) (hata %d)." % [port, err]
 	_tune(peer)
 	dedicated = as_dedicated
+	_game_port = port
 	# 1.5.1: adanmış sunucu tarayıcı oyuncuları için WebSocket da dinler (varsayılan port+1, TCP).
 	var ws_port := _ws_port_arg(port if as_dedicated else 0)
 	if ws_port > 0:
@@ -198,6 +212,40 @@ func host(player_name: String, port: int, as_dedicated: bool = false, pass_hash:
 
 
 func join(player_name: String, address: String, port: int, pass_hash: String = "", appearance = null) -> String:
+	cancel_probe()
+	var err := _open_client(address, port)
+	if err != "":
+		return err
+	_pending = {"name": player_name, "pass": pass_hash, "version": VERSION}
+	if appearance is Dictionary:
+		_pending["appearance"] = appearance
+	return ""
+
+
+## 2.2: menüdeki sunucu listesi için: bağlan, adını/oyuncu sayısını/sürümünü sor, kop. Sonuç probe_done ile gelir.
+func probe(address: String, port: int) -> bool:
+	if is_online() or _probe_t0 > 0:
+		return false
+	if _open_client(address, port) != "":
+		return false
+	_probe_t0 = Time.get_ticks_msec()
+	_probe_sent = 0
+	return true
+
+
+func cancel_probe() -> void:
+	if _probe_t0 > 0:
+		_probe_t0 = 0
+		_reset_peer()
+
+
+func _probe_finish(info: Dictionary) -> void:
+	_probe_t0 = 0
+	_reset_peer()
+	probe_done.emit(info)
+
+
+func _open_client(address: String, port: int) -> String:
 	# Alan adlarında IPv4'ü tercih et: Godot ilk bulduğu adresi (çoğu zaman IPv6) kullanır,
 	# IPv6'sı olmayan ağlarda bağlantı takılır.
 	# Tarayıcıda (ya da ws:// / wss:// adresinde) WebSocket ile bağlan
@@ -211,9 +259,6 @@ func join(player_name: String, address: String, port: int, pass_hash: String = "
 		if werr != OK:
 			return "Bağlantı başlatılamadı (hata %d)." % werr
 		multiplayer.multiplayer_peer = wpeer
-		_pending = {"name": player_name, "pass": pass_hash, "version": VERSION}
-		if appearance is Dictionary:
-			_pending["appearance"] = appearance
 		return ""
 	if not address.is_valid_ip_address():
 		var v4 := IP.resolve_hostname(address, IP.TYPE_IPV4)
@@ -225,9 +270,6 @@ func join(player_name: String, address: String, port: int, pass_hash: String = "
 		return "Bağlantı başlatılamadı (hata %d)." % err
 	_tune(peer)
 	multiplayer.multiplayer_peer = peer
-	_pending = {"name": player_name, "pass": pass_hash, "version": VERSION}
-	if appearance is Dictionary:
-		_pending["appearance"] = appearance
 	return ""
 
 
@@ -282,6 +324,10 @@ func _reset_peer() -> void:
 	if multiplayer.multiplayer_peer and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	_game_port = 0
+	if _lan_udp:
+		_lan_udp.close()
+		_lan_udp = null
 	players.clear()
 	positions.clear()
 	roster.clear()
@@ -354,15 +400,25 @@ func _reset_peer() -> void:
 
 
 func _on_connected() -> void:
+	if _probe_t0 > 0:
+		_probe_sent = Time.get_ticks_msec()
+		rpc_id(1, "req_info", {})
+		return
 	rpc_id(1, "req_register", _pending)
 
 
 func _on_failed() -> void:
+	if _probe_t0 > 0:
+		_probe_finish({"ok": false})
+		return
 	_reset_peer()
 	connection_failed.emit("Sunucuya bağlanılamadı. Adres/port doğru mu, sunucu açık mı? Oyunun güncel mi? (itch.io)")
 
 
 func _on_server_gone() -> void:
+	if _probe_t0 > 0:
+		_probe_finish({"ok": false})
+		return
 	_reset_peer()
 	disconnected.emit("Sunucu bağlantısı koptu.")
 
@@ -651,6 +707,56 @@ func req_register(d: Dictionary) -> void:
 		_kick(id, reason)
 
 
+# ------------------------------------------------------------------ 2.2: sunucu bilgisi (sunucu listesi)
+
+func server_info() -> Dictionary:
+	var nm := server_name
+	if nm == "":
+		nm = "MyCity Sunucusu" if dedicated else "%s kuruyor" % str(players.get(1, {}).get("name", "Oyuncu"))
+	return {"ok": true, "name": nm.left(40), "desc": server_desc.left(120), "players": players.size(),
+		"max": MAX_CLIENTS, "version": VERSION, "weather": Env.weather_name()}
+
+
+## Giriş yapmamış bir bağlantı sunucunun adını, oyuncu sayısını ve sürümünü sorar; yanıttan sonra bağlantı kesilir.
+@rpc("any_peer", "call_remote", "reliable")
+func req_info(_d: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return
+	var id := multiplayer.get_remote_sender_id()
+	if players.has(id):
+		return
+	rpc_id(id, "on_info", server_info())
+	get_tree().create_timer(2.0).timeout.connect(func():
+		if id in multiplayer.get_peers() and not players.has(id):
+			multiplayer.multiplayer_peer.disconnect_peer(id)
+	)
+
+
+@rpc("authority", "call_remote", "reliable")
+func on_info(d: Dictionary) -> void:
+	if _probe_t0 <= 0:
+		return
+	var info := d.duplicate()
+	info["ok"] = true
+	info["ping"] = Time.get_ticks_msec() - (_probe_sent if _probe_sent > 0 else _probe_t0)
+	_probe_finish(info)
+
+
+## Yerel ağdaki oyuncular menüde bu sunucuyu kendiliğinden görsün (2 sn'de bir UDP yayın).
+func _lan_announce() -> void:
+	if OS.has_feature("web") or _game_port <= 0:
+		return
+	if _lan_udp == null:
+		_lan_udp = PacketPeerUDP.new()
+		_lan_udp.set_broadcast_enabled(true)
+		if _lan_udp.set_dest_address("255.255.255.255", DISCOVERY_PORT) != OK:
+			return
+	var info := server_info()
+	info["mycity"] = 1
+	info["port"] = _game_port
+	_lan_udp.put_packet(JSON.stringify(info).to_utf8_buffer())
+
+
 # ------------------------------------------------------------------ 2.1: hesap silme (Play Store şartı)
 var _deleting := {}
 
@@ -854,6 +960,9 @@ func welcome(d: Dictionary) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func kicked(d: Dictionary) -> void:
+	if _probe_t0 > 0:          # eski sürüm sunucular bilgi isteğini tanımaz, sürüm uyarısıyla atar
+		_probe_finish({"ok": false, "reason": str(d.get("reason", ""))})
+		return
 	_reset_peer()
 	connection_failed.emit(str(d.get("reason", "Sunucu bağlantıyı reddetti.")))
 
@@ -1006,8 +1115,14 @@ func sync_positions(p: Dictionary) -> void:
 
 
 func _process(delta: float) -> void:
+	if _probe_t0 > 0 and Time.get_ticks_msec() - _probe_t0 > PROBE_TIMEOUT_MS:
+		_probe_finish({"ok": false})
 	if not is_server():
 		return
+	_lan_accum += delta
+	if _lan_accum >= 2.0:
+		_lan_accum = 0.0
+		_lan_announce()
 	_sync_accum += delta
 	if _sync_accum >= 0.1:
 		_sync_accum = 0.0

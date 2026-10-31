@@ -5,6 +5,7 @@ extends Node
 
 const World = preload("res://scripts/world.gd")
 const CharacterPanel = preload("res://scripts/ui/character_panel.gd")
+const ServerList = preload("res://scripts/ui/server_list.gd")
 const SETTINGS_PATH := "user://ayarlar.cfg"
 ## 7/24 açık resmi sunucu (boşsa menüde buton görünmez). Biçim: "adres" ya da "adres:port".
 const OFFICIAL_SERVER := "traded-rolled.tun.ply.gg:12861"
@@ -33,6 +34,7 @@ var port_edit: LineEdit
 var pass_edit: LineEdit
 var status: Label
 var buttons: Array = []
+var server_list: ServerList
 
 
 func _ready() -> void:
@@ -47,6 +49,10 @@ func _ready() -> void:
 			port = int(a.trim_prefix("--port="))
 		elif a.begins_with("--kayit="):
 			Net.save_path = a.trim_prefix("--kayit=")
+		elif a.begins_with("--ad="):
+			Net.server_name = a.trim_prefix("--ad=").strip_edges()
+		elif a.begins_with("--aciklama="):
+			Net.server_desc = a.trim_prefix("--aciklama=").strip_edges()
 		elif a == "--hizsiz":
 			Net.speed_check = false
 		elif a.begins_with("--yonetici="):
@@ -109,22 +115,35 @@ func _build_menu() -> void:
 	panel.add_theme_stylebox_override("panel", sb)
 	panel.custom_minimum_size = Vector2(460, 0)
 	center.add_child(panel)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 10)
-	panel.add_child(v)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	panel.add_child(outer)
 
 	var title := Label.new()
 	title.text = "MyCity Online"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
 	title.add_theme_color_override("font_color", Color("#facc15"))
-	v.add_child(title)
+	outer.add_child(title)
 	var sub := Label.new()
 	sub.text = "Şehrini kur • Tren, sinema, paintball • 30 adalı okyanus, kendi adan • Çok oyunculu"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_color_override("font_color", Color("#94a3b8"))
-	v.add_child(sub)
-	v.add_child(HSeparator.new())
+	outer.add_child(sub)
+	outer.add_child(HSeparator.new())
+	# 2.2: solda giriş, sağda sunucu listesi
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 18)
+	outer.add_child(cols)
+	var v := VBoxContainer.new()
+	v.custom_minimum_size = Vector2(420, 0)
+	v.add_theme_constant_override("separation", 10)
+	cols.add_child(v)
+	cols.add_child(VSeparator.new())
+	server_list = ServerList.new()
+	server_list.official = OFFICIAL_SERVER
+	server_list.join_requested.connect(_on_list_join)
+	cols.add_child(server_list)
 
 	name_edit = _field(v, "Oyuncu adı", cfg.get_value("menu", "name", ""), "Adını yaz")
 	pass_edit = _field(v, "Şifre (ilk girişte hesabın bu şifreyle oluşturulur)", "", "En az 4 karakter")
@@ -140,10 +159,14 @@ func _build_menu() -> void:
 		buttons = [_button(row, "Sunucuya Katıl", _on_join)]
 	else:
 		buttons = [_button(row, "Sunucu Kur ve Oyna", _on_host), _button(row, "Sunucuya Katıl", _on_join)]
+	var row1 := HBoxContainer.new()
+	row1.add_theme_constant_override("separation", 10)
+	v.add_child(row1)
 	if OFFICIAL_SERVER != "" or OS.has_feature("web"):
-		var official := _button(v, "Resmi Sunucuya Katıl", _on_join_official)
+		var official := _button(row1, "Resmi Sunucuya Katıl", _on_join_official)
 		official.add_theme_color_override("font_color", Color("#facc15"))
 		buttons.append(official)
+	_button(row1, "Listeme ekle", _on_add_to_list)
 	var row2 := HBoxContainer.new()
 	row2.add_theme_constant_override("separation", 10)
 	v.add_child(row2)
@@ -255,6 +278,22 @@ func _on_join() -> void:
 	status.text = "Bağlanılıyor..."
 	for b in buttons:
 		b.disabled = true
+
+
+func _on_list_join(address: String, port: int) -> void:
+	if address == "resmi-web":
+		_on_join_official()
+		return
+	ip_edit.text = address
+	if port > 0:
+		port_edit.text = str(port)
+	_on_join()
+
+
+func _on_add_to_list() -> void:
+	var err := server_list.add_saved(ip_edit.text, int(port_edit.text))
+	status.add_theme_color_override("font_color", Color("#fca5a5") if err != "" else Color("#86efac"))
+	status.text = err if err != "" else "Sunucu listene eklendi."
 
 
 func _on_join_official() -> void:

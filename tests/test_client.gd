@@ -51,10 +51,53 @@ func _ready() -> void:
 		_port = port
 		_addr = "ws://127.0.0.1:%d" % (port + 1) if "--ws" in args else "127.0.0.1"
 		_tname = "WebTestci" if "--ws" in args else "Testci"
+		await _probe_test(port)
 		err = Net.join(_tname, _addr, port, Net.hash_password(_tname, PASS), {"skin": 2, "hair": 1, "hair_color": 4, "shirt": 7, "pants": 1})
 	if err != "":
 		print(err)
 		get_tree().quit(1)
+
+
+## 2.2: sunucu listesi — girişten önce sunucunun adını/oyuncu sayısını sor; yerel ağ duyurusunu dinle.
+func _probe_test(port: int) -> void:
+	print("== 2.2 Sunucu listesi")
+	var lan := PacketPeerUDP.new()
+	var lan_ok := lan.bind(Net.DISCOVERY_PORT) == OK
+	var got := []
+	Net.probe_done.connect(func(i): got.append(i), CONNECT_ONE_SHOT)
+	check(Net.probe(_addr, port), "sunucu yoklaması başladı")
+	var t := 0.0
+	while got.is_empty() and t < 8.0:
+		await _wait(0.1)
+		t += 0.1
+	var info: Dictionary = got[0] if not got.is_empty() else {}
+	check(info.get("ok", false), "sunucu bilgi verdi")
+	check(str(info.get("version", "")) == Net.VERSION and info.has("ping") and info.has("players"), "sürüm, ping, oyuncu sayısı geldi (%s)" % str(info))
+	check(str(info.get("name", "")) != "", "sunucu adı geldi")
+	check(not Net.is_online() and Net.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "yoklamadan sonra bağlantı kapandı")
+	got.clear()
+	Net.probe_done.connect(func(i): got.append(i), CONNECT_ONE_SHOT)
+	Net.probe("127.0.0.1", 7699)          # kimsenin dinlemediği port
+	t = 0.0
+	while got.is_empty() and t < 8.0:
+		await _wait(0.1)
+		t += 0.1
+	check(not got.is_empty() and not got[0].get("ok", true), "kapalı sunucu 'yanıt yok' oldu")
+	if lan_ok:
+		var seen := false
+		t = 0.0
+		while not seen and t < 5.0:
+			await _wait(0.2)
+			t += 0.2
+			while lan.get_available_packet_count() > 0:
+				var js = JSON.parse_string(lan.get_packet().get_string_from_utf8())
+				if js is Dictionary and int(js.get("port", 0)) == port:
+					seen = true
+		check(seen, "sunucu yerel ağa kendini duyurdu")
+		lan.close()
+	else:
+		print("  (UDP %d dolu: yerel ağ testi atlandı)" % Net.DISCOVERY_PORT)
+	await _wait(0.3)
 
 
 func _unit_tests() -> void:

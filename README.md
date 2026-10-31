@@ -37,6 +37,17 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.2: Sunucu listesi
+
+![Sunucu listesi](docs/ekran/sunucular.png)
+
+- **Sunucu listesi:** Giriş ekranının sağında sunucular listelenir. Her sunucunun adı, açıklaması, çevrimiçi oyuncu sayısı, ping'i ve havası görünür. "Katıl" ile bağlanırsın; sürümü farklı sunucular uyarıyla gösterilir.
+  - **Resmi** sunucu en üstte.
+  - **Topluluk sunucuları** depodaki [`sunucular.json`](sunucular.json) dosyasından gelir. Kendi sunucunu eklemek için issue aç ya da PR gönder.
+  - **Benim listem:** soldaki adres/port alanlarını doldurup "Listeme ekle"ye bas; "Sil" ile çıkar.
+  - **Yerel ağ:** aynı Wi-Fi'daki sunucular (Sunucu Kur ve Oyna dahil) kendiliğinden görünür (UDP 7779 duyurusu).
+- **Sunucuya ad ver:** adanmış sunucu `--ad="Gece Şehri" --aciklama="Arkadaş sunucusu"` ile açılır; adı ve açıklaması listede görünür. Her sunucunun kaydı ayrıdır (`--kayit=user://baska.json`, `--port=7800`).
+
 ## 2.1.1: Android sürümü, başlangıç rehberi, hesap silme
 
 | | |

@@ -5,6 +5,11 @@ func _ready() -> void:
 	Net.save_path = "user://foto_kayit.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Net.save_path))
 	get_parent()._build_menu()
+	if "--sunucular" in OS.get_cmdline_user_args():
+		await _wait(9.0)          # resmi liste + yoklamalar + yerel ağ duyurusu
+		_shot("sunucular")
+		get_tree().quit()
+		return
 	await _wait(0.8)
 	_shot("menu")
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
