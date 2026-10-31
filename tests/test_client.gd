@@ -2624,11 +2624,14 @@ func _test_15(w) -> void:
 	await _wait(0.5)
 	check(int(Gym.fitness.strength) >= 3, "zamanlı kaldırıldı, kuvvet %d" % int(Gym.fitness.strength))
 	check(int(Rpg.sheet.max_energy) == maxe0 + int(int(Gym.fitness.cardio) / 5.0), "kondisyon maksimum enerjiyi artırdı")
-	w.my_pos = Map.MARATHON[0]
-	await _wait(0.3)
+	# 2.3: salonun içindeki tezgâhtan başlatılır, koşucu başlangıç çizgisine çıkar
+	Homes._teleport(me, Map.inst_counter("spor").get_center() + Vector2(0, 80))
+	await _wait(0.4)
+	check(Map.inst_at(w.my_pos) == "spor", "spor salonunun içinde")
 	Gym.start_marathon()
-	await _wait(0.3)
+	await _wait(0.4)
 	check(not Gym.run.is_empty() and w.nav_target != null, "maraton başladı, yol tarifi var")
+	check(w.my_pos.distance_to(Map.MARATHON[0]) < 40.0 and Map.inst_at(w.my_pos) == "", "salonun içinden başlayınca başlangıç çizgisine çıkıldı")
 	for i in range(1, Map.MARATHON.size()):
 		w.my_pos = Map.MARATHON[i]
 		await _wait(0.3)
@@ -2659,6 +2662,13 @@ func _test_15(w) -> void:
 		far = Map.KORSAN.get_center()
 	w.my_pos = far
 	await _wait(0.3)
+	# rastgele nokta kaptanın yanına düşerse E kazmak yerine konuşmayı açar: kazma alanı çıkan bir yer bul
+	for off in [Vector2(120, 0), Vector2(-120, 0), Vector2(0, 120), Vector2(0, -120)]:
+		if str(w.zone.get("type", "")) == "dig":
+			break
+		if Map.on_korsan(far + off):
+			w.my_pos = far + off
+			await _wait(0.3)
 	var hints := []
 	Pirates.dug.connect(func(d): hints.append(d), CONNECT_ONE_SHOT)
 	w._open_panel()

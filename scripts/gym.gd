@@ -292,11 +292,15 @@ func _finish(id: int) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func req_marathon(_d: Dictionary) -> void:
 	var id := Net.sender()
-	if not Net.players.has(id) or _runs.has(id) or _pos(id).distance_to(Map.MARATHON[0]) > Map.MARATHON_R + 40.0:
+	# 2.3: salonun içindeki tezgâhtan da başlanır: koşucu kapının önündeki başlangıç çizgisine çıkar
+	var inside := Map.inst_at(_pos(id)) == "spor"
+	if not Net.players.has(id) or _runs.has(id) or (not inside and _pos(id).distance_to(Map.MARATHON[0]) > Map.MARATHON_R + 40.0):
 		return
 	if str(Net.players[id].get("ride", "")) != "":
 		Net.notify(id, "Maraton yaya koşulur, araçtan in.", false)
 		return
+	if inside:
+		Homes._teleport(id, Map.MARATHON[0])
 	_runs[id] = {"t0": _now(), "cp": 1}
 	Net.tell(self, id, "on_marathon", {"state": "start"})
 	Net.notify(id, "Maraton başladı! %d noktadan geçip buraya dön. Araç kullanma!" % (Map.MARATHON.size() - 1))
