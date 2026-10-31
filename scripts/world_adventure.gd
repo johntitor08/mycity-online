@@ -781,7 +781,7 @@ func _draw_monster(m: Array) -> void:
 		top = p + Vector2(-60, -r * 2.4 - 40)
 		w.draw_rect(Rect2(top, Vector2(120, 10)), Color(0, 0, 0, 0.7))
 		w.draw_rect(Rect2(top + Vector2(1, 1), Vector2(118 * hp, 8)), Color("#dc2626"))
-		w._text(top + Vector2(-40, -20), str(cfg.name).to_upper(), 16, Color("#fca5a5"), 200)
+		w._text(top + Vector2(-40, -20), U.upper_tr(str(cfg.name)), 16, Color("#fca5a5"), 200)
 	elif hp < 1.0:
 		w.draw_rect(Rect2(top, Vector2(r * 2 + 12, 5)), Color(0, 0, 0, 0.6))
 		w.draw_rect(Rect2(top, Vector2((r * 2 + 12) * hp, 5)), Color("#ef4444"))

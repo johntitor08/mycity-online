@@ -270,12 +270,12 @@ func draw_highway(view: Rect2, items: Array) -> void:
 		w.draw_rect(Rect2(sx - 4, road.position.y - 40, 8, 32), Color("#6b7280"))
 		w.draw_rect(sign_r, Color("#15803d"))
 		w.draw_rect(sign_r, Color.WHITE, false, 2)
-		var line := ""
+		var parts: Array = []
 		for k in Map.HWY_RAMPS:
 			var dx := float(Map.HWY_RAMPS[k]) - sx
 			if dx > 200.0:
-				line += "%s %.0f km  " % [Map.TOWN_NAMES[k], dx / 1000.0]
-		w._text(sign_r.position + Vector2(0, 8), "→ " + line if line != "" else "SON ÇIKIŞ", 13, Color.WHITE, sign_r.size.x, false)
+				parts.append("%s %.0f km" % [Map.TOWN_NAMES[k], dx / 1000.0])
+		_sign_text(sign_r, ("→ " + " · ".join(PackedStringArray(parts))) if not parts.is_empty() else "SON ÇIKIŞ", 13, Color.WHITE)
 	# rampalar
 	for k in Map.HWY_RAMPS:
 		var rx := float(Map.HWY_RAMPS[k])
@@ -285,7 +285,7 @@ func draw_highway(view: Rect2, items: Array) -> void:
 		var sr := Rect2(rx - 150, road.position.y - 120, 300, 80)
 		w.draw_rect(sr, Color("#1d4ed8"))
 		w.draw_rect(sr, Color.WHITE, false, 3)
-		w._text(sr.position + Vector2(0, 10), "ÇIKIŞ: %s" % Map.TOWN_NAMES[k].to_upper(), 18, Color.WHITE, sr.size.x, false)
+		_sign_text(sr, "ÇIKIŞ: %s" % U.upper_tr(Map.TOWN_NAMES[k]), 22, Color.WHITE)
 	# dinlenme tesisi
 	var rs: Rect2 = Map.HWY_REST
 	if view.intersects(rs.grow(100)):

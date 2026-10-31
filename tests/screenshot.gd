@@ -188,6 +188,21 @@ func _ready() -> void:
 			w.hud.visible = true
 		get_tree().quit()
 		return
+	if "--tabela" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(1.5)
+		Garage._list(1).append("car")
+		Garage.send_state(1)
+		Homes._teleport(1, Vector2(Map.HWY_RAMPS.sehir + 60, Map.HWY_ROAD.position.y + 60))
+		w.camera.zoom = Vector2(1.3, 1.3)
+		await _wait(1.2)
+		_shot("tabela_cikis")
+		Homes._teleport(1, Vector2(52200, Map.HWY_ROAD.position.y + 60))
+		await _wait(1.0)
+		_shot("tabela_mesafe")
+		get_tree().quit()
+		return
 	if "--rehber" in OS.get_cmdline_user_args():
 		Tutorial.finish()
 		await _wait(1.5)

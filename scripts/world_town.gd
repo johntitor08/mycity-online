@@ -31,7 +31,7 @@ func _init(world: Node2D) -> void:
 	Disasters.changed.connect(func() -> void:
 		var k := str(Disasters.state.get("kind", ""))
 		if k != "":
-			w.hud.show_toast("%s! Yardım çadırı sahil yolunun başında." % Disasters.KINDS[k].name.to_upper(), false)
+			w.hud.show_toast("%s! Yardım çadırı sahil yolunun başında." % U.upper_tr(Disasters.KINDS[k].name), false)
 			Sfx.play("thunder" if k != "kar" else "wind", 0.0, 0.8))
 	Street.changed.connect(_on_street)
 	Events.race_changed.connect(_on_lap)
@@ -179,7 +179,7 @@ func status_line() -> String:
 	if Disasters.active() and not in_town(w.my_pos):
 		var s: Dictionary = Disasters.state
 		var k := str(s.kind)
-		parts.append("%s · %d/%d görev · %d:%02d" % [Disasters.KINDS[k].name.to_upper(), int(s.done), int(s.total), int(s.left) / 60, int(s.left) % 60])
+		parts.append("%s · %d/%d görev · %d:%02d" % [U.upper_tr(Disasters.KINDS[k].name), int(s.done), int(s.total), int(s.left) / 60, int(s.left) % 60])
 		if int(s.get("carry", 0)) > 0:
 			parts.append("Elinde %d %s" % [int(s.carry), Disasters.KINDS[k].supply_name.to_lower()])
 	var st := str(Street.st.get("state", ""))

@@ -298,7 +298,7 @@ func draw_deep(view: Rect2, items: Array) -> void:
 					w.draw_rect(Rect2(sp + Vector2(-40, -30), Vector2(80, 50)), Color("#92400e"))
 					w.draw_rect(Rect2(sp + Vector2(-44, -46), Vector2(88, 18)), [Color("#0ea5e9"), Color("#f59e0b"), Color("#22c55e")][k])
 		w.draw_arc(c, r, 0, TAU, 64, Color(0.75, 0.92, 1.0, 0.8), 4)
-		w._text(c + Vector2(-120, -r - 28), str(dm.name).to_upper(), 16, Color("#bae6fd"), 240)
+		w._text(c + Vector2(-120, -r - 28), U.upper_tr(str(dm.name)), 16, Color("#bae6fd"), 240)
 	# denizanası tarlaları
 	for j in Deep.JELLY:
 		var jc: Vector2 = j[0]
@@ -456,7 +456,7 @@ func draw_town(view: Rect2) -> void:
 			w.draw_circle(c + Vector2(10, -6), 12, Color.WHITE)
 			w.draw_circle(c + Vector2(0, -14), 13, Color.WHITE)
 			w.draw_rect(Rect2(c + Vector2(-14, 0), Vector2(28, 12)), Color.WHITE)
-		w._text(r.position + Vector2(0, 10), U.upper_tr(b.label), 20, Color.WHITE, r.size.x)
+		w._text(Vector2(r.position.x, r.position.y + 23.0 + 20 * 0.36), U.upper_tr(b.label), 20, Color.WHITE, r.size.x)
 
 
 func _draw_sub_dock(p: Vector2) -> void:
