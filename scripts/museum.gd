@@ -46,8 +46,11 @@ static func sets() -> Array:
 	for k in CampS.FORAGE:
 		if k != "odun":
 			forest.append(["barn:" + k, CampS.FORAGE[k].name])
+	var sunken: Array = []          # 2.0: Batık Şehir eserleri
+	for n in ["Antik Amfora", "Mozaik Parçası", "Bronz Kalkan", "Mermer Büst", "Deniz Tanrısı Heykelciği", "Altın Maske", "Kristal Taç", "Kayıp Şehir Haritası"]:
+		sunken.append(["fish:" + n, n])
 	return [["balik", "Balıklar", fish], ["deniz", "Deniz Hazineleri", sea], ["okyanus", "Okyanus", ocean], ["fosil", "Fosiller", fossils],
-		["mineral", "Mineraller", minerals], ["orman", "Orman", forest], ["ciftlik", "Çiftlik Ürünleri", farm]]
+		["mineral", "Mineraller", minerals], ["orman", "Orman", forest], ["ciftlik", "Çiftlik Ürünleri", farm], ["batik", "Batık Şehir", sunken]]
 
 
 static func all_keys() -> Array:

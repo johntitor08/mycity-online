@@ -190,6 +190,20 @@ const LIST := {
 	"stall50": ["stall_sales", 50, "Pazarcı", "Tezgâhından ya da alım ilanlarından 50 satış yap.", 2500, "Pazarcı"],
 	"disaster_tasks": ["disaster_tasks", 25, "Gönüllü", "Afetlerde 25 görev tamamla.", 3000, "Gönüllü"],
 	"disasters3": ["disasters", 3, "Şehrin Kalkanı", "3 afetin atlatılmasına yardım et.", 4000, "Şehrin Kalkanı"],
+	# 2.0
+	"chef50": ["chef_orders", 50, "Usta Aşçı", "Mutfak servisinde 50 sipariş yetiştir.", 2500, "Şef"],
+	"chef_perfect20": ["chef_perfect", 20, "Kusursuz Tabak", "20 siparişi mükemmel hazırla.", 3000, ""],
+	"chef_champ": ["chef_champion", 1, "Altın Kepçe", "Aşçılık yarışmasında birinci ol.", 5000, "Altın Kepçe"],
+	"sub": ["submarine", 1, "Derinlere", "Bir denizaltı al.", 2000, ""],
+	"species8": ["deep_species", 8, "Deniz Bilimci", "Batık Şehir'de 8 canlı türünü tara.", 3000, "Deniz Bilimci"],
+	"species16": ["deep_species", 16, "Okyanus Ansiklopedisi", "Batık Şehir'deki bütün canlıları keşfet.", 8000, "Okyanusbilimci"],
+	"artifacts10": ["artifacts", 10, "Arkeolog", "Batık Şehir'den 10 antik eser çıkar.", 4000, "Arkeolog"],
+	"project1": ["projects_built", 1, "Şehrin Mimarı", "Bağış yaptığın bir belediye projesi tamamlansın.", 2000, ""],
+	"project_votes5": ["project_votes", 5, "Sorumlu Vatandaş", "5 belediye projesinde oy kullan.", 1500, ""],
+	"muhtar": ["muhtar", 1, "Muhtar", "Yeni Mahalle'nin muhtarı seçil.", 3000, "Muhtar"],
+	"dj1": ["dj_sets", 1, "İlk Set", "Festivalde DJ olarak bir set çal.", 1000, ""],
+	"dj_hype": ["dj_hype", 90, "Sahnenin Sahibi", "Bir DJ setinde coşkuyu 90'ın üstüne çıkar.", 4000, "DJ"],
+	"dance500": ["dance_points", 500, "Dans Kraliçesi/Kralı", "Bir sette 500 dans puanı topla.", 2500, "Dansçı"],
 	"kayik": ["kayik", 1, "Kürekçi", "Gölde kayığa bin.", 200, ""],
 }
 

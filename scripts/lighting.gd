@@ -84,6 +84,20 @@ func _rebuild_rooms() -> void:
 func update(player_pos: Vector2) -> void:
 	var d := Env.darkness()
 	var inside := Map.interior_at(player_pos) >= 0
+	if Map.DEEP.has_point(player_pos):
+		# 2.0: Batık Şehir karanlık; denizaltının farı çevreyi aydınlatır
+		canvas_mod.color = Color(0.1, 0.14, 0.26)
+		for l in street:
+			l.visible = false
+		player_light.visible = true
+		player_light.position = player_pos
+		player_light.texture_scale = Deep.light_r() / 110.0
+		player_light.energy = 1.5
+		player_light.color = Color("#d9f4ff")
+		return
+	player_light.texture_scale = 0.7
+	player_light.color = Color("#fff4dc")
+	player_light.energy = 0.45
 	if Map.SEA_BED.has_point(player_pos):
 		canvas_mod.color = Color(0.55, 0.8, 1.0).lerp(Color(0.2, 0.3, 0.5), d * 0.7)
 		for l in street:
@@ -108,9 +122,10 @@ func update(player_pos: Vector2) -> void:
 	canvas_mod.color = c
 	var lit := d > 0.2 or (Env.weather == "storm" and not inside)
 	var strength := clampf(d * 1.3, 0.35, 1.0)
+	var led := 1.5 if Projects.done("led") else 1.0           # 2.0: LED sokak lambaları
 	for l in street:
 		l.visible = lit
-		l.energy = float(l.get_meta("base")) * strength
+		l.energy = float(l.get_meta("base")) * strength * led
 	for l in rooms:
 		l.visible = d > 0.15
 		l.energy = float(l.get_meta("base")) * strength

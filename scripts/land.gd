@@ -11,7 +11,7 @@ const BUILD_COST := [0, 1500, 5000, 15000]   # o seviyeye çıkma maliyeti
 const LEVEL_INCOME := [0, 25, 80, 250]       # dakikalık ek kira
 const INCOME_INTERVAL := 60.0
 const SELL_RATIO := 0.7
-const MAX_PER_PLAYER := 4
+const MAX_PER_PLAYER := 6
 
 var plots: Array = []   # sunucu: [{owner, level, price}]
 var view: Array = []    # herkes: sunucudan gelen kopya

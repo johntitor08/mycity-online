@@ -274,9 +274,11 @@ func req_rent(d: Dictionary) -> void:
 	if not st.is_empty() and st.owner == me and float(st.until) - now > (MAX_DAYS - 1) * DAY:
 		Net.notify(id, "En fazla %d gün peşin ödenir." % MAX_DAYS, false)
 		return
-	if not Net.try_spend(id, RENT):
-		Net.notify(id, "Günlük kira %s." % U.money(RENT), false)
+	var rent := Projects.stall_rent()          # 2.0: mahalle muhtarı belirler
+	if not Net.try_spend(id, rent):
+		Net.notify(id, "Günlük kira %s." % U.money(rent), false)
 		return
+	Projects.rent_paid(rent)
 	if st.is_empty() or st.owner != me:
 		if not st.is_empty():
 			_return_goods(st)
@@ -598,7 +600,7 @@ func npc_round() -> int:
 			continue
 		for idx in range(st.items.size() - 1, -1, -1):
 			var it: Dictionary = st.items[idx]
-			if randf() < npc_chance(int(it.price), int(it.base)):
+			if randf() < npc_chance(int(it.price), int(it.base)) * (2.0 if Projects.market_day() else 1.0):
 				_sell(i, idx, "bir müşteri")
 				sold += 1
 				break

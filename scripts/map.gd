@@ -138,6 +138,8 @@ static func region_of(p: Vector2) -> String:
 		return "golf"
 	if TOWN.has_point(p):
 		return "mahalle"
+	if DEEP.has_point(p):
+		return "derin"
 	if MOUNTAIN.has_point(p):
 		return "dag"
 	if FAIR.has_point(p):
@@ -151,7 +153,7 @@ const RAIL := {
 	"sehir": {"name": "Şehir Garı", "y": 36.0, "x0": -500.0, "x1": 3300.0, "stop": 2230.0, "booth": Vector2(2230, 84), "arrive": Vector2(2230, 140)},
 	"dag": {"name": "Dağ İstasyonu", "y": 2866.0, "x0": 7400.0, "x1": 10800.0, "stop": 8560.0, "booth": Vector2(8560, 2826), "arrive": Vector2(8620, 2790)},
 	"fuar": {"name": "Lunapark İstasyonu", "y": 36.0, "x0": 10100.0, "x1": 13700.0, "stop": 11560.0, "booth": Vector2(11560, 84), "arrive": Vector2(11640, 150)},
-	"mahalle": {"name": "Yeni Mahalle İstasyonu", "y": 36.0, "x0": 39000.0, "x1": 42600.0, "stop": 40800.0, "booth": Vector2(40800, 84), "arrive": Vector2(40880, 150)},
+	"mahalle": {"name": "Yeni Mahalle İstasyonu", "y": 36.0, "x0": 39000.0, "x1": 43900.0, "stop": 40800.0, "booth": Vector2(40800, 84), "arrive": Vector2(40880, 150)},
 }
 const RAIL_PERIOD := 80.0          # tarife: 0-10 sn giriş, 10-30 peronda, 30-40 çıkış
 const TRAIN_LEN := 480.0
@@ -179,8 +181,8 @@ const SPACE_STRIP := Vector2(34900, 3560)          # uzay üssünün uçak pisti
 const GOLF := Rect2(37000, 0, 1800, 1200)
 const GOLF_BOOTH := Vector2(12880, 1120)           # fuarda mini golf gişesi
 # 1.9: Yeni Mahalle (trenle gidilir): pazar meydanı ve tezgâhlar, tuning garajı ve drift alanı, evcil hayvan parkı
-const TOWN := Rect2(39500, 0, 2600, 1800)
-const TOWN_ROAD := Rect2(39500, 196, 2600, 74)
+const TOWN := Rect2(39500, 0, 3900, 1800)           # 2.0: doğuya genişledi (akademi, mahalle muhtarlığı)
+const TOWN_ROAD := Rect2(39500, 196, 3900, 74)
 const TOWN_AVE := Rect2(40556, 270, 74, 1530)
 const MARKET_SQ := Rect2(39620, 320, 880, 720)
 const STALL_COUNT := 8
@@ -193,6 +195,26 @@ const PET_BOOTH := Vector2(40780, 430)               # parkur yarışı gişesi
 const PET_STAGE := Rect2(41260, 1250, 440, 170)      # güzellik şovu sahnesi
 const PET_SPOTS := {"kosu": Vector2(40830, 1280), "slalom": Vector2(40830, 1520), "bakim": Vector2(41060, 1640)}
 const PET_KIOSK := Vector2(41880, 1330)              # aksesuar dükkânı
+# 2.0: Aşçılık Akademisi ve mahalle muhtarlığı (Yeni Mahalle'nin doğusu)
+const ACADEMY := {"type": "akademi", "label": "Aşçılık Akademisi", "rect": Rect2(42250, 360, 560, 300), "sign_y": 60}
+const MAHALLE_OFFICE := {"type": "mahalle_muhtar", "label": "Mahalle Muhtarlığı", "rect": Rect2(42320, 860, 400, 200), "sign_y": 50}
+const TOWN_AVE2 := Rect2(42140, 270, 74, 1530)
+# 2.0: denizaltı tersanesi (Sanayi Limanı) ve Batık Şehir (harita dışında)
+const SUB_DOCK := Vector2(900, 3640)
+const DEEP := Rect2(45000, 0, 3200, 2600)
+const DEEP_GATE := Vector2(45300, 300)             # Batık Şehir'e iniş / yüzeye çıkış
+# 2.0: plaj festivali
+const FEST_STAGE := Rect2(800, 1650, 340, 96)
+const DANCE_FLOOR := Rect2(790, 1752, 360, 92)
+const DJ_BOOTH := Vector2(970, 1730)
+const FEST_GATE := Vector2(700, 1700)               # bilet gişesi
+# 2.0: belediye projelerinin yerleri ve proje panosu
+const PROJECT_BOARD := Vector2(2245, 700)
+const PROJECT_SITES := {
+	"heykel": Vector2(880, 1545), "cicek": Vector2(480, 1600), "fiskiye": Vector2(460, 1030), "led": Vector2(1200, 445),
+	"bisiklet": Vector2(1005, 900), "plaj": Vector2(1850, 1730), "kule": Vector2(560, 1700),
+}
+
 # 1.9: afetlerde yardım çadırı (şehirde, sahil yolunun başında)
 const AID_TENT := Vector2(1260, 1585)
 

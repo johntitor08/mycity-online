@@ -220,7 +220,7 @@ func update_zone() -> void:
 	if si >= 0:
 		var v: Dictionary = Stalls.view[si] if si < Stalls.view.size() else {}
 		if v.is_empty() or not bool(v.get("open", false)):
-			z = {"type": "town", "do": "stall", "i": si, "label": "%d numaralı tezgâh — boş, kirala (%s / gün)" % [si + 1, U.money(Stalls.RENT)]}
+			z = {"type": "town", "do": "stall", "i": si, "label": "%d numaralı tezgâh — boş, kirala (%s / gün)" % [si + 1, U.money(int(Projects.mahalle.get("rent", Stalls.RENT)))]}
 		else:
 			z = {"type": "town", "do": "stall", "i": si, "label": "%s%s" % [v.name, "  (senin)" if v.owner == Net.my_name else " — %d çeşit mal" % v.items.size()]}
 	if me.distance_to(Map.WANTED_BOARD) < 110.0:
@@ -237,6 +237,7 @@ func update_zone() -> void:
 			z = {"type": "town", "do": "pet_train", "spot": k, "label": "Eğit: %s (%s)" % [{"kosu": "koşu bandı", "slalom": "slalom direkleri", "bakim": "bakım masası"}[k], PetShow.STATS[k][1]]}
 	if me.distance_to(Map.PET_KIOSK) < 110.0:
 		z = {"type": "town", "do": "pet_kiosk", "label": "Evcil hayvan aksesuarları ve kupalar"}
+	z = w.v20.extra_zone(z)
 	z = w._rail_zone(z)
 	w.zone = z
 	w._g_action = {}
@@ -377,6 +378,7 @@ func draw_region(view: Rect2, items: Array) -> void:
 	_draw_tuning()
 	_draw_drift()
 	_draw_pet_park(items)
+	w.v20.draw_town(view)
 	for p: Rect2 in [Rect2(t.position.x + 20, 290, 40, 40), Rect2(t.end.x - 70, 300, 40, 40)]:
 		w.draw_circle(p.get_center(), 30, Color("#166534"))
 	# meydanı dolaşan müşteriler
@@ -581,7 +583,7 @@ func _draw_pet_park(items: Array) -> void:
 		items.append([pp.y, "rpet", [{"pos": pp, "facing": fac, "moving": float(pr[4]) < 0.0}, {"kind": str(pr[2]), "name": str(pr[0]), "happy": true}]])
 
 
-func draw_item(kind: String, d: Array) -> bool:
+func draw_item(kind: String, d) -> bool:
 	match kind:
 		"visitor":
 			var apps := [{"skin": 1, "hair": 2, "hair_color": 1, "shirt": 3, "pants": 2}, {"skin": 3, "hair": 0, "hair_color": 0, "shirt": 7, "pants": 1},

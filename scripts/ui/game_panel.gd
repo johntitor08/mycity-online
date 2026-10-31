@@ -57,6 +57,13 @@ func close() -> void:
 	closed.emit()
 
 
+## Bu paneli kapatıp yerine başka bir panel aç (world üstünden).
+func switch_to(p: Control) -> void:
+	var world := get_parent().get_parent()
+	if world != null and world.has_method("open_panel_node"):
+		world.open_panel_node(p)
+
+
 func add_label(parent: Node, text: String, font_size: int = 16, color: Color = Color.WHITE) -> Label:
 	var l := Label.new()
 	l.text = text

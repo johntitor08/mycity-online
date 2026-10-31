@@ -123,6 +123,9 @@ func _row(i: int, p: Dictionary) -> void:
 
 
 ## İşletme yönetimi bölümü (sadece kendi işletmenin yanındayken görünür).
+var _kitchen_btn: Button
+
+
 func _build_manage() -> void:
 	manage = VBoxContainer.new()
 	manage.add_theme_constant_override("separation", 8)
@@ -131,6 +134,14 @@ func _build_manage() -> void:
 	manage.add_child(HSeparator.new())
 	add_label(manage, "İşletme Yönetimi", 20, Color("#facc15"))
 	stats_label = add_label(manage, "", 15)
+	# 2.0: kafe ve restoranda aktif mutfak servisi
+	var kb := add_button(manage, "Mutfağa gir — 90 sn servis vardiyası (siparişleri yetiştir, bahşiş topla)", func():
+		var kp = preload("res://scripts/ui/kitchen_panel.gd").new()
+		kp.mode = "shift"
+		kp.plot = focus_plot
+		switch_to(kp))
+	kb.custom_minimum_size = Vector2(0, 38)
+	_kitchen_btn = kb
 	var row1 := HBoxContainer.new()
 	row1.add_theme_constant_override("separation", 8)
 	manage.add_child(row1)
@@ -165,6 +176,8 @@ func _build_manage() -> void:
 func _refresh_manage() -> void:
 	var p: Dictionary = Land.view[focus_plot] if focus_plot >= 0 and focus_plot < Land.view.size() else {}
 	manage.visible = not p.is_empty() and Biz.is_biz(p) and p.owner == Net.my_name
+	if _kitchen_btn != null:
+		_kitchen_btn.visible = manage.visible and int(p.get("level", 0)) >= 2
 	if not manage.visible:
 		return
 	var b: Dictionary = p.biz

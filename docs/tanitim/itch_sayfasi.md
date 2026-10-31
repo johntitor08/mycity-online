@@ -15,6 +15,10 @@ Kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — T
 **MyCity Online**, arkadaşlarınla aynı şehirde yaşadığın, Türkçe, ücretsiz ve çok oyunculu bir yaşam/simülasyon oyunu. Arsa al, ev kur, işletme aç, meslek seç, balık tut, dağa tırman, korsan hazinesi ara — hepsi aynı dünyada, aynı anda.
 
 ### Neler var?
+- 👨‍🍳 **Restoran mutfağı:** siparişleri zamanında hazırla, aşçılık yarışmasında jürinin gözdesi ol
+- 🌊 **Batık Şehir:** denizaltınla karanlık derinlikleri keşfet, 16 canlıyı tara, antik eserler bul
+- 🏛️ **Belediye projeleri:** oyla, bağış yap; şehre park, fıskiye, kule ve heykel kazandır
+- 🎧 **Plaj festivali:** DJ ol, dans et, havai fişekleri patlat
 - 🏘️ **Yeni Mahalle:** kendi pazar tezgâhını kur, fiyatını belirle; sen yokken de müşteriler alışveriş yapar
 - 🐶 **Evcil hayvan şovu:** hayvanını eğit, aksesuar tak, parkur yarışında ve güzellik şovunda kupa kazan
 - 🏎️ **Tuning ve sokak yarışı:** motor, nitro, neon; drift yap, botlarla ve arkadaşlarınla yarış, rekorun hayaletini yen

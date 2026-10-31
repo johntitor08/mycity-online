@@ -291,7 +291,12 @@ func req_feed(d: Dictionary) -> void:
 		return
 	for a in hungry:
 		if float(a.fed) < now:
-			a["last"] = maxf(float(a.last), now)      # aç kaldığı süre üretime sayılmaz
+			# aç kaldığı süre üretime sayılmaz; ama tokken biriken (henüz toplanmamış) ürünler korunur:
+			# sayaç sadece aç geçen süre kadar ileri kayar
+			if float(a.last) < float(a.fed):
+				a["last"] = float(a.last) + (now - float(a.fed))
+			else:
+				a["last"] = now
 		a["fed"] = maxf(float(a.fed), now) + FEED_TIME
 	Net.mark_dirty()
 	Land._broadcast()

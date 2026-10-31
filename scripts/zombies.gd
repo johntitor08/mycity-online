@@ -34,6 +34,7 @@ var _spawn_acc := 0.0
 var _sync := 0.0
 var _last_day := -1
 var _skipped_night := -1            # yönetici bu doğal geceyi bitirdiyse aynı gece yeniden başlamaz
+var natural := true                  # testler doğal geceleri kapatır (force_start yine çalışır)
 
 
 func _ready() -> void:
@@ -150,7 +151,7 @@ func _night_key() -> int:
 func _night_due() -> bool:
 	var h := Env.hour
 	var day := _night_key()
-	return day % 2 == 0 and (h >= START_HOUR or h < END_HOUR) and day != _skipped_night
+	return natural and day % 2 == 0 and (h >= START_HOUR or h < END_HOUR) and day != _skipped_night
 
 
 func _start() -> void:

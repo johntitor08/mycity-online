@@ -154,6 +154,7 @@ var night_windows: Node2D   # gece yanan pencereler (karartmadan etkilenmesin di
 var touch: Control          # dokunmatik kontroller (telefonda)
 var adv                     # 1.8: zindan, zombi gecesi, uzay, golf, bowling (world_adventure.gd)
 var town                    # 1.9: Yeni Mahalle, tuning ve drift, sokak yarışı, afetler (world_town.gd)
+var v20                     # 2.0: Batık Şehir, belediye projeleri, festival, akademi (world_v20.gd)
 var _win_queue: Array = []
 var _ocean_acc := 0.0
 var _ocean_flush := 0.0
@@ -228,6 +229,7 @@ func _ready() -> void:
 	ui_layer.layer = 3
 	adv = preload("res://scripts/world_adventure.gd").new(self)
 	town = preload("res://scripts/world_town.gd").new(self)
+	v20 = preload("res://scripts/world_v20.gd").new(self)
 	touch = preload("res://scripts/ui/touch_controls.gd").new()
 	touch.world = self
 	ui_layer.add_child(touch)
@@ -365,6 +367,10 @@ func _process(delta: float) -> void:
 			if _dive:
 				mult = 0.6
 			mult *= town.move_mult(my_pos)               # 1.9: sel baskını
+			if ride == "sub":
+				mult *= v20.sub_mult()                   # 2.0: denizaltı motor kademesi
+			elif ride == "bike":
+				mult *= v20.bike_mult()                  # 2.0: bisiklet yolu
 			var step := dir.normalized() * SPEED * delta * mult
 			if ride == "car":
 				step = town.car_step(dir, SPEED * mult, delta)     # 1.9: kayarak sürüş, nitro
@@ -395,6 +401,7 @@ func _process(delta: float) -> void:
 			Work.spray(int(zone.id))
 	adv.tick(delta)
 	town.tick(delta)
+	v20.tick(delta)
 	Net.update_my_pos(my_pos, delta)
 	if _ocean:
 		_ocean_tick(delta)
@@ -568,6 +575,8 @@ func _on_teleport(pos: Vector2) -> void:
 
 ## F: araca bin / in.
 func _toggle_vehicle() -> void:
+	if v20.toggle_vehicle():
+		return
 	var ride := my_ride()
 	if ride == "ski":
 		Mountain.ski_stop()
@@ -911,6 +920,7 @@ func _update_zone() -> void:
 	z = _holiday_zone(z)
 	z = adv.extra_zone(z)
 	z = town.extra_zone(z)
+	z = v20.extra_zone(z)
 	if not dz.is_empty():
 		z = dz
 	zone = z
@@ -926,6 +936,11 @@ func _find_g_action() -> Dictionary:
 	var ag: Dictionary = adv.g_action()
 	if not ag.is_empty():
 		return ag
+	var g := _find_g_action_base()
+	return g if not g.is_empty() else adv.g_fallback()
+
+
+func _find_g_action_base() -> Dictionary:
 	var hg := _holiday_g_action()
 	if not hg.is_empty():
 		return hg
@@ -992,6 +1007,8 @@ func _open_panel() -> void:
 	if adv.open(zone):
 		return
 	if town.open(zone):
+		return
+	if v20.open(zone):
 		return
 	if zone.type == "exit_home":
 		Homes.exit_home()
@@ -1923,6 +1940,15 @@ func open_character_editor() -> void:
 	ui_layer.add_child(panel)
 
 
+## Bir paneli (düğüm olarak) aç; açık olan varsa önce kapatılır (panelden panele geçiş için).
+func open_panel_node(p: Control) -> void:
+	_close_panel()
+	panel = p
+	p.closed.connect(_close_panel)
+	ui_layer.add_child(p)
+	Sfx.play("open", -4.0)
+
+
 func _close_panel() -> void:
 	if panel:
 		panel.queue_free()
@@ -2058,6 +2084,7 @@ func _draw() -> void:
 	_draw_arena()
 	adv.draw_ground()
 	town.draw_ground()
+	v20.draw_ground()
 	_draw_city_extras()
 	_draw_holiday()
 	_draw_marathon()
@@ -2163,12 +2190,15 @@ func _draw() -> void:
 		items.append([Events.treasure_pos.y, "t", Events.treasure_pos])
 	adv.add_items(items)
 	town.add_items(items)
+	v20.add_items(items)
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
 		if it[1] == "adv":
 			adv.draw_item(it[2])
 		elif it[1] == "town":
 			town.draw_city_item(it[2])
+		elif it[1] == "v20":
+			v20.draw_city_item(it[2])
 		elif it[1] == "n":
 			_draw_nature(it[2])
 		elif it[1] == "w":
@@ -2240,6 +2270,7 @@ func _draw() -> void:
 	_draw_fx()
 	adv.draw_overlay()
 	town.draw_overlay()
+	v20.draw_overlay()
 	_draw_placement_ghost()
 	_draw_snow_fx()
 	_draw_nav()
@@ -4556,7 +4587,7 @@ func _holiday_g_action() -> Dictionary:
 					return {"kind": "knock", "door": door, "label": "Kapıyı çal: Şeker mi şaka mı?"}
 			for i in mini(Land.view.size(), Map.PLOT_COUNT):
 				var p: Dictionary = Land.view[i]
-				if int(p.level) >= 1 and str(p.get("kind", "home")) == "home" and my_pos.distance_to(Holidays.door_pos("p:%d" % i)) < 80.0:
+				if int(p.level) >= 1 and str(p.get("kind", "home")) == "home" and p.owner != Net.my_name and my_pos.distance_to(Holidays.door_pos("p:%d" % i)) < 80.0:
 					return {"kind": "knock", "door": "p:%d" % i, "label": "Kapıyı çal: Şeker mi şaka mı?"}
 		"ramazan", "kurban":
 			for k in Map.NPCS:

@@ -107,6 +107,8 @@ func _on_ok() -> void:
 	print("== Bağlandı: %s, para %d" % [Net.my_name, Net.my_money()])
 	if Net.is_server():
 		Holidays.force("yok")          # testler takvimden bağımsız (1.5 testi özel günleri tek tek açar)
+		Zombies.natural = false        # 2.0: doğal zombi gecesi ve takvimli festival testleri bozmasın
+		Festival.natural = false
 	# hızlı deneme: --bolum=11,13 sadece o bölümleri çalıştırır
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--bolum="):
@@ -296,6 +298,7 @@ func _on_ok() -> void:
 		await _test_17(get_parent().world)
 		await _test_18(get_parent().world)
 		await _test_19(get_parent().world)
+		await _test_20(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -1605,6 +1608,17 @@ func _test_11(w) -> void:
 	Farm.feed_animals(rp, false)
 	await _wait(0.4)
 	check(float(Land.view[rp].ranch.animals[0].fed) > Land.server_now() and Net.my_money() == m0 - 2 * Farm.FEED_PRICE, "hayvanlar yemle beslendi")
+	# 2.0: tokken biriken ürünler, aç kaldıktan sonra toplamadan beslenince kaybolmamalı
+	for a in Land.plots[rp].ranch.animals:
+		a.last = now - 2000.0
+		a.fed = now - 1000.0
+	Land._broadcast()
+	await _wait(0.2)
+	var before := Farm.animal_ready(Land.view[rp].ranch.animals[0], Land.server_now())
+	Farm.feed_animals(rp, false)
+	await _wait(0.4)
+	var after := Farm.animal_ready(Land.view[rp].ranch.animals[0], Land.server_now())
+	check(before == 4 and after == before, "toplamadan beslenince ürünler kaybolmadı (%d → %d yumurta)" % [before, after])
 	w.my_pos = Map.building("pazar").rect.get_center()
 	await _wait(0.3)
 	var m1 := Net.my_money()
@@ -2375,6 +2389,24 @@ func _test_15(w) -> void:
 	w._do_g_action()
 	await _wait(0.3)
 	check(int(Rpg.sheet.items.get("seker", 0)) == g0, "aynı kapı bugün tekrar çalınmaz")
+	# kendi evinin kapısı çalınmaz (şeker çiftliği olmasın)
+	var own := -1
+	for i in Land.plots.size():
+		if Land.plots[i].owner == "":
+			own = i
+			break
+	Land.plots[own].owner = Net.my_name
+	Land.plots[own].level = 1
+	Land._broadcast()
+	w.my_pos = Holidays.door_pos("p:%d" % own) + Vector2(0, 10)
+	await _wait(0.4)
+	check(w._g_action.get("kind", "") != "knock", "kendi evinde 'kapıyı çal' çıkmaz")
+	Holidays.knock("p:%d" % own)
+	await _wait(0.3)
+	check(int(Rpg.sheet.items.get("seker", 0)) == g0, "kendi kapını çalıp şeker alınmaz")
+	Land.plots[own].owner = ""
+	Land.plots[own].level = 0
+	Land._broadcast()
 	Holidays.force("yilbasi")
 	await _wait(0.3)
 	check(not Net.roster[me].has("costume"), "bayram bitince kostüm çıktı")
@@ -3607,6 +3639,259 @@ func _test_19(w) -> void:
 	Disasters.stop(false)
 	await _wait(0.4)
 	check(not Disasters.active(), "afet bitti")
+
+
+func _test_20(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var C = preload("res://scripts/chef.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 300000)
+	Rpg.add_xp(me, "", 60000)
+	Env.force_weather("clear")
+	Holidays.force("yok")
+	Garage.ride("")
+	await _wait(0.3)
+
+	print("== 2.0: Restoran mutfağı")
+	check(C.cook_quality(0.75) == 1.0 and C.cook_quality(0.2) < 0.8 and C.cook_quality(1.3) < 0.5, "pişirme kıvamı: tam / çiğ / yanık")
+	var rp := -1
+	for i in Land.plots.size():
+		if Land.plots[i].owner == "":
+			rp = i
+			break
+	Land.plots[rp].owner = Net.my_name
+	Land.plots[rp]["kind"] = "biz"
+	Land.plots[rp].level = 3
+	Land.plots[rp]["biz"] = Biz.default_data(Net.my_name)
+	Land._broadcast()
+	var pr: Rect2 = Map.plot_rect(rp)
+	Homes._teleport(me, Vector2(pr.get_center().x, pr.end.y - 10))
+	await _wait(0.5)
+	var kp = preload("res://scripts/ui/kitchen_panel.gd").new()
+	kp.mode = "shift"
+	kp.plot = rp
+	w.open_panel_node(kp)
+	await _wait(0.6)
+	check(w.panel != null and Chef.shift.get("orders", []).size() >= 1, "servis vardiyası başladı (%d sipariş)" % Chef.shift.get("orders", []).size())
+	var o1: Dictionary = Chef.shift.orders[0]
+	Chef.serve(int(o1.id), 1.0)
+	await _wait(0.3)
+	check(int(Chef.shift.get("served", 0)) == 0, "çok hızlı servis reddedildi")
+	await _wait(3.0)
+	var m0 := Net.my_money()
+	Chef.serve(int(o1.id), 1.0)
+	await _wait(0.4)
+	check(int(Chef.shift.served) == 1 and int(Chef.shift.perfect) == 1 and Net.my_money() > m0, "mükemmel servis, bahşiş (+%s)" % U.money(Net.my_money() - m0))
+	var r0 := float(Land.plots[rp].biz.rating)
+	if Chef._shifts[me].orders.is_empty():
+		Chef._spawn_order(me)
+	for oid in Chef._shifts[me].orders:
+		Chef._shifts[me].orders[oid]["dl"] = Time.get_ticks_msec() / 1000.0 - 1.0
+	await _wait(0.4)
+	check(int(Chef.shift.missed) >= 1 and float(Land.plots[rp].biz.rating) < r0 + 0.05, "kaçan sipariş puanı düşürdü")
+	Chef._shifts[me]["t0"] = float(Chef._shifts[me].t0) - Chef.SHIFT_TIME
+	await _wait(0.5)
+	check(bool(Chef.shift.get("over", false)), "vardiya bitti")
+	w._close_panel()
+	Land.plots[rp].owner = ""
+	Land.plots[rp]["kind"] = "home"
+	Land.plots[rp].level = 0
+	Land.plots[rp].erase("biz")
+	Land._broadcast()
+	print("== 2.0: Aşçılık yarışması")
+	var ar: Rect2 = Map.ACADEMY.rect
+	Homes._teleport(me, Vector2(ar.get_center().x, ar.end.y + 20))
+	await _wait(0.5)
+	check(w.adv.ext == "mahalle" and w.zone.get("do", "") == "academy", "Aşçılık Akademisi")
+	w._open_panel()
+	await _wait(0.4)
+	check(w.panel != null, "akademi paneli")
+	w._close_panel()
+	Chef.start_contest()
+	await _wait(0.4)
+	check(Chef.contest.get("orders", []).size() == 3, "3 yarışma yemeği")
+	for o in Chef.contest.orders.duplicate():
+		Chef.contest_dish(int(o.id), 0.95)
+		await _wait(0.2)
+	check(int(Chef.contest.get("done", 0)) == 3, "yemekler hazırlandı")
+	Rpg.ensure(rec).items["menemen"] = 1
+	Rpg.send_sheet(me)
+	Chef.finish_contest("menemen")
+	await _wait(0.5)
+	var res: Dictionary = Chef.contest.get("result", {})
+	check(res.get("judges", []).size() == 3 and float(res.get("total", 0)) > 15.0 and not Rpg.ensure(rec).items.has("menemen"), "jüri puanı %.1f (imza: %s)" % [float(res.get("total", 0)), res.get("sig", "")])
+	check(bool(Chef.board.get("entered", false)), "bu dönem yarıştın")
+	var m1 := Net.my_money()
+	Chef._store()["period"] = int(Chef._store().period) - 1
+	Chef._roll_period()
+	await _wait(0.3)
+	check(Net.my_money() >= m1 + Chef.CONTEST_PRIZES[0] and rec.ach.got.has("chef_champ"), "dönem birincisi ödülü")
+
+	print("== 2.0: Denizaltı ve Batık Şehir")
+	Homes._teleport(me, Map.SUB_DOCK + Vector2(0, 40))
+	await _wait(0.5)
+	check(w.zone.get("do", "") == "sub", "denizaltı tersanesi")
+	Deep.buy("sub")
+	Deep.buy("light_lv")
+	await _wait(0.4)
+	check(bool(Deep.my.sub) and int(Deep.my.light_lv) == 1, "denizaltı alındı, far yükseltildi")
+	Deep.dive()
+	await _wait(0.6)
+	check(w.adv.ext == "derin" and w.my_ride() == "sub" and Deep.bat > 100.0, "Batık Şehir'e dalındı (akü %d)" % int(Deep.bat))
+	var b0 := Deep.bat
+	await _wait(1.3)
+	check(Deep.bat < b0, "akü azalıyor")
+	var ck := "yengec"
+	var cp := Deep.creature_pos(ck, Land.server_now() + 0.3)
+	Homes._teleport(me, cp)
+	await _wait(0.3)
+	var m2 := Net.my_money()
+	Deep.scan(ck)
+	await _wait(0.4)
+	check(ck in Deep.my.found and Net.my_money() > m2, "%s tarandı, ansiklopediye girdi" % Deep.CREATURES[ck][0])
+	var rp0: Vector2 = Deep.ruin_positions()[0]
+	Homes._teleport(me, rp0 + Vector2(0, 50))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "deep_loot", "harabe sandığı")
+	w._open_panel()
+	await _wait(0.4)
+	var art := ""
+	for f in Jobs.my_fish:
+		for a in Deep.ARTIFACTS:
+			if f.name == a[0]:
+				art = f.name
+	check(art != "" and not bool(Deep.loot_ready[0]), "antik eser bulundu: %s" % art)
+	var dm: Dictionary = Deep.DOMES[2]
+	Homes._teleport(me, dm.c + Vector2(0, 60))
+	await _wait(0.5)
+	w._toggle_vehicle()
+	await _wait(0.4)
+	check(w.my_ride() == "" and w.zone.get("do", "") == "deep_sell", "kubbede denizaltıdan inildi, deniz pazarı")
+	check(not w.v20.can_stand_deep(dm.c + Vector2(dm.r + 50, 0)), "yaya kubbeden çıkamaz")
+	var m3 := Net.my_money()
+	Deep.sell()
+	await _wait(0.4)
+	check(Net.my_money() > m3, "eser satıldı (+%s)" % U.money(Net.my_money() - m3))
+	w._toggle_vehicle()
+	await _wait(0.4)
+	Homes._teleport(me, Map.DEEP_GATE + Vector2(40, 40))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "deep_up", "yüzeye çıkış kapısı")
+	w._open_panel()
+	await _wait(0.5)
+	check(w.adv.ext == "" and w.my_pos.distance_to(Map.SUB_DOCK) < 100.0 and w.my_ride() == "", "tersaneye dönüldü")
+	Deep.dive()
+	await _wait(0.5)
+	Deep._bat[me] = 0.4
+	Homes._teleport(me, Map.DEEP_GATE + Vector2(600, 600))
+	await _wait(1.2)
+	check(w.adv.ext == "" and w.my_pos.distance_to(Map.SUB_DOCK) < 100.0, "akü bitince acil yüzeye çıkış")
+	var has_set := false
+	for st in Museum.sets():
+		if st[0] == "batik":
+			has_set = true
+	check(has_set, "müzede Batık Şehir koleksiyonu")
+
+	print("== 2.0: Belediye projeleri")
+	Election._data()["mayor"] = Net.my_name
+	Election._data()["treasury"] = 5000
+	Homes._teleport(me, Map.PROJECT_BOARD + Vector2(0, 40))
+	await _wait(0.5)
+	check(w.zone.get("do", "") == "projects", "proje panosu")
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "projeler paneli")
+	w._close_panel()
+	Projects.propose("cicek")
+	await _wait(0.4)
+	check(str(Projects.state.cur.get("phase", "")) == "oylama", "Çiçek Parkı oylamada")
+	Projects.vote(true)
+	await _wait(0.3)
+	check(int(Projects.state.cur.yes) == 1 and bool(Projects.state.voted), "evet oyu")
+	Projects._data().cur["ends"] = Time.get_unix_time_from_system() - 1.0
+	await _wait(1.3)
+	check(str(Projects.state.cur.get("phase", "")) == "butce" and int(Projects.state.cur.funds) == 5000, "kabul edildi, belediye 5.000 TL koydu")
+	Projects.donate(7000)
+	await _wait(0.4)
+	check(str(Projects.state.cur.get("phase", "")) == "insaat", "bağışla bütçe tamamlandı, inşaat")
+	Projects._data().cur["ends"] = Time.get_unix_time_from_system() - 1.0
+	await _wait(1.3)
+	check(Projects.done("cicek") and str(Projects.state.done.cicek.by) == Net.my_name and rec.ach.got.has("project1"), "Çiçek Parkı yapıldı (destekçi sensin)")
+	Projects._data().done["bisiklet"] = {"by": "", "at": 0}
+	Projects._broadcast()
+	await _wait(0.3)
+	check(w.v20.bike_mult() == 1.15, "bisiklet yolu: bisikletle %15 hızlı")
+	print("== 2.0: Mahalle muhtarlığı")
+	Projects._mdata()["muhtar"] = Net.my_name
+	var orr: Rect2 = Map.MAHALLE_OFFICE.rect
+	Homes._teleport(me, Vector2(orr.get_center().x, orr.end.y + 20))
+	await _wait(0.5)
+	check(w.zone.get("do", "") == "mahalle", "mahalle muhtarlığı")
+	Projects.m_set_rent(500)
+	Projects.m_market_day()
+	await _wait(0.4)
+	check(int(Projects.mahalle.rent) == 500 and Projects.market_day(), "muhtar kirayı 500 yaptı, Pazar Günü ilan etti")
+	Homes._teleport(me, Map.stall_front(5))
+	await _wait(0.4)
+	var m4 := Net.my_money()
+	Stalls.rent(5)
+	await _wait(0.4)
+	check(Net.my_money() == m4 - 500 + 50, "kira 500 TL (muhtar payı 50 TL geri)")
+	Stalls.release()
+	await _wait(0.3)
+
+	print("== 2.0: Plaj festivali")
+	Homes._teleport(me, Map.FEST_GATE + Vector2(0, 40))
+	await _wait(0.4)
+	Festival.force(5.0)
+	await _wait(1.0)
+	check(Festival.active() and str(Festival.st.dj) == Festival.NPC_DJ, "festival başladı, DJ Selin çalıyor")
+	check(w.zone.get("do", "") == "fest_ticket", "bileklik gişesi")
+	Festival.buy_ticket()
+	await _wait(0.4)
+	check(bool(Festival.st.ticket), "bileklik alındı")
+	Homes._teleport(me, Map.DANCE_FLOOR.get_center())
+	await _wait(2.6)
+	var t_end := Time.get_ticks_msec() / 1000.0 + 5.0
+	var sent := {}
+	while Time.get_ticks_msec() / 1000.0 < t_end:
+		var bp := Festival.beat_pos()
+		var k := int(round(bp))
+		if absf(bp - k) < 0.04 and not sent.has(k) and Festival.step_at(int(Festival.st.t0), k) != "":
+			sent[k] = true
+			Festival.dance(Festival.step_at(int(Festival.st.t0), k))
+		await get_tree().process_frame
+	await _wait(0.4)
+	check(Festival.my_points > 0, "dans puanı %d (seri %d)" % [Festival.my_points, Festival.my_combo])
+	Homes._teleport(me, Map.DJ_BOOTH + Vector2(0, 40))
+	await _wait(0.4)
+	Festival.dj_join()
+	await _wait(1.5)
+	check(str(Festival.st.dj) == Net.my_name and w.panel != null, "DJ kabinine geçildi, DJ paneli açıldı")
+	await _wait(2.2)
+	var grades: Array = []
+	var cb := func(d): grades.append(str(d.grade))
+	Festival.beat_hit.connect(cb)
+	var h0 := float(Festival.st.hype)
+	t_end = Time.get_ticks_msec() / 1000.0 + 4.0
+	sent.clear()
+	while Time.get_ticks_msec() / 1000.0 < t_end:
+		var bp2 := Festival.beat_pos()
+		var k2 := int(round(bp2))
+		if absf(bp2 - k2) < 0.03 and not sent.has(k2) and k2 >= 0:
+			sent[k2] = true
+			Festival.dj_hit(Festival.is_drop(k2))
+		await get_tree().process_frame
+	await _wait(0.6)
+	Festival.beat_hit.disconnect(cb)
+	check(grades.size() >= 3 and grades.count("miss") <= 1, "DJ vuruşları: %s" % ", ".join(PackedStringArray(grades)))
+	check(float(Festival.st.hype) > h0, "coşku arttı (%d → %d)" % [int(h0), int(Festival.st.hype)])
+	Festival.force_stop()
+	await _wait(0.6)
+	check(not Festival.active() and not w.v20.sparks.is_empty(), "festival havai fişeklerle bitti")
+	check(rec.ach.got.has("dj1"), "İlk Set başarımı")
+	w._close_panel()
 
 
 func _finish() -> void:

@@ -41,6 +41,8 @@ static func speed_of(ride: String) -> float:
 		return 2.0
 	if ride == "bumper":
 		return 1.4
+	if ride == "sub":
+		return 2.4             # 2.0: denizaltı (motor kademesine göre 1,6–2,4; istemci kendi kademesini uygular)
 	return float(VEHICLES[ride].speed) if VEHICLES.has(ride) else 1.0
 
 

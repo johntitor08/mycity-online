@@ -48,6 +48,8 @@ static func ext_of(p: Vector2) -> String:
 		return "golf"
 	if Map.TOWN.has_point(p):
 		return "mahalle"
+	if Map.DEEP.has_point(p):
+		return "derin"
 	return ""
 
 
@@ -65,6 +67,8 @@ func camera_rect() -> Rect2:
 			return Map.GOLF
 		"mahalle":
 			return Map.TOWN
+		"derin":
+			return Map.DEEP
 	return Map.WORLD
 
 
@@ -82,6 +86,8 @@ func can_stand(p: Vector2) -> bool:
 			return not (_hangar().grow(-6).has_point(p) and not _hangar().grow(-6).has_point(me))
 		"mahalle":
 			return w.town.can_stand(p)
+		"derin":
+			return w.v20.can_stand_deep(p)
 	return true
 
 
@@ -123,9 +129,9 @@ func status_line() -> String:
 
 func decorate(hint: String) -> String:
 	var s := status_line()
-	var ts: String = w.town.status_line()
-	if ts != "":
-		s = ts if s == "" else s + "  ·  " + ts
+	for extra: String in [w.town.status_line(), w.v20.status_line()]:
+		if extra != "":
+			s = extra if s == "" else s + "  ·  " + extra
 	if s == "":
 		return hint
 	return s if hint == "" else hint + "\n" + s
@@ -135,6 +141,9 @@ func decorate(hint: String) -> String:
 func update_zone() -> void:
 	if ext == "mahalle":
 		w.town.update_zone()
+		return
+	if ext == "derin":
+		w.v20.deep_zone()
 		return
 	var me: Vector2 = w.my_pos
 	var z := {}
@@ -210,9 +219,18 @@ func g_action() -> Dictionary:
 	var hurt := float(me.get("hp", 100)) < float(me.get("max", 100))
 	if Combat.in_combat() and pots > 0 and float(me.get("hp", 100)) < float(me.get("max", 100)) * 0.5:
 		return {"kind": "adv", "do": "c_potion", "label": "Can iksiri iç (%d)" % pots}
+	if Combat.in_combat() and pots > 0 and hurt and ext != "":
+		return {"kind": "adv", "do": "c_potion", "label": "Can iksiri iç (%d)" % pots}
+	return {}
+
+
+## Başka G eylemi yoksa (tutuklama, bayram, soygun...) zombi gecesinde barikat; yaralıysan iksir.
+func g_fallback() -> Dictionary:
+	var me: Dictionary = Combat.my
+	var pots := int(me.get("potions", 0))
 	if Zombies.active() and ext == "" and w._room < 0 and not w._fair and not w._mount and Map.WORLD.has_point(w.my_pos):
 		return {"kind": "adv", "do": "z_bar", "label": "Önüne barikat kur (%s)" % U.money(Zombies.BARRICADE_PRICE)}
-	if Combat.in_combat() and pots > 0 and hurt:
+	if Combat.in_combat() and pots > 0 and float(me.get("hp", 100)) < float(me.get("max", 100)):
 		return {"kind": "adv", "do": "c_potion", "label": "Can iksiri iç (%d)" % pots}
 	return {}
 
@@ -485,7 +503,8 @@ func _flush(items: Array) -> void:
 			"pet":
 				w._draw_pet(it[2][0], it[2][1])
 			_:
-				w.town.draw_item(str(it[1]), it[2])
+				if not w.town.draw_item(str(it[1]), it[2]):
+					w.v20.draw_item(str(it[1]), it[2])
 
 
 func _monster_items(items: Array, wrap: bool = false) -> void:
@@ -541,6 +560,8 @@ func draw_region() -> void:
 			_draw_spaceport(view, items)
 		"golf":
 			_draw_golf(view, items)
+		"derin":
+			w.v20.draw_deep(view, items)
 		"mahalle":
 			w.town.draw_region(view, items)
 			for id in w.npc.pets:

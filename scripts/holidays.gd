@@ -188,6 +188,9 @@ func req_knock(d: Dictionary) -> void:
 		var i := int(door.substr(2))
 		if i < 0 or i >= Land.plots.size() or int(Land.plots[i].level) < 1 or str(Land.plots[i].get("kind", "home")) != "home":
 			return
+		if str(Land.plots[i].owner) == Net.players[id].name:
+			Net.notify(id, "Kendi kapını çalıp kendine şeker veremezsin!", false)
+			return
 	var hd := _hd(rec)
 	if door in hd.doors:
 		Net.notify(id, "Bu kapıyı bugün zaten çaldın.", false)

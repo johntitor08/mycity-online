@@ -83,6 +83,10 @@ Street="*res://scripts/street.gd"
 PetShow="*res://scripts/petshow.gd"
 Stalls="*res://scripts/stalls.gd"
 Disasters="*res://scripts/disasters.gd"
+Chef="*res://scripts/chef.gd"
+Deep="*res://scripts/deep.gd"
+Projects="*res://scripts/projects.gd"
+Festival="*res://scripts/festival.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

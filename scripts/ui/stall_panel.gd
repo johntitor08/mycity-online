@@ -32,7 +32,7 @@ func _refresh() -> void:
 		if mine >= 0 and mine != stall:
 			add_label(box, "Zaten %d numaralı tezgâhın var." % (mine + 1), 14, Color("#fca5a5"))
 		else:
-			buy_button(box, Stalls.RENT, Stalls.rent.bind(stall), 0, "1 gün kirala")
+			buy_button(box, int(Projects.mahalle.get("rent", Stalls.RENT)), Stalls.rent.bind(stall), 0, "1 gün kirala")
 		return
 	if v.owner == Net.my_name:
 		_owner(v)
@@ -46,7 +46,7 @@ func _owner(v: Dictionary) -> void:
 	var top := HBoxContainer.new()
 	box.add_child(top)
 	add_button(top, "Kasayı boşalt", Stalls.collect).disabled = int(v.get("till", 0)) <= 0
-	add_button(top, "Kirayı 1 gün uzat (%s)" % U.money(Stalls.RENT), Stalls.rent.bind(stall)).disabled = left > (Stalls.MAX_DAYS - 1) * Stalls.DAY
+	add_button(top, "Kirayı 1 gün uzat (%s)" % U.money(int(Projects.mahalle.get("rent", Stalls.RENT))), Stalls.rent.bind(stall)).disabled = left > (Stalls.MAX_DAYS - 1) * Stalls.DAY
 	add_button(top, "Tezgâhı bırak", Stalls.release)
 	var lr := HBoxContainer.new()
 	box.add_child(lr)

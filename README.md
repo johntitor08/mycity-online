@@ -37,6 +37,36 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.0: Restoran mutfağı ve aşçılık yarışması, Batık Şehir ve denizaltı, belediye projeleri, plaj festivali
+
+| | |
+|---|---|
+| ![Mutfak servisi](docs/ekran/mutfak_servisi.png) | ![Aşçılık Akademisi](docs/ekran/akademi.png) |
+| ![Batık Şehir](docs/ekran/batik_sehir.png) | ![Hava kubbesi](docs/ekran/hava_kubbesi.png) |
+| ![Denizaltı tersanesi](docs/ekran/denizalti_tersanesi.png) | ![Ansiklopedi](docs/ekran/ansiklopedi.png) |
+| ![Belediye projeleri](docs/ekran/projeler_park.png) | ![Proje panosu](docs/ekran/projeler_paneli.png) |
+| ![Festival ve dans](docs/ekran/festival_dans.png) | ![Havai fişekler](docs/ekran/festival_havai_fisek.png) |
+
+- **Restoran mutfağı:**
+  - Kafe ya da restoran sahibi, işletme panelinden mutfağa girip 90 sn servis vardiyası yapar.
+  - Siparişlerin adımları vardır: doğra, ocak, fırın, ızgara, sos, tabakla (1–6). Ocak, fırın ve ızgarada çubuk yeşildeyken yeniden basılır; erken basarsan çiğ, geç basarsan yanık olur.
+  - Doğru ve hızlı servis bahşiş getirir ve işletmenin puanını artırır; kaçan sipariş puanı düşürür.
+- **Aşçılık yarışması:** Yeni Mahalle'deki Aşçılık Akademisi'nde 2 saatlik dönemler halinde yapılır. 3 zor yemek pişirilir ve evde pişirdiğin bir imza yemeği jüriye sunulur. 3 jüri teknik, lezzet ve sunuma puan verir; dönem sonunda ilk üç ödül alır.
+- **Batık Şehir ve denizaltı:**
+  - Sanayi Limanı'ndaki tersaneden denizaltı alınır (Sv.12). Karanlıkta farla keşif yapılır; akü kubbelerde dolar, denizanası tarlaları aküyü hızlı tüketir.
+  - 16 deniz canlısı taranıp ansiklopediye girer. Harabelerden antik eser çıkar; eserler satılabilir ya da müzedeki yeni Batık Şehir koleksiyonuna bağışlanabilir.
+  - Hava kubbeleri: tapınak, şarj istasyonu, deniz pazarı.
+  - Akü, far ve motor yükseltilebilir.
+- **Belediye projeleri:**
+  - Başkan projeyi oylamaya sunar. Kabul edilince belediye kasası bütçenin yarısına kadar öder, gerisi bağışla toplanır. İnşaattan sonra yapı şehre kalıcı olarak eklenir.
+  - Projeler: Çiçek Parkı, LED lambalar (gece daha aydınlık), bisiklet yolu (bisiklet %15 hızlı), göl fıskiyesi, plaj düzenlemesi, gözlem kulesi (dürbünle şehri seyret) ve en büyük destekçinin heykeli.
+  - **Mahalle muhtarlığı:** Yeni Mahalle'nin seçimi yapılır. Muhtar tezgâh kirasını belirler, kira gelirinden pay alır ve "Pazar Günü" ilan eder (iki kat müşteri).
+- **Plaj festivali:** 2 saatte bir 15 dakika sürer (yönetici: `/festival`).
+  - Dev sahne, ışıklar ve sunucu saatine göre çalan müzik var.
+  - DJ kabininde sıraya girilir: vuruşta Boşluk, DROP anında E. Coşku 100 olunca havai fişekler patlar.
+  - Bileklikle dans pistinde ok tuşlarıyla dans edilir. Set sonunda bahşiş ve ödül verilir.
+- 13 yeni başarım.
+
 ## 1.9: Yeni Mahalle — pazar meydanı, evcil hayvan şovu, araba tuning ve sokak yarışı; afetler
 
 | | |

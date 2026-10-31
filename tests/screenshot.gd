@@ -163,6 +163,12 @@ func _ready() -> void:
 		await _wait(0.3)
 		get_tree().quit()
 		return
+	if "--sadece20" in OS.get_cmdline_user_args():
+		Net.add_money(1, 400000)
+		Rpg.add_xp(1, "", 60000)
+		await _shots_20(w)
+		get_tree().quit()
+		return
 	if "--sadece19" in OS.get_cmdline_user_args():
 		Net.add_money(1, 400000)
 		Rpg.add_xp(1, "", 60000)
@@ -2761,6 +2767,164 @@ func _shots_19(w) -> void:
 	await _clear_toasts(w)
 	_shot("kar_firtinasi")
 	Disasters.stop(false)
+
+
+func _shots_20(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Holidays.force("yok")
+	Tutorial.finish()
+	Env.hour = 12.0
+	var me := 1
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	var apps := [["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+		["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+		["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]]
+	_fake_players(apps)
+	for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
+		w.hud.set_collapsed(k, false)
+	# --- mutfak servisi
+	var rp := 0
+	Land.plots[rp].owner = Net.my_name
+	Land.plots[rp]["kind"] = "biz"
+	Land.plots[rp].level = 3
+	Land.plots[rp]["biz"] = Biz.default_data(Net.my_name)
+	Land._broadcast()
+	var pr: Rect2 = Map.plot_rect(rp)
+	Homes._teleport(me, Vector2(pr.get_center().x, pr.end.y - 10))
+	await _wait(0.5)
+	var kp = preload("res://scripts/ui/kitchen_panel.gd").new()
+	kp.mode = "shift"
+	kp.plot = rp
+	w.open_panel_node(kp)
+	await _wait(0.5)
+	Chef._spawn_order(me)
+	Chef._spawn_order(me)
+	Chef.send_state(me)
+	await _wait(0.4)
+	kp._press("dogra")
+	if kp.prog.has(kp.active) and kp.prog[kp.active].dish != "":
+		var steps: Array = preload("res://scripts/chef.gd").dish_info(kp.prog[kp.active].dish).steps
+		kp.prog[kp.active]["step"] = 1
+		for st in steps.slice(1):
+			if st in ["ocak", "firin", "izgara"]:
+				kp._press(st)
+				break
+	await _wait(1.0)
+	_shot("mutfak_servisi")
+	w._close_panel()
+	Chef._shifts.erase(me)
+	Land.plots[rp].owner = ""
+	Land.plots[rp]["kind"] = "home"
+	Land.plots[rp].level = 0
+	Land._broadcast()
+	# --- akademi ve mahalle muhtarlığı
+	var ar: Rect2 = Map.ACADEMY.rect
+	Homes._teleport(me, Vector2(ar.get_center().x - 40, ar.end.y + 120))
+	Net.positions[9981] = Vector2(ar.get_center().x + 60, ar.end.y + 60)
+	Net.positions[9982] = Vector2(Map.MAHALLE_OFFICE.rect.get_center().x, Map.MAHALLE_OFFICE.rect.end.y + 40)
+	Net.positions[9983] = Vector2(ar.position.x - 60, ar.end.y + 200)
+	w.camera.zoom = Vector2(0.85, 0.85)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("akademi")
+	# --- denizaltı tersanesi
+	Homes._teleport(me, Map.SUB_DOCK + Vector2(-60, 60))
+	Net.positions[9981] = Map.SUB_DOCK + Vector2(100, 70)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("denizalti_tersanesi")
+	# --- Batık Şehir
+	Deep._data(rec)["sub"] = true
+	Deep._data(rec)["light_lv"] = 2
+	Deep._data(rec)["found"] = ["fener", "denizati", "yengec", "vatoz", "nautilus"]
+	Deep.send_state(me)
+	await _wait(0.3)
+	Deep.dive()
+	await _wait(0.8)
+	var t := Land.server_now()
+	var kc := Deep.creature_pos("kalamar", t + 1.0)
+	Homes._teleport(me, kc + Vector2(-160, 40))
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("batik_sehir")
+	var dm: Dictionary = Deep.DOMES[0]
+	Homes._teleport(me, dm.c + Vector2(-80, 140))
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("hava_kubbesi")
+	var sp = preload("res://scripts/ui/sub_panel.gd").new()
+	sp.mode = "book"
+	w.open_panel_node(sp)
+	await _wait(0.5)
+	_shot("ansiklopedi")
+	w._close_panel()
+	Deep.surface()
+	Homes._teleport(me, Map.DEEP_GATE + Vector2(20, 20))
+	await _wait(0.3)
+	Deep.surface()
+	await _wait(0.8)
+	# --- belediye projeleri: hepsi yapılmış şehir
+	for k in Projects.PROJECTS:
+		Projects._data().done[k] = {"by": "Kerem" if k != "heykel" else Net.my_name, "at": 0, "look": rec.get("appearance", {"skin": 1, "hair": 2})}
+	Projects._broadcast()
+	Homes._teleport(me, Map.PROJECT_SITES.heykel + Vector2(-120, 60))
+	Net.positions[9981] = Map.PROJECT_SITES.heykel + Vector2(60, 70)
+	Net.positions[9982] = Map.PROJECT_SITES.cicek + Vector2(40, 30)
+	Net.positions[9983] = Map.PROJECT_SITES.cicek + Vector2(-140, 20)
+	w.camera.zoom = Vector2(0.8, 0.8)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("projeler_park")
+	Env.hour = 22.0
+	Zombies.force_stop()
+	Zombies._skipped_night = Zombies._night_key()
+	Homes._teleport(me, Vector2(860, 1030))
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("fiskiye_gece")
+	Env.hour = 12.0
+	Election._data()["mayor"] = Net.my_name
+	Election._data()["treasury"] = 8400
+	Projects._data().done.erase("kule")
+	Projects._data()["cur"] = {"k": "kule", "phase": "butce", "ends": Time.get_unix_time_from_system() + 3600.0, "yes": 6, "no": 1, "voters": [], "funds": 16500,
+		"donors": {"Ayşe": 4000, "Kerem": 2500, Net.my_name: 1500}, "by": Net.my_name}
+	Projects._broadcast()
+	Homes._teleport(me, Map.PROJECT_BOARD + Vector2(0, 40))
+	await _wait(0.5)
+	w.zone = {"type": "v20", "do": "projects"}
+	w._open_panel()
+	await _wait(0.6)
+	_shot("projeler_paneli")
+	w._close_panel()
+	# --- festival
+	Festival.force(5.0)
+	await _wait(1.0)
+	Festival.buy_ticket()
+	var df: Rect2 = Map.DANCE_FLOOR
+	Homes._teleport(me, df.get_center() + Vector2(-60, 10))
+	Net.positions[9981] = df.get_center() + Vector2(40, -10)
+	Net.positions[9982] = df.get_center() + Vector2(120, 20)
+	Net.positions[9983] = Map.DJ_BOOTH + Vector2(-90, 20)
+	Festival._hype = 78.0
+	w.camera.zoom = Vector2(0.95, 0.95)
+	await _wait(2.5)
+	var fp = preload("res://scripts/ui/festival_panel.gd").new()
+	fp.mode = "dance"
+	w.open_panel_node(fp)
+	await _wait(1.0)
+	_shot("festival_dans")
+	w._close_panel()
+	Env.hour = 22.5
+	w.v20._on_fireworks({"big": true})
+	await _wait(1.4)
+	await _clear_toasts(w)
+	_shot("festival_havai_fisek")
+	Festival.force_stop()
+	Env.hour = 12.0
 
 
 func _shot(n: String) -> void:
