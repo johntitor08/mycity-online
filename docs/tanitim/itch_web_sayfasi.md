@@ -18,6 +18,7 @@ MyCity Online (Tarayıcı)
 **Resmi Sunucuya Katıl**'a tıkla. Masaüstü oyuncularıyla aynı şehirde, aynı sunucuda oynarsın.
 
 ### Neler var?
+- 🛣️ Otoyolda araba yolculuğu, 🏖️ Yalıkent ve 🌲 Çamlıbel kasabaları, 🚌 şehirler arası otobüs (2.1)
 - 👨‍🍳 Mutfak servisi ve aşçılık yarışması, 🌊 Batık Şehir ve denizaltı, 🏛️ belediye projeleri, 🎧 plaj festivali ve DJ (2.0)
 - 🏘️ Pazar tezgâhı, 🐶 evcil hayvan şovu, 🏎️ tuning ve sokak yarışı, 🌪️ afetler (1.9)
 - ⚔️ Mağara zindanı, 🧟 zombi geceleri, 🚀 Ay'a roket, ⛳ mini golf ve 🎳 bowling (1.8)
