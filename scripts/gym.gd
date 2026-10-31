@@ -155,7 +155,7 @@ func _gym(rec: Dictionary) -> Dictionary:
 
 
 func _at_gym(id: int) -> bool:
-	return Map.building("spor").rect.grow(70).has_point(_pos(id))
+	return Map.at_building("spor", _pos(id), 70)
 
 
 func send_state(id: int) -> void:

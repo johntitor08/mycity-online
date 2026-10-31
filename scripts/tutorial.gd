@@ -4,7 +4,7 @@ extends Node
 
 const STEPS := [
 	["move", "Hoş geldin! {walk} ile yürü."],
-	["panel", "Binalara yaklaşıp {interact} tuşuna bas. Hastane ve Market ana yolun kuzeyinde."],
+	["panel", "Binalara yaklaşıp {interact} ile içeri gir, görevlinin tezgâhında yine {interact}. Hastane ve Market ana yolun kuzeyinde."],
 	["map", "{map} tuşuyla haritayı aç: bir yere tıkla, kırmızı yön oku seni oraya götürsün."],
 	["job", "Para kazan: Hastane'de doktorluk ya da Market'te kasiyerlik yap (ya da iskelede balık tut)."],
 	["talk", "Başında \"!\" olan Muhtar Rıza'ya git, {interact} ile konuş: hikâye görevleri seni yönlendirir."],

@@ -5,6 +5,7 @@ const TOPICS := [
 	["İlk adımlar", """[b]Hoş geldin![/b] Burası arkadaşlarınla aynı anda yaşadığın bir şehir.
 
 • [b]Yürü:[/b] {walk}. Bir binaya ya da kişiye yaklaşınca altta ne yapabileceğin yazar; {interact} ile kullan.
+• [b]Binalar:[/b] hastane, market, karakol, banka, kaplıca gibi kurumların kapısında {interact} ile içeri gir; görevlinin tezgâhında {interact} ile işini yap. Kapıdaki paspastan dışarı çıkarsın.
 • [b]İlk görev:[/b] başında [b]"!"[/b] olan [b]Muhtar Rıza[/b]'yla konuş (Muhtarlık, Mobilyacı'nın sağı). Hikâye görevleri seni adım adım gezdirir ve ödül verir.
 • [b]Harita:[/b] {map} ile aç; bir yere tıkla/dokun, kırmızı ok seni oraya götürür.
 • [b]Enerji:[/b] iş yapınca azalır. Market'ten simit/kahve al ya da evinde dinlen.

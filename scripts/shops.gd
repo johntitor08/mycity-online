@@ -104,7 +104,7 @@ func send_state(id: int) -> void:
 
 
 func _at_bazaar(id: int) -> bool:
-	return Map.building("carsi").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999)))
+	return Map.at_building("carsi", Net.positions.get(id, Vector2(-9999, -9999)), 60)
 
 
 @rpc("any_peer", "call_remote", "reliable")

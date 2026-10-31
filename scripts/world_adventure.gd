@@ -38,6 +38,8 @@ func _init(world: Node2D) -> void:
 
 
 static func ext_of(p: Vector2) -> String:
+	if Map.INST_AREA.has_point(p):
+		return "ic"
 	if Map.DUNGEON.has_point(p):
 		return "zindan"
 	if Map.MOON.has_point(p):
@@ -81,10 +83,21 @@ func camera_rect() -> Rect2:
 			return Map.YALIKENT
 		"camlibel":
 			return Map.CAMLIBEL
+		"ic":
+			# oda ekrana sığıyorsa kamera odanın ortasında sabit durur
+			var t := Map.inst_at(w.my_pos)
+			if t == "":
+				return Map.INST_AREA
+			var room := Map.inst_rect(t)
+			var vs: Vector2 = w.get_viewport_rect().size / w.camera.zoom
+			var sz := Vector2(maxf(vs.x, room.size.x + 80.0), maxf(vs.y, room.size.y + 150.0))
+			return Rect2(room.get_center() - sz / 2.0 + Vector2(0, -20), sz)
 	return Map.WORLD
 
 
 func clamp_pos(p: Vector2) -> Vector2:
+	if ext == "ic":
+		return w.inside.clamp_pos(p)
 	var r := camera_rect().grow(-20)
 	return p.clamp(r.position, r.end)
 
@@ -104,6 +117,8 @@ func can_stand(p: Vector2) -> bool:
 			if w.my_ride() == "car" and Map.on_road(me) and not Map.on_road(p):
 				return false
 			return w.roads.can_stand(ext, p)
+		"ic":
+			return w.inside.can_stand(p)
 	return true
 
 
@@ -155,6 +170,9 @@ func decorate(hint: String) -> String:
 
 ## Kendi bölgelerimde (zindan, Ay, uzay üssü, golf) ipucu ve E alanı.
 func update_zone() -> void:
+	if ext == "ic":
+		w.inside.update_zone()
+		return
 	if ext == "mahalle":
 		w.town.update_zone()
 		return
@@ -312,6 +330,10 @@ func _do(z: Dictionary) -> void:
 			Golf.leave()
 		"b_open":
 			_panel(BowlingPanel.new())
+		"i_enter":
+			Inside.enter(str(z.get("t", "")))
+		"i_leave":
+			Inside.leave()
 
 
 func _panel(p: Control) -> void:
@@ -524,7 +546,8 @@ func _flush(items: Array) -> void:
 			_:
 				if not w.town.draw_item(str(it[1]), it[2]):
 					if not w.v20.draw_item(str(it[1]), it[2]):
-						w.roads.draw_item(str(it[1]), it[2])
+						if not w.inside.draw_item(str(it[1]), it[2]):
+							w.roads.draw_item(str(it[1]), it[2])
 
 
 func _monster_items(items: Array, wrap: bool = false) -> void:
@@ -588,6 +611,8 @@ func draw_region() -> void:
 			w.roads.draw_town(ext, view, items)
 		"mahalle":
 			w.town.draw_region(view, items)
+		"ic":
+			w.inside.draw_room(view, items)
 	if ext in ["mahalle", "yalikent", "camlibel"]:
 		for id in w.npc.pets:
 			var info = Net.roster.get(id)

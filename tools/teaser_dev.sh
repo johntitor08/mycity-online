@@ -5,12 +5,14 @@
 # bölümler birleştirilip altına oyunun müzikleri döşenir.
 # Kullanım: tools/teaser_dev.sh            (hepsi)
 #           tools/teaser_dev.sh acilis sadece21   (sadece bu bölümleri yeniden kaydet)
+#           tools/teaser_dev.sh birlestir          (kayıt yapmadan birleştir)
 set -e
 cd "$(dirname "$0")/.."
 OUT=build/teaser/dev
 mkdir -p "$OUT"
-ALL="acilis genel sadece09 sadece08 sadece10 sadece11 sadece12 sadece13 sadece14 sadece15 sadece16 sadece17 sadece18 sadece19 sadece20 sadece21 dokunmatik sunucular kapanis"
+ALL="acilis genel sadece09 sadece08 sadece10 sadece11 sadece12 sadece13 sadece14 sadece15 sadece16 sadece17 sadece18 sadece19 sadece20 sadece21 icmekan dokunmatik sunucular kapanis"
 SECTIONS="${*:-$ALL}"
+[ "$1" = birlestir ] && SECTIONS=""          # tools/teaser_dev.sh birlestir: sadece birleştir
 G="flatpak run --command=godot org.godotengine.Godot --path ."
 
 kaydet() {

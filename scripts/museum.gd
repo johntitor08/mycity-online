@@ -120,7 +120,7 @@ func req_view(_d: Dictionary) -> void:
 
 
 func _at_museum(id: int) -> bool:
-	return Map.building("muze").rect.grow(70).has_point(Net.positions.get(id, Vector2(-9999, -9999)))
+	return Map.at_building("muze", Net.positions.get(id, Vector2(-9999, -9999)), 70)
 
 
 @rpc("any_peer", "call_remote", "reliable")

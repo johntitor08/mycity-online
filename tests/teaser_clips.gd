@@ -117,6 +117,12 @@ const CAPS := {
 	"sehirlerarasi_otobus": ["OTOGAR", "Şehirler arası otobüs"],
 	"dokunmatik": ["HER YERDE", "Windows, Linux, Android ve tarayıcı"],
 	"sunucular": ["YENİ: SUNUCU LİSTESİ", "Farklı sunucular, tek dokunuşla katıl"],
+	"ic_hospital": ["YENİ: KURUMLARIN İÇİ", "19 binanın içine gir"],
+	"ic_casino": ["KUMARHANE", "Rulet masası, slot makineleri"],
+	"ic_karakol": ["KARAKOL", "Komiserin masası, nezarethane"],
+	"ic_kaplica": ["KAPLICA", "Buharı tüten havuzlar"],
+	"ic_banka": ["BANKA", "Kasa dairesi"],
+	"ic_okul": ["OKUL", "Sıralar ve kara tahta"],
 }
 
 var layer: CanvasLayer

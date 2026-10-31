@@ -150,7 +150,7 @@ func send_state(id: int) -> void:
 
 
 func _at_bank(id: int) -> bool:
-	return Map.building("banka").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999)))
+	return Map.at_building("banka", Net.positions.get(id, Vector2(-9999, -9999)), 60)
 
 
 @rpc("any_peer", "call_remote", "reliable")

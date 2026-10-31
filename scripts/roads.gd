@@ -43,7 +43,10 @@ func send_state(_id: int) -> void:
 
 ## Sunucu ve istemci: bu noktadaki hizmet (bina önü) ya da "".
 static func service_at(p: Vector2) -> String:
+	var inside := Map.inst_at(p)              # 2.3: kurumun içindeyken de
 	for b in Map.YK_BUILDINGS + Map.CB_BUILDINGS:
+		if inside != "" and str(b.type) == inside:
+			return {"balikhali": "hal", "kaplica": "kaplica", "lokanta": "lokanta", "yk_kafe": "kafe"}.get(inside, "")
 		if (b.rect as Rect2).grow(40).has_point(p):
 			match str(b.type):
 				"balikhali":

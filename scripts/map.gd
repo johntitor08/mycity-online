@@ -146,6 +146,8 @@ static func region_of(p: Vector2) -> String:
 		return "yalikent"
 	if CAMLIBEL.has_point(p):
 		return "camlibel"
+	if INST_AREA.has_point(p):
+		return "ic"
 	if MOUNTAIN.has_point(p):
 		return "dag"
 	if FAIR.has_point(p):
@@ -604,6 +606,81 @@ static func interior_at(p: Vector2) -> int:
 	if col < 0 or col > 3 or row < 0 or row > 2:
 		return -1
 	return row * 4 + col
+
+
+# ------------------------------------------------------------------ 2.3: kurum iç mekanları
+# Hastane, karakol, banka, kaplıca... Her kurumun içi harita dışında kendi hücresinde; kapıda E ile girilir,
+# içeride tezgâhta binanın penceresi açılır. Odalar herkese açıktır.
+const INST_ORIGIN := Vector2(100200, 200)
+const INST_CELL := Vector2(1400, 1000)
+const INST_COLS := 5
+const INST_AREA := Rect2(100000, 0, 7200, 4200)
+const INST_SIZE := Vector2(1056, 624)             # 22 x 13 karo
+const INST_TYPES := ["hospital", "market", "casino", "poker", "realestate", "galeri", "mobilya", "petshop",
+	"muhtarlik", "karakol", "banka", "carsi", "muze", "okul", "spor", "kaplica", "lokanta", "yk_kafe", "balikhali"]
+
+
+static func inst_rect(type: String) -> Rect2:
+	var i := INST_TYPES.find(type)
+	if i < 0:
+		return Rect2()
+	return Rect2(INST_ORIGIN + Vector2((i % INST_COLS) * INST_CELL.x, int(i / float(INST_COLS)) * INST_CELL.y), INST_SIZE)
+
+
+## Noktanın bulunduğu kurum odası ("" = değil).
+static func inst_at(p: Vector2) -> String:
+	if not INST_AREA.has_point(p):
+		return ""
+	var rel := p - INST_ORIGIN
+	var col := int(floor(rel.x / INST_CELL.x))
+	var row := int(floor(rel.y / INST_CELL.y))
+	var i := row * INST_COLS + col
+	if col < 0 or col >= INST_COLS or row < 0 or i >= INST_TYPES.size():
+		return ""
+	var t: String = INST_TYPES[i]
+	return t if inst_rect(t).grow(60).has_point(p) else ""
+
+
+static func inst_door(type: String) -> Rect2:
+	var r := inst_rect(type)
+	return Rect2(r.get_center().x - TILE, r.end.y - TILE, TILE * 2, TILE)
+
+
+static func inst_spawn(type: String) -> Vector2:
+	var r := inst_rect(type)
+	return Vector2(r.get_center().x, r.end.y - TILE * 1.6)
+
+
+## Tezgâh (görevlinin önü): burada E ile binanın penceresi açılır.
+static func inst_counter(type: String) -> Rect2:
+	var r := inst_rect(type)
+	return Rect2(r.get_center().x - 170, r.position.y + 104, 340, 56)
+
+
+## Şehir, Yalıkent ya da Çamlıbel'deki bina.
+static func any_building(type: String) -> Dictionary:
+	for list in [BUILDINGS, YK_BUILDINGS, CB_BUILDINGS]:
+		for b in list:
+			if b.type == type:
+				return b
+	return {}
+
+
+## Kurumdan çıkınca binanın kapısının önü.
+static func inst_exit(type: String) -> Vector2:
+	var b := any_building(type)
+	if b.is_empty():
+		return SPAWN
+	var r: Rect2 = b.rect
+	return Vector2(r.get_center().x, r.end.y + 40)
+
+
+## Binanın önünde ya da içinde mi (sunucu denetimleri için).
+static func at_building(type: String, p: Vector2, grow := 60.0) -> bool:
+	var b := any_building(type)
+	if not b.is_empty() and (b.rect as Rect2).grow(grow).has_point(p):
+		return true
+	return inst_at(p) == type
 
 
 ## Odanın kapısı (alt orta) ve girişte durulacak nokta.

@@ -88,6 +88,7 @@ Deep="*res://scripts/deep.gd"
 Projects="*res://scripts/projects.gd"
 Festival="*res://scripts/festival.gd"
 Roads="*res://scripts/roads.gd"
+Inside="*res://scripts/inside.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

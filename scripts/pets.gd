@@ -123,7 +123,7 @@ func _clean_name(s: String, fallback: String) -> String:
 
 
 func _at_shop(id: int) -> bool:
-	return Map.building("petshop").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999)))
+	return Map.at_building("petshop", Net.positions.get(id, Vector2(-9999, -9999)), 60)
 
 
 @rpc("any_peer", "call_remote", "reliable")

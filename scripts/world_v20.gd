@@ -30,7 +30,9 @@ func _init(world: Node2D) -> void:
 				var p := FestivalPanel.new()
 				p.mode = "dj"
 				_panel(p))
-	Projects.changed.connect(func() -> void: w._rebuild_blockers())
+	Projects.changed.connect(func() -> void:
+		if is_instance_valid(w):              # oyundan çıkınca dünya silinmiş olabilir
+			w._rebuild_blockers())
 
 
 func _panel(p: Control) -> void:

@@ -145,6 +145,7 @@ var weather: Control
 var furn_tex := {}          # mobilya türü -> doku
 var placing := ""           # mobilya yerleştirme modu (tür) ya da ""
 var _room := -1             # içinde bulunduğum ev (arsa) ya da -1
+var _inst := ""             # 2.3: içinde bulunduğum kurum odası
 var _jail := false          # hapishanede miyim
 var _dive := false          # deniz tabanında mıyım (dalış)
 var _mount := false         # dağda mıyım (1.2)
@@ -156,6 +157,7 @@ var adv                     # 1.8: zindan, zombi gecesi, uzay, golf, bowling (wo
 var town                    # 1.9: Yeni Mahalle, tuning ve drift, sokak yarışı, afetler (world_town.gd)
 var v20                     # 2.0: Batık Şehir, belediye projeleri, festival, akademi (world_v20.gd)
 var roads                   # 2.1: otoyol, Yalıkent ve Çamlıbel, otogar (world_roads.gd)
+var inside                  # 2.3: kurum iç mekanları (world_inside.gd)
 var _win_queue: Array = []
 var _ocean_acc := 0.0
 var _ocean_flush := 0.0
@@ -232,6 +234,7 @@ func _ready() -> void:
 	town = preload("res://scripts/world_town.gd").new(self)
 	v20 = preload("res://scripts/world_v20.gd").new(self)
 	roads = preload("res://scripts/world_roads.gd").new(self)
+	inside = preload("res://scripts/world_inside.gd").new(self)
 	touch = preload("res://scripts/ui/touch_controls.gd").new()
 	touch.world = self
 	ui_layer.add_child(touch)
@@ -535,8 +538,10 @@ func _update_area() -> void:
 	var fair := Map.FAIR.has_point(my_pos)
 	var ocean := OM.in_ocean(my_pos)
 	var ext: String = adv.ext_of(my_pos)
-	if room == _room and jail == _jail and dive == _dive and mount == _mount and fair == _fair and ocean == _ocean and ext == adv.ext:
+	var inst := Map.inst_at(my_pos)
+	if room == _room and jail == _jail and dive == _dive and mount == _mount and fair == _fair and ocean == _ocean and ext == adv.ext and inst == _inst:
 		return
+	_inst = inst
 	adv.ext = ext
 	_fair = fair
 	_ocean = ocean
@@ -847,9 +852,17 @@ func _update_zone() -> void:
 				zone = {"type": "fire", "label": "YANGIN — %s basılı tut, söndür!" % Settings.key_name("interact"), "id": int(f.id)}
 				hud.set_hint("" if panel != null else "[%s]  %s" % [Settings.key_name("interact"), zone.label])
 				return
+	var best_door := INF
 	for b in Map.BUILDINGS:
 		if b.rect.grow(26).has_point(my_pos):
+			# 2.3: alanlar çakışırsa (banka/çarşı) kapısı en yakın bina
+			var dd: float = my_pos.distance_to(Vector2(b.rect.get_center().x, b.rect.end.y))
+			if dd > best_door:
+				continue
+			best_door = dd
 			z = {"type": b.type, "label": b.label}
+			if b.type in Map.INST_TYPES:
+				z = inside.enter_zone(b.type, b.label)      # 2.3: kurumun içine girilir
 			if b.type == "teleferik":
 				z.label = "Teleferikle dağa çık (%s)" % U.money(Mountain.CABLE_PRICE)
 	for k in Map.NPCS:

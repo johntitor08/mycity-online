@@ -100,7 +100,7 @@ func req_gear(_d: Dictionary) -> void:
 	var rec := _rec(id)
 	if rec.is_empty() or bool(rec.get("dive_gear", false)):
 		return
-	if not Map.building("galeri").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+	if not Map.at_building("galeri", Net.positions.get(id, Vector2(-9999, -9999)), 60):
 		Net.notify(id, "Dalış tüpü Galeri'de satılır.", false)
 		return
 	if not Net.try_spend(id, GEAR_PRICE):

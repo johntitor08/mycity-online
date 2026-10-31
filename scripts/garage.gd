@@ -56,7 +56,7 @@ static func usable_at(ride: String, p: Vector2) -> bool:
 		return OM.island_at(p, 20.0) < 0 if ride == "boat" else (ride == "" or ride == "horse") and (OM.is_land(p) or OM.on_pier(p))
 	if ride == "kayik":
 		return Map.in_lake(p)
-	if Map.interior_at(p) >= 0 or Map.MOUNTAIN.has_point(p) or Map.FAIR.has_point(p):
+	if Map.interior_at(p) >= 0 or Map.INST_AREA.has_point(p) or Map.MOUNTAIN.has_point(p) or Map.FAIR.has_point(p):
 		return false
 	if ride == "boat":
 		return Map.in_sea(p)
@@ -136,7 +136,7 @@ func req_style(d: Dictionary) -> void:
 	var id := Net.sender()
 	if not Net.players.has(id):
 		return
-	if not Map.building("galeri").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+	if not Map.at_building("galeri", Net.positions.get(id, Vector2(-9999, -9999)), 60):
 		Net.notify(id, "Araç özelleştirme Galeri'de yapılır.", false)
 		return
 	var what := str(d.get("what", ""))
@@ -210,8 +210,7 @@ func req_buy_vehicle(d: Dictionary) -> void:
 	if not VEHICLES.has(kind):
 		return
 	var v: Dictionary = VEHICLES[kind]
-	var b := Map.building("galeri")
-	if not b.rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+	if not Map.at_building("galeri", Net.positions.get(id, Vector2(-9999, -9999)), 60):
 		Net.notify(id, "Araç almak için Galeri'ye git.", false)
 		return
 	var list := _list(id)

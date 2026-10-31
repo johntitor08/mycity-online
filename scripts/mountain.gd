@@ -65,7 +65,7 @@ var ski_gate := 0
 var _rocks: Array = []
 var _uid := 1
 var _acc := 0.0
-var _last_hit := {}                # id -> zaman
+var _last_hit := {}                # id -> [hak, zaman] (U.rate_ok)
 var _hits := {}                    # id -> vuruş sayacı (enerji için)
 var _ski := {}                     # id -> {t0, gate, pen, prev, missed}
 
@@ -339,9 +339,6 @@ func req_hit(d: Dictionary) -> void:
 	if not bool(rec.get("pickaxe", false)):
 		Net.notify(id, "Kaya kırmak için kazma lazım (Dağ Evi'nde %s)." % U.money(PICKAXE_PRICE), false)
 		return
-	var now := Time.get_ticks_msec() / 1000.0
-	if now - float(_last_hit.get(id, 0.0)) < HIT_COOLDOWN:
-		return
 	var rid := int(d.get("id", -1))
 	var rock: Dictionary = {}
 	for r in _rocks:
@@ -349,11 +346,12 @@ func req_hit(d: Dictionary) -> void:
 			rock = r
 	if rock.is_empty() or Vector2(float(rock.x), float(rock.y)).distance_to(_pos(id)) > HIT_RANGE + 40.0:
 		return
+	if not U.rate_ok(_last_hit, id, HIT_COOLDOWN):
+		return                    # 2.3: ortalama hız (gecikmede üst üste gelen vuruşlar reddedilmesin)
 	_hits[id] = int(_hits.get(id, 0)) + 1
 	if int(_hits[id]) % 2 == 0 and not Rpg.use_energy(id, 1):
 		Net.notify(id, "Çok yorgunsun. Dağ Evi'nde sıcak çikolata iç ya da dinlen.", false)
 		return
-	_last_hit[id] = now
 	rock["hp"] = int(rock.hp) - (2 if Gym.double_hit(id) else 1)     # 1.5: kuvvetle çift darbe
 	if int(rock.hp) > 0:
 		_broadcast_rocks()

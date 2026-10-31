@@ -18,7 +18,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "2.2"
+const VERSION := "2.3"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -1072,6 +1072,13 @@ func send_pos(p: Vector2) -> void:
 		if (r as Rect2).has_point(p):
 			positions[id] = p.clamp(r.position, r.end)
 			return
+	if Map.INST_AREA.has_point(p):
+		# 2.3: kurum odaları: sadece içinde bulunulan odada yürünür (girip çıkmayı sunucu ışınlar)
+		var inst := Map.inst_at(p)
+		if inst != "" and inst == Map.inst_at(last):
+			var ir := Map.inst_rect(inst)
+			positions[id] = p.clamp(ir.position, ir.end)
+		return
 	var room := Map.interior_at(p)
 	if Map.INTERIOR_AREA.has_point(p) or Map.INTERIOR2_AREA.has_point(p):
 		# Ev içleri harita dışında: sadece izinli olunan odada bulunulabilir.
@@ -1094,7 +1101,7 @@ func _speed_ok(id: int, p: Vector2) -> bool:
 	elif ride == "bike" and Projects.done("bisiklet"):
 		speed *= 1.15                         # 2.0: bisiklet yolu
 	var allowed := speed * dt * 1.6 + 90.0
-	if Map.interior_at(p) != Map.interior_at(last) or Map.JAIL.has_point(last):
+	if Map.interior_at(p) != Map.interior_at(last) or Map.inst_at(p) != Map.inst_at(last) or Map.JAIL.has_point(last):
 		allowed = 1e9          # ev kapısı / hapisten çıkış: sunucu ışınladı
 	if last.distance_to(p) <= allowed:
 		_pos_t[id] = now

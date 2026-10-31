@@ -542,10 +542,8 @@ func req_harpoon(_d: Dictionary) -> void:
 		return
 	if _pos(id).distance_to(_kraken.p) > HARPOON_RANGE + 60.0:
 		return
-	var now := Time.get_ticks_msec() / 1000.0
-	if now - float(_harp_t.get(id, 0.0)) < HARPOON_COOLDOWN:
+	if not U.rate_ok(_harp_t, id, HARPOON_COOLDOWN):
 		return
-	_harp_t[id] = now
 	var dmg := HARPOON_DMG + randi_range(0, 6)
 	_kraken["hp"] = int(_kraken.hp) - dmg
 	var who: String = Net.players[id].name

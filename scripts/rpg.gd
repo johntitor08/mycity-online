@@ -365,11 +365,7 @@ func reset() -> void:
 # ================================================================== sunucu: istekler
 
 func _at_market(id: int) -> bool:
-	var p: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))
-	for b in Map.BUILDINGS:
-		if b.type == "market":
-			return b.rect.grow(40).has_point(p)
-	return false
+	return Map.at_building("market", Net.positions.get(id, Vector2(-9999, -9999)), 40)
 
 
 @rpc("any_peer", "call_remote", "reliable")

@@ -156,7 +156,7 @@ func req_exam(d: Dictionary) -> void:
 	var k := str(d.get("k", ""))
 	if rec.is_empty() or not COURSES.has(k) or _exams.has(id):
 		return
-	if not Map.building("okul").rect.grow(70).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+	if not Map.at_building("okul", Net.positions.get(id, Vector2(-9999, -9999)), 70):
 		Net.notify(id, "Sınava okulda girilir.", false)
 		return
 	var r := Rpg.ensure(rec)

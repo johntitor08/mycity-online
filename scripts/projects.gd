@@ -151,7 +151,7 @@ func _broadcast() -> void:
 
 
 func _near_board(id: int) -> bool:
-	return _pos(id).distance_to(Map.PROJECT_BOARD) < 140.0 or Map.building("muhtarlik").rect.grow(60).has_point(_pos(id))
+	return _pos(id).distance_to(Map.PROJECT_BOARD) < 140.0 or Map.at_building("muhtarlik", _pos(id), 60)
 
 
 func _near_office(id: int) -> bool:

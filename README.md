@@ -37,6 +37,19 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.3: Kurumların içi
+
+| | |
+|---|---|
+| ![Hastanenin içi](docs/ekran/ic_hastane.png) | ![Kurumlar](docs/ekran/ic_mekanlar.png) |
+
+- **19 kurumun içine girilir:** Hastane, Market, Kumarhane, Poker Salonu, Emlak Ofisi, Galeri, Mobilyacı, Pet Shop, Muhtarlık, Karakol, Banka, Çarşı, Müze, Okul, Spor Salonu, Çamlıbel Kaplıcası, Yayla Lokantası, Yalıkent'te Martı Kafe ve Balık Hali.
+  - Kapıda E ile içeri girilir. Görevlinin tezgâhında E ile binanın her zamanki penceresi açılır; kasaba kurumlarında hizmet (kaplıca, gözleme, çay, balık satışı) alınır.
+  - Çıkış kapıdaki paspastan.
+- **Her odanın kendi düzeni var:** hastanede yataklar, karakolda nezarethane, bankada kasa dairesi, kumarhanede rulet ve slot makineleri, kaplıcada buharı tüten havuzlar, okulda sıralar, müzede vitrinler ve diğerleri. İçeride başka oyuncuları da görürsün.
+- Zombi gecesinde yere serilen oyuncu artık hastanenin içinde uyanır.
+- İki binanın alanı çakışınca (Banka/Çarşı) kapısı en yakın bina seçilir.
+
 ## 2.2: Sunucu listesi
 
 ![Sunucu listesi](docs/ekran/sunucular.png)

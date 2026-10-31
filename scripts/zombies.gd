@@ -245,8 +245,7 @@ func _on_player_down(id: int, zone: String) -> void:
 		return
 	var loss := mini(300, int(Net.get_money(id) * 0.05))
 	Net.try_spend(id, loss)
-	var h: Dictionary = Map.building("hospital")
-	Homes._teleport(id, Vector2(h.rect.get_center().x, h.rect.end.y + 20))
+	Homes._teleport(id, Map.inst_rect("hospital").get_center() + Vector2(0, 60))     # 2.3: hastanenin içine
 	Net.notify(id, "Zombiler seni yere serdi! Hastaneye kaldırıldın (%s)." % U.money(loss), false)
 
 

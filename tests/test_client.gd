@@ -343,8 +343,10 @@ func _on_ok() -> void:
 		await _test_19(get_parent().world)
 		await _test_20(get_parent().world)
 		await _test_21(get_parent().world)
+		await _test_23(get_parent().world)
 		_finish()
 		return
+	await _client_rock_hold(get_parent().world)
 	print("== Durum sayfası (adanmış sunucu)")
 	var page := await _http_get("127.0.0.1", _port + 3, "/json")
 	var js = JSON.parse_string(page.get_slice("\r\n\r\n", 1)) if page.contains("\r\n\r\n") else null
@@ -354,6 +356,64 @@ func _on_ok() -> void:
 	Net.leave()
 	await _wait(0.5)
 	Net.join(_tname, _addr, _port, Net.hash_password(_tname, "yanlis"))
+
+
+## Uzak sunucuda (istemci modu) kaya kırma: E basılı tutulunca vuruşlar sunucuya ulaşıyor mu?
+func _client_rock_hold(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	print("== İstemci: kaya kırma (E basılı)")
+	var tb: Rect2 = Map.building("teleferik").rect
+	w.my_pos = Vector2(tb.get_center().x, tb.end.y + 12)
+	await _wait(0.6)
+	Mountain.go_up()
+	await _wait(1.0)
+	if not Map.MOUNTAIN.has_point(w.my_pos):
+		check(false, "teleferikle dağa çıkıldı")
+		return
+	w.my_pos = Map.MOUNTAIN_BUILDINGS[0].rect.get_center() + Vector2(0, 110)
+	await _wait(0.6)
+	Mountain.buy("pickaxe")
+	await _wait(0.6)
+	check(Mountain.has_pickaxe, "istemci kazma aldı")
+	var t := 0.0
+	while Mountain.rocks.is_empty() and t < 10.0:
+		await _wait(0.5)
+		t += 0.5
+	if Mountain.rocks.is_empty():
+		check(false, "madende kaya var")
+		return
+	var r: Dictionary = Mountain.rocks[0]
+	var hp0 := int(r.hp)
+	# kayaya yürüyerek yaklaş (sunucu konumu da gelsin)
+	var target := Vector2(float(r.x), float(r.y) + 30)
+	while w.my_pos.distance_to(target) > 20.0:
+		w.my_pos = w.my_pos.move_toward(target, 40.0)
+		await get_tree().process_frame
+	await _wait(0.8)
+	check(str(w.zone.get("type", "")) == "rock", "istemcide kaya bölgesi (%s)" % str(w.zone))
+	var hits := [0]
+	var conn := func(_t, _g): hits[0] += 1
+	var ev := InputEventKey.new()
+	ev.physical_keycode = Settings.key("interact")
+	ev.keycode = Settings.key("interact")
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	var hp_now := hp0
+	var gone := false
+	t = 0.0
+	while t < 3.0 and not gone:
+		await _wait(0.1)
+		t += 0.1
+		gone = true
+		for x in Mountain.rocks:
+			if int(x.id) == int(r.id):
+				gone = false
+				hp_now = int(x.hp)
+	var ev2 := ev.duplicate()
+	ev2.pressed = false
+	Input.parse_input_event(ev2)
+	print("  [istemci kaya] hp %d -> %s, %.1f sn, enerji %s" % [hp0, "kırıldı" if gone else str(hp_now), t, str(Rpg.view.get("energy", "?")) if Rpg.get("view") is Dictionary else "?"])
+	check(gone or hp0 - hp_now >= 3, "istemcide E basılı tutulunca kaya art arda vuruluyor")
 
 
 func _helper_listing():
@@ -1087,7 +1147,7 @@ func _test_07(w) -> void:
 	check(w._can_stand(outside + Vector2(0, 8), ""), "binanın önünde serbestçe yürünüyor")
 	w.my_pos = Vector2(mr.get_center().x, mr.end.y - 4)
 	await _wait(0.2)
-	check(w.zone.get("type") == "market", "kapının önünde E bölgesi çalışıyor")
+	check(w.zone.get("t", w.zone.get("type")) == "market", "kapının önünde E bölgesi çalışıyor")
 	var hp := -1
 	for i in Land.view.size():
 		if Land.view[i].owner == "":
@@ -1803,6 +1863,30 @@ func _test_12(w) -> void:
 		if int(x.id) == int(r.id):
 			gone = false
 	check(gone and after == before + 1, "kaya kırıldı, ambara maden girdi")
+	# E basılı tutulunca vuruşlar kendiliğinden devam etmeli (gerçek tuş olayıyla)
+	Mountain._spawn_rock()
+	Mountain._broadcast_rocks()
+	await _wait(0.3)
+	var r2: Dictionary = Mountain.rocks[Mountain.rocks.size() - 1]
+	var hp0 := int(r2.hp)
+	w.my_pos = Vector2(float(r2.x), float(r2.y) + 30)
+	await _wait(0.3)
+	var hold_zone := str(w.zone.get("type", ""))
+	var ev := InputEventKey.new()
+	ev.physical_keycode = Settings.key("interact")
+	ev.keycode = Settings.key("interact")
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await _wait(1.6)
+	var hp_mid := hp0
+	for x in Mountain.rocks:
+		if int(x.id) == int(r2.id):
+			hp_mid = int(x.hp)
+	var ev2 := ev.duplicate()
+	ev2.pressed = false
+	Input.parse_input_event(ev2)
+	print("  [kaya basılı tut] bölge=%s hp %d -> %d, panel=%s" % [hold_zone, hp0, hp_mid, str(w.panel)])
+	check(hp0 - hp_mid >= 3 or not Mountain.rocks.any(func(x): return int(x.id) == int(r2.id)), "E basılı tutulunca kaya art arda vuruluyor")
 	check(Rpg.skill(me, "mining") >= 1 and int(rec.rpg.skills.get("mining", 0)) > 0, "madencilik XP'si arttı")
 	var store := Farm.barn(rec)
 	store["altin"] = int(store.get("altin", 0)) + 2
@@ -1865,7 +1949,8 @@ func _test_12(w) -> void:
 	Jobs.send_inventory(me)
 	w.my_pos = Map.building("muze").rect.get_center() + Vector2(0, 160)
 	await _wait(0.3)
-	check(w.zone.get("type", "") == "muze", "müze kapısında")
+	check(w.zone.get("t", "") == "muze", "müze kapısında")
+	w.zone = {"type": "muze", "label": "Müze"}
 	w._open_panel()
 	await _wait(0.4)
 	var m3 := Net.my_money()
@@ -2223,7 +2308,7 @@ func _test_14(w) -> void:
 	print("== 1.4: Okul")
 	w.my_pos = Map.building("okul").rect.get_center() + Vector2(0, 118)
 	await _wait(0.4)
-	check(w.zone.get("type", "") == "okul", "okul kapısında")
+	check(w.zone.get("t", "") == "okul", "okul kapısında")
 	var med0 := Rpg.perk(me, "medicine_pay")
 	School.start_exam("ilkyardim")
 	await _wait(0.4)
@@ -2511,7 +2596,7 @@ func _test_15(w) -> void:
 	print("== 1.5: Spor salonu ve maraton")
 	w.my_pos = Map.building("spor").rect.get_center() + Vector2(0, 92)
 	await _wait(0.4)
-	check(w.zone.get("type", "") == "spor", "spor salonu kapısı")
+	check(w.zone.get("t", "") == "spor", "spor salonu kapısı")
 	var maxe0 := int(Rpg.sheet.max_energy)
 	Gym.buy_pass()
 	await _wait(0.3)
@@ -3250,8 +3335,7 @@ func _test_18(w) -> void:
 	check(int(Zombies._kills.get(Net.my_name, 0)) == 1, "zombi öldürüldü")
 	Combat._hurt_player(me, 99999.0, "zombi")
 	await _wait(0.5)
-	var hosp: Dictionary = Map.building("hospital")
-	check(w.my_pos.distance_to(Vector2(hosp.rect.get_center().x, hosp.rect.end.y + 20)) < 60.0, "bayılınca hastaneye")
+	check(Map.inst_at(w.my_pos) == "hospital", "bayılınca hastanenin içine")
 	var m4 := Net.my_money()
 	Zombies.force_stop()
 	await _wait(0.6)
@@ -4023,7 +4107,12 @@ func _test_21(w) -> void:
 	var hal: Rect2 = Map.YK_BUILDINGS[0].rect
 	Homes._teleport(me, Vector2(hal.get_center().x, hal.end.y + 20))
 	await _wait(0.4)
-	check(w.zone.get("k", "") == "hal", "Balık Hali")
+	check(w.zone.get("t", "") == "balikhali", "Balık Hali kapısı")
+	w._open_panel()
+	await _wait(0.4)
+	w.my_pos = Map.inst_counter("balikhali").get_center() + Vector2(0, 80)
+	await _wait(0.4)
+	check(w.zone.get("k", "") == "hal", "Balık Hali tezgâhı")
 	var m0 := Net.my_money()
 	w._open_panel()
 	await _wait(0.4)
@@ -4059,6 +4148,10 @@ func _test_21(w) -> void:
 	check(w.adv.ext == "camlibel" and w.my_pos.distance_to(Map.OTOGARS.camlibel) < 80.0, "Çamlıbel'e otobüsle varıldı")
 	var kp: Rect2 = Map.CB_BUILDINGS[0].rect
 	Homes._teleport(me, Vector2(kp.get_center().x, kp.end.y + 20))
+	await _wait(0.4)
+	w._open_panel()                # 2.3: kaplıcanın içine gir, tezgâha yürü
+	await _wait(0.4)
+	w.my_pos = Map.inst_counter("kaplica").get_center() + Vector2(0, 80)
 	await _wait(0.4)
 	Rpg.ensure(rec)["energy"] = 5.0
 	w._open_panel()
@@ -4130,6 +4223,79 @@ func _test_21(w) -> void:
 	Net._deleting.erase(gone)
 	Net.save_data.players.erase(gone)
 	Land._broadcast()
+
+
+## 2.3: kurum iç mekanları
+func _test_23(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	print("== 2.3: Kurum iç mekanları")
+	Garage.ride("")
+	Net.add_money(me, 50000)
+	await _wait(0.3)
+	var entered := 0
+	var served := 0
+	for t in Map.INST_TYPES:
+		var b: Dictionary = Map.any_building(t)
+		var br: Rect2 = b.rect
+		# kapının önü: önünde NPC, durak ya da pano olabilir; binanın etrafında girilebilen bir yer ara
+		for spot in [Vector2(br.get_center().x, br.end.y + 10), Vector2(br.position.x + 40, br.end.y + 10), Vector2(br.end.x - 40, br.end.y + 10),
+				Vector2(br.position.x - 10, br.get_center().y), Vector2(br.end.x + 10, br.get_center().y), Vector2(br.get_center().x, br.position.y - 10)]:
+			Homes._teleport(me, spot)
+			await _wait(0.25)
+			if str(w.zone.get("do", "")) == "i_enter" and str(w.zone.get("t", "")) == t:
+				break
+		if str(w.zone.get("do", "")) != "i_enter" or str(w.zone.get("t", "")) != t:
+			check(false, "%s kapısında içeri gir bölgesi (%s)" % [t, str(w.zone)])
+			continue
+		w._open_panel()
+		await _wait(0.4)
+		if Map.inst_at(w.my_pos) != t or Map.inst_at(Net.positions[me]) != t:
+			check(false, "%s içine girildi" % t)
+			continue
+		entered += 1
+		# tezgâh: binanın penceresi ya da kasaba hizmeti
+		w.my_pos = Map.inst_counter(t).get_center() + Vector2(0, 80)
+		await _wait(0.3)
+		var zt := str(w.zone.get("type", ""))
+		if zt == t or (zt == "roads" and str(w.zone.get("do", "")) == "service"):
+			served += 1
+		else:
+			print("  tezgâh bölgesi beklenmedik: ", t, " ", w.zone)
+		if t == "banka":
+			check(not w._can_stand(Map.inst_counter(t).get_center(), ""), "tezgâhın içine yürünemiyor")
+			check(Map.at_building("banka", Net.positions[me], 60), "sunucu bankanın içini bankada sayıyor")
+			check(not Garage.usable_at("bike", w.my_pos), "kurumun içinde araca binilmiyor")
+		if t == "kaplica":
+			var m0 := Net.my_money()
+			Rpg.use_energy(me, 30)
+			w._open_panel()
+			await _wait(0.4)
+			check(Net.my_money() < m0, "kaplıcanın içinde hizmet alındı")
+			w._close_panel()
+		if t == "hospital":
+			w._open_panel()
+			await _wait(0.3)
+			check(w.panel != null, "hastanenin içinde tezgâhta pencere açıldı")
+			w._close_panel()
+			await _wait(0.2)
+		# çık
+		w.my_pos = Map.inst_door(t).get_center()
+		await _wait(0.3)
+		if t == "hospital":
+			check(str(w.zone.get("do", "")) == "i_leave", "hastane kapısında dışarı çık bölgesi")
+		w._open_panel()
+		await _wait(0.4)
+		if Map.inst_at(w.my_pos) != "" or w.my_pos.distance_to(Map.inst_exit(t)) > 60.0:
+			check(false, "%s içinden çıkıldı (%s)" % [t, str(w.my_pos)])
+	check(entered == Map.INST_TYPES.size(), "%d/%d kuruma girildi" % [entered, Map.INST_TYPES.size()])
+	check(served == entered, "%d/%d kurumda tezgâh bölgesi çalıştı" % [served, entered])
+	# başka bir binanın uzağından girilemez
+	Homes._teleport(me, Map.SPAWN)
+	await _wait(0.3)
+	Inside.enter("banka")
+	await _wait(0.4)
+	check(Map.inst_at(w.my_pos) == "", "uzaktan kuruma girilemiyor")
 
 
 func _finish() -> void:

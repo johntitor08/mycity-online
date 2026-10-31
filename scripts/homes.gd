@@ -145,7 +145,7 @@ func req_buy_furniture(d: Dictionary) -> void:
 	var k := str(d.get("k", ""))
 	if not FURNITURE.has(k) or FURNITURE[k].get("prize", false):
 		return
-	if not Map.building("mobilya").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+	if not Map.at_building("mobilya", Net.positions.get(id, Vector2(-9999, -9999)), 60):
 		Net.notify(id, "Mobilya almak için Mobilyacı'ya git.", false)
 		return
 	if not Net.try_spend(id, int(FURNITURE[k].price)):
@@ -177,7 +177,7 @@ func req_sell_furniture(d: Dictionary) -> void:
 	var dep := _depot_of(id)
 	if not FURNITURE.has(k) or int(dep.get(k, 0)) <= 0:
 		return
-	if not Map.building("mobilya").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
+	if not Map.at_building("mobilya", Net.positions.get(id, Vector2(-9999, -9999)), 60):
 		Net.notify(id, "Geri satmak için Mobilyacı'ya git.", false)
 		return
 	dep[k] = int(dep[k]) - 1

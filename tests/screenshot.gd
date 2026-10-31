@@ -244,6 +244,26 @@ func _ready() -> void:
 			await _shot("otogar_" + k)
 		get_tree().quit()
 		return
+	if "--icmekan" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(1.5)
+		Env.hour = 12.0
+		_fake_players([["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+			["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}]])
+		for t in Map.INST_TYPES:
+			Homes._teleport(1, Map.inst_spawn(t) + Vector2(0, -150))
+			Net.positions[9981] = Map.inst_spawn(t) + Vector2(-90, -60)
+			Net.positions[9982] = Map.inst_counter(t).get_center() + Vector2(110, 80)
+			w.camera.zoom = Vector2(1.0, 1.0)
+			await _wait(0.8)
+			w.hud.visible = false
+			w.touch.visible = false
+			await _wait(0.2)
+			await _shot("ic_" + t)
+			w.hud.visible = true
+		get_tree().quit()
+		return
 	if "--sadece21" in OS.get_cmdline_user_args():
 		Net.add_money(1, 400000)
 		Rpg.add_xp(1, "", 60000)

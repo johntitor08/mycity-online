@@ -462,7 +462,7 @@ func req_bail(_d: Dictionary) -> void:
 # ------------------------------------------------------------------ sunucu: polislik
 
 func _at_station(id: int) -> bool:
-	return Map.building("karakol").rect.grow(60).has_point(Net.positions.get(id, Vector2(-9999, -9999)))
+	return Map.at_building("karakol", Net.positions.get(id, Vector2(-9999, -9999)), 60)
 
 
 @rpc("any_peer", "call_remote", "reliable")

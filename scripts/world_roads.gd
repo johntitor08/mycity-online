@@ -102,6 +102,9 @@ func update_zone(ext: String) -> void:
 				"lokanta": "Yayla Lokantası: gözleme ve ayran (%s)" % U.money(int(s.price)),
 				"kafe": "Martı Kafe: çay ve poğaça (%s)" % U.money(int(s.price))}.get(sv, s.name)
 			z = {"type": "roads", "do": "service", "k": sv, "label": lbl}
+			for b in Map.YK_BUILDINGS + Map.CB_BUILDINGS:
+				if str(b.type) in Map.INST_TYPES and (b.rect as Rect2).grow(40).has_point(me):
+					z = w.inside.enter_zone(str(b.type), str(b.label))     # 2.3: içeri girilir
 		var spot := Map.fishing_spot(me)
 		if spot != "":
 			z = {"type": "fishing", "label": "Yalıkent İskelesi — Balık Tut", "spot": spot}
