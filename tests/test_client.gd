@@ -294,6 +294,7 @@ func _on_ok() -> void:
 		await _test_15(get_parent().world)
 		await _test_16(get_parent().world)
 		await _test_17(get_parent().world)
+		await _test_18(get_parent().world)
 		_finish()
 		return
 	print("== Durum sayfası (adanmış sunucu)")
@@ -3032,6 +3033,291 @@ func _test_17(w) -> void:
 	Isles.sell(ii)
 	await _wait(0.4)
 	check(Isles.owner_of(ii) == "" and Net.my_money() > m9, "ada satıldı (%s geri)" % U.money(Net.my_money() - m9))
+	Homes._teleport(me, Map.SPAWN + Vector2(0, 60))
+	await _wait(0.5)
+
+
+func _test_18(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	var rec: Dictionary = Net.save_data.players[Net.my_name]
+	Net.add_money(me, 300000)
+	Rpg.add_xp(me, "", 60000)
+	Env.force_weather("clear")
+	Holidays.force("yok")
+	Garage.ride("")
+	await _wait(0.3)
+
+	print("== 1.8: Silahçı")
+	Homes._teleport(me, Map.DUNGEON_SHOP + Vector2(0, 40))
+	await _wait(0.5)
+	check(w._mount and w.zone.get("do", "") == "c_shop", "mağara yanında silahçı")
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "silahçı paneli açıldı")
+	w._close_panel()
+	for it in ["kilic", "yay", "armor", "potion", "potion"]:
+		Combat.buy(it)
+	await _wait(0.6)
+	check("kilic" in Combat.my.owned and "yay" in Combat.my.owned and Combat.my.cur == "yay" and int(Combat.my.armor) == 1 and int(Combat.my.potions) == 2,
+		"kılıç, yay, deri zırh, 2 iksir alındı")
+	Combat.equip("kilic")
+	await _wait(0.3)
+	check(Combat.my.cur == "kilic", "kılıç kuşanıldı")
+
+	print("== 1.8: Zindan")
+	Homes._teleport(me, Map.DUNGEON_DOOR + Vector2(0, 60))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "d_door", "mağara kapısı")
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "zindan paneli açıldı")
+	w._close_panel()
+	Dungeon.start_run()
+	await _wait(0.7)
+	check(not Dungeon.run.is_empty() and w.adv.ext == "zindan" and int(Dungeon.run.floor) == 1, "sefer başladı, 1. kat")
+	check(Combat.in_combat() and Combat.monsters.size() > 0, "canavarlar göründü (%d)" % Combat.monsters.size())
+	var slot := int(Dungeon.run.slot)
+	var zn := "zindan:%d" % slot
+	check(not w._can_stand(Dungeon.run.pillars[0].get_center(), "") if not Dungeon.run.pillars.is_empty() else true, "sütunların içine girilmez")
+	var mid := Combat.spawn(zn, "slime", w.my_pos + Vector2(36, 0), 3.0)
+	await _wait(0.2)
+	var hp0 := int(Combat._mon[mid].hp)
+	Combat._atk_t.erase(me)
+	Combat.attack(Vector2.RIGHT)
+	await _wait(0.4)
+	check(Combat._mon.has(mid) and int(Combat._mon[mid].hp) < hp0, "kılıçla vuruldu (%d → %d)" % [hp0, int(Combat._mon[mid].hp) if Combat._mon.has(mid) else 0])
+	Combat.equip("yay")
+	await _wait(0.3)
+	Combat._atk_t.erase(me)
+	var hp1 := int(Combat._mon[mid].hp) if Combat._mon.has(mid) else 0
+	Combat.attack(Combat._mon[mid].p - w.my_pos if Combat._mon.has(mid) else Vector2.RIGHT)
+	await _wait(0.6)
+	check(not Combat._mon.has(mid) or int(Combat._mon[mid].hp) < hp1, "okla vuruldu")
+	Combat._hp[me] = 30.0
+	Combat.drink()
+	await _wait(0.4)
+	check(int(Combat.my.potions) == 1 and float(Combat.my.hp) > 60.0, "iksir içildi (can %d)" % int(Combat.my.hp))
+	var m0 := Net.my_money()
+	for k in Combat._mon.keys():
+		if Combat._mon.has(k) and Combat._mon[k].zone == zn:
+			Combat._damage_monster(k, 99999, Net.my_name)
+	await _wait(0.5)
+	check(str(Dungeon.run.state) == "clear" and Net.my_money() > m0, "kat temizlendi, ganimet (%s)" % U.money(Net.my_money() - m0))
+	check(rec.ach.got.has("monster1") and int(rec.combat.best_floor) == 1, "İlk Kan başarımı, en iyi kat 1")
+	w.my_pos = Dungeon.run.chest + Vector2(0, 30)
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "d_chest", "sandık")
+	var m1 := Net.my_money()
+	w._open_panel()
+	await _wait(0.4)
+	check(bool(Dungeon.run.opened) and Net.my_money() > m1, "sandık açıldı (+%s)" % U.money(Net.my_money() - m1))
+	w.my_pos = Dungeon.run.stairs + Vector2(-40, 0)
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "d_down", "merdiven")
+	w._open_panel()
+	await _wait(0.6)
+	check(int(Dungeon.run.floor) == 2 and str(Dungeon.run.state) == "fight" and w.my_pos.distance_to(Dungeon.run.start) < 100.0, "2. kata inildi")
+	Dungeon._runs[slot]["floor"] = 4
+	for k in Combat._mon.keys():
+		if Combat._mon.has(k) and Combat._mon[k].zone == zn:
+			Combat._damage_monster(k, 99999, Net.my_name)
+	await _wait(0.4)
+	w.my_pos = Dungeon.run.stairs + Vector2(-40, 0)
+	await _wait(0.4)
+	Dungeon.descend()
+	await _wait(0.7)
+	var boss := false
+	for k in Combat._mon:
+		if Combat._mon[k].zone == zn and Combat._mon[k].kind == "golem":
+			boss = true
+	check(int(Dungeon.run.floor) == 5 and boss, "5. kat: Taş Golem")
+	Combat._hurt_player(me, 99999.0, zn)
+	await _wait(0.6)
+	check(Dungeon.run.is_empty() and w._mount and w.my_pos.distance_to(Map.DUNGEON_DOOR) < 120.0 and not Combat.in_combat(), "bayılınca mağaranın önüne taşındı")
+	check(Combat.count_in(zn) == 0 and Dungeon._runs.is_empty(), "boş sefer kapandı")
+
+	print("== 1.8: Zombi gecesi")
+	Homes._teleport(me, Map.SPAWN + Vector2(0, 60))
+	await _wait(0.5)
+	Zombies.force_start(5.0)
+	await _wait(2.2)
+	check(Zombies.active() and Combat.count_in("zombi") > 0, "zombi gecesi başladı (%d zombi)" % Combat.count_in("zombi"))
+	check(Combat.in_combat(), "sokak savaş bölgesi")
+	check(w._g_action.get("do", "") == "z_bar", "G: barikat kur")
+	var m2 := Net.my_money()
+	w._do_g_action()
+	await _wait(0.4)
+	var bars: Array = Zombies.state.get("bar", [])
+	check(bars.size() == 1 and Net.my_money() == m2 - Zombies.BARRICADE_PRICE, "barikat kuruldu")
+	if bars.size() == 1:
+		check(not w._can_stand(Vector2(bars[0][0], bars[0][1]), ""), "barikat yolu keser")
+	Homes._teleport(me, Zombies.defense_pos() + Vector2(0, 40))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "c_shop", "savunma merkezi")
+	var civ: Array = Zombies.state.get("civ", [])
+	check(civ.size() == Zombies.CIVILIANS, "%d mahsur vatandaş" % civ.size())
+	if not civ.is_empty():
+		Homes._teleport(me, Vector2(civ[0][0], civ[0][1]) + Vector2(30, 0))
+		await _wait(0.4)
+		check(w.zone.get("do", "") == "z_rescue", "vatandaş yanında")
+		var m3 := Net.my_money()
+		w._open_panel()
+		await _wait(0.4)
+		check(Zombies.state.civ.size() == Zombies.CIVILIANS - 1 and Net.my_money() == m3 + Zombies.RESCUE_REWARD, "vatandaş kurtarıldı")
+	for k in Combat._mon.keys():
+		if Combat._mon[k].zone == "zombi":
+			Combat._damage_monster(k, 99999, Net.my_name)
+			break
+	await _wait(0.3)
+	check(int(Zombies._kills.get(Net.my_name, 0)) == 1, "zombi öldürüldü")
+	Combat._hurt_player(me, 99999.0, "zombi")
+	await _wait(0.5)
+	var hosp: Dictionary = Map.building("hospital")
+	check(w.my_pos.distance_to(Vector2(hosp.rect.get_center().x, hosp.rect.end.y + 20)) < 60.0, "bayılınca hastaneye")
+	var m4 := Net.my_money()
+	Zombies.force_stop()
+	await _wait(0.6)
+	check(not Zombies.active() and Combat.count_in("zombi") == 0 and Net.my_money() > m4, "sabah oldu, ödül (%s)" % U.money(Net.my_money() - m4))
+	check(rec.ach.got.has("zombie_night") and Net.save_data.get("zombie_best", {}).get("by", "") == Net.my_name, "Dolunay Gecesi başarımı, gecenin kahramanı")
+
+	print("== 1.8: Uzay üssü")
+	Homes._teleport(me, Vector2(Map.FAIR_BUILDINGS[0].rect.get_center().x, Map.FAIR_BUILDINGS[0].rect.end.y + 30))
+	await _wait(0.5)
+	Airport.fly("uzay")
+	await _wait(Airport.FLIGHT_TIME + 1.0)
+	check(w.adv.ext == "uzay" and w.zone.get("type", "") == "terminal", "uzay üssüne uçuldu")
+	Homes._teleport(me, Map.SPACE_SHOP + Vector2(0, 20))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "s_shop", "roket atölyesi")
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "atölye paneli")
+	w._close_panel()
+	for it in ["rocket", "suit", "drill"]:
+		Space.buy(it)
+	await _wait(0.5)
+	check(bool(Space.my.rocket) and bool(Space.my.suit) and bool(Space.my.drill), "roket, giysi, matkap alındı")
+	check(rec.ach.got.has("rocket"), "Roket Bilimci başarımı")
+	Homes._teleport(me, Map.SPACE_PAD + Vector2(0, 60))
+	await _wait(0.4)
+	check(w.zone.get("do", "") == "s_launch", "fırlatma rampası")
+	w._open_panel()
+	await _wait(0.4)
+	check(w.my_ride() == "train", "roket kalktı")
+	await _wait(Space.TRIP_TIME + 1.0)
+	check(w.adv.ext == "ay" and w.my_ride() == "" and Space.o2 > Space.O2_MAX - 20.0, "Ay'a inildi")
+	check(rec.ach.got.has("moon1"), "Ay'da İlk Adım başarımı")
+	var rp: Vector2 = Space.rock_positions()[0]
+	Homes._teleport(me, rp + Vector2(0, 40))
+	await _wait(0.5)
+	check(w.zone.get("do", "") == "s_mine", "Ay taşı yanında")
+	for k in Space.ROCK_HP:
+		Space.mine(0)
+		await _wait(0.25)
+	await _wait(0.3)
+	check(int(Space.my.rocks) >= 2 and int(Space.rocks[0][2]) == 0, "Ay taşı kazıldı (%d)" % int(Space.my.rocks))
+	var o2a := Space.o2
+	await _wait(1.2)
+	check(Space.o2 < o2a, "kubbe dışında oksijen azalıyor")
+	var vp: Vector2 = Space.vent_positions()[0]
+	Homes._teleport(me, vp + Vector2(0, 40))
+	await _wait(0.4)
+	w._open_panel()
+	await _wait(0.4)
+	check(int(Space.my.he) == 1, "Helyum-3 toplandı")
+	Homes._teleport(me, Map.MOON_BASE.get_center())
+	await _wait(0.5)
+	check(w.zone.get("do", "") == "s_base" and Space.o2 > o2a - 2.0, "üs kubbesi (oksijen doluyor)")
+	Space.donate("bayrak")
+	await _wait(0.4)
+	check(int(Space.base.get("bayrak", {}).get("rocks", 0)) >= 2, "üsse bağış yapıldı")
+	Space._o2[me] = 0.4
+	Homes._teleport(me, Map.MOON_BASE.get_center() + Vector2(0, -500))
+	await _wait(1.0)
+	check(Space.in_dome(w.my_pos), "oksijen bitince kubbeye kurtarıldı")
+	Homes._teleport(me, Map.MOON_PAD + Vector2(0, -40))
+	await _wait(0.4)
+	Space.launch()
+	await _wait(Space.TRIP_TIME + 1.0)
+	check(w.adv.ext == "uzay", "Dünya'ya dönüldü")
+
+	print("== 1.8: Mini golf")
+	Homes._teleport(me, Map.GOLF_BOOTH + Vector2(0, 50))
+	await _wait(0.5)
+	check(w._fair and w.zone.get("do", "") == "g_enter", "mini golf gişesi")
+	var m5 := Net.my_money()
+	w._open_panel()
+	await _wait(0.5)
+	check(Golf.playing() and w.adv.ext == "golf" and Net.my_money() == m5 - Golf.ENTRY_PRICE, "golf sahasına girildi")
+	var ace := -1.0
+	for sp in range(150, 900, 5):
+		if Golf.simulate(0, Golf.tee(0), Vector2(sp, 0), 0.0).result == "cup":
+			ace = sp
+			break
+	check(ace > 0, "fizik: düz vuruş 1. deliğe girer (hız %d)" % ace)
+	var wet := false
+	for sp in range(200, 900, 100):
+		if Golf.simulate(4, Golf.hole_origin(4) + Vector2(320, 190), Vector2(0, -sp), 0.0).result == "water":
+			wet = true
+	check(wet, "fizik: su engeli")
+	var wall: Rect2 = Golf.rects(1, "w")[0]
+	var thru := Golf.simulate(1, Golf.tee(1), Vector2(900, 0), 0.0)
+	var crossed := false
+	for q in thru.path:
+		if q.x > wall.end.x + 4 and absf(q.y - Golf.tee(1).y) < 30:
+			crossed = true
+	check(not crossed, "fizik: duvardan geçilmez")
+	Golf.hit(Vector2(ace, 0))
+	await _wait(3.5)
+	check(int(Golf.my.get("hole", 0)) == 1 and Golf.my.cards == [1], "TEK VURUŞ! 2. deliğe geçildi")
+	check(rec.ach.got.has("golf_ace"), "Tek Vuruş başarımı")
+	var m6 := Net.my_money()
+	for h in range(1, 9):
+		Golf._finish_hole(me, h, int(Golf.HOLES[h].par), 0.0)
+	await _wait(0.5)
+	check(bool(Golf.my.get("done", false)) and Net.my_money() > m6 and int(Net.save_data.golf_best.strokes) == Golf.par_total() - int(Golf.HOLES[0].par) + 1,
+		"tur bitti, ödül ve rekor (%d vuruş)" % int(Golf.my.get("total", 0)))
+	await _wait(2.6)
+	check(w._fair and w.my_pos.distance_to(Map.GOLF_BOOTH) < 100.0, "gişeye dönüldü")
+
+	print("== 1.8: Bowling")
+	var B = preload("res://scripts/bowling.gd")
+	var perfect: Array = []
+	for k in 12:
+		perfect.append(10)
+	var spares: Array = []
+	for k in 21:
+		spares.append(5)
+	var opens: Array = []
+	for k in 10:
+		opens += [9, 0]
+	check(B.total(perfect) == 300 and B.total(spares) == 150 and B.total(opens) == 90, "puanlama: 300 / 150 / 90")
+	check(B.position(perfect)[2] and B.position(opens)[2] and not B.position(spares.slice(0, 20))[2], "oyun sonu kuralları (10. çerçeve)")
+	var center := B.simulate(0.0, 0.0, 0.8, B.all_standing(), 7)
+	var gut := B.simulate(18.0, 1.0, 0.8, B.all_standing(), 7)
+	check(center.down.size() >= 3 and gut.gutter and gut.down.is_empty(), "fizik: ortadan %d lobut, kenardan oluk" % center.down.size())
+	var br: Rect2 = Map.BOWLING.rect
+	Homes._teleport(me, Vector2(br.get_center().x, br.end.y + 20))
+	await _wait(0.5)
+	check(w.zone.get("do", "") == "b_open", "bowling salonu")
+	w._open_panel()
+	await _wait(0.3)
+	check(w.panel != null, "bowling paneli")
+	var m7 := Net.my_money()
+	Bowling.start()
+	await _wait(0.4)
+	check(Bowling.game.has("rolls") and Net.my_money() == m7 - Bowling.GAME_PRICE, "oyun başladı")
+	var guard := 0
+	while not bool(Bowling.game.get("done", false)) and guard < 25:
+		guard += 1
+		Bowling._g[me]["busy"] = 0.0
+		Bowling.roll(randf_range(-4, 4), randf_range(-0.5, 0.5), 0.8)
+		await _wait(0.2)
+	var sc := int(Bowling.game.get("score", -1))
+	check(bool(Bowling.game.get("done", false)) and sc == B.total(Bowling.game.rolls), "10 çerçeve oynandı: %d puan (%d atış)" % [sc, Bowling.game.rolls.size()])
+	check(rec.ach.c.get("bowling_games", 0) == 1 and int(Net.save_data.bowling_best.score) == sc, "oyun kaydedildi")
+	w._close_panel()
 	Homes._teleport(me, Map.SPAWN + Vector2(0, 60))
 	await _wait(0.5)
 

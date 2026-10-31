@@ -132,6 +132,8 @@ func _input(event: InputEvent) -> void:
 				_joy_center = p if p.distance_to(_joy_base()) >= JOY_R + 40.0 else _joy_base()
 				_update_knob(p)
 				get_viewport().set_input_as_handled()
+			elif world.adv.touch_tap(world.get_viewport().get_canvas_transform().affine_inverse() * p):
+				get_viewport().set_input_as_handled()
 			elif Paint.in_match() and not Paint.is_out(Net.my_name):
 				var wp: Vector2 = world.get_viewport().get_canvas_transform().affine_inverse() * p
 				Paint.fire(wp - (world.my_pos + Vector2(0, -16)))
@@ -196,5 +198,7 @@ func _draw() -> void:
 	draw_circle(cp, 32, Color(0.1, 0.12, 0.18, 0.55))
 	draw_arc(cp, 32, 0, TAU, 32, Color(1, 1, 1, 0.6), 3)
 	draw_string(f2, cp + Vector2(-32, 6), "Sohbet", HORIZONTAL_ALIGNMENT_CENTER, 64, 14, Color.WHITE)
+	if Combat.in_combat():
+		draw_string(f2, Vector2(0, 120), "Ekrana dokun: o yöne saldır  ·  G: iksir", HORIZONTAL_ALIGNMENT_CENTER, size.x, 20, Color(1, 1, 1, 0.7))
 	if Paint.in_match():
 		draw_string(f2, Vector2(0, 120), "Ekrana dokun: o yöne boya topu at", HORIZONTAL_ALIGNMENT_CENTER, size.x, 20, Color(1, 1, 1, 0.7))

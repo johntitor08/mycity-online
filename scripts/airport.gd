@@ -22,6 +22,7 @@ static func destinations() -> Dictionary:
 		"dag": ["Dağ Köyü", Map.MOUNTAIN_SPAWN, 120],
 		"liman": ["Sanayi Limanı", Map.FERRY_STOPS.liman[1] + Vector2(0, 260), 60],
 		"okyanus": ["Liman Adası (Açık Okyanus)", AIRSTRIP + Vector2(0, 60), 250],
+		"uzay": ["Uzay Üssü (Ay roketleri)", Map.SPACE_STRIP + Vector2(0, -70), 500],
 	}
 
 ## 1.6: Liman Adası'ndaki küçük pist (okyanustan şehre dönüş uçuşu da buradan)
@@ -87,7 +88,7 @@ func _pos(id: int) -> Vector2:
 
 
 func _at_terminal(id: int) -> bool:
-	return Map.FAIR_BUILDINGS[0].rect.grow(70).has_point(_pos(id)) or _pos(id).distance_to(AIRSTRIP) < 110.0
+	return Map.FAIR_BUILDINGS[0].rect.grow(70).has_point(_pos(id)) or _pos(id).distance_to(AIRSTRIP) < 110.0 or _pos(id).distance_to(Map.SPACE_STRIP) < 110.0
 
 
 @rpc("any_peer", "call_remote", "reliable")

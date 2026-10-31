@@ -37,6 +37,35 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 1.8: Mağara zindanı, zombi gecesi, uzay üssü ve Ay, mini golf ve bowling
+
+| | |
+|---|---|
+| ![Zindan katı](docs/ekran/zindan_kat.png) | ![Mağara Ejderi](docs/ekran/zindan_boss.png) |
+| ![Zombi gecesi](docs/ekran/zombi_gecesi.png) | ![Mağara girişi](docs/ekran/zindan_giris.png) |
+| ![Uzay üssü](docs/ekran/uzay_ussu.png) | ![Roket yolculuğu](docs/ekran/roket.png) |
+| ![Ay üssü](docs/ekran/ay_ussu.png) | ![Ay madeni](docs/ekran/ay_madeni.png) |
+| ![Mini golf](docs/ekran/mini_golf.png) | ![Bowling](docs/ekran/bowling.png) |
+
+- **Mağara zindanı (RPG savaş):** dağda maden ocağının kuzeyindeki mağaradan girilir. 4 kişiye kadar ekip kurulur.
+  Her kat rastgele sütunlu bir mağaradır: balçık, yarasa, örümcek ve iskelet. Kat temizlenince hazine sandığı ve
+  aşağı inen merdiven çıkar. 5. katta Taş Golem, 10. katta Mağara Ejderi bekler. Saldırmak için tıkla/dokun ya da
+  Boşluk'a bas; Q iksir içirir. Silahçı çadırında kılıç, yay (menzilli), savaş baltası, çelik kılıç, zırh ve can
+  iksiri satılır. Bayılan oyuncu mağaranın önüne taşınır. Ligde yeni "Zindan" kategorisi var.
+- **Zombi gecesi:** iki oyun gününde bir, dolunay gecesi (22:00–02:00) zombiler şehrin kenarlarından gelir; ev
+  içleri güvenlidir. Karakolun önündeki savunma merkezinde silah alınır, G ile barikat kurulur (zombileri durdurur,
+  zamanla kırılır). Mahsur vatandaşlar E ile kurtarılır. Sabah herkes ödül alır ve gecenin kahramanı ilan edilir.
+  Yönetici komutu: `/zombi başlat|bitir`.
+- **Uzay üssü ve Ay:** havalimanından Uzay Üssü'ne uçulur. Atölyede roket (Sv.10), uzay giysisi ve Ay matkabı
+  satılır. Fırlatma rampasından Ay'a gidilir. Ay'da düşük yerçekimiyle zıplayarak yürünür. Oksijen kubbenin
+  dışında azalır; biterse kurtarma ekibi gelir. Ay taşı kazılır, Helyum-3 bacalardan toplanır ve pazarda satılır.
+  Ortak Ay üssüne herkes bağış yapar: bayrak, sera (her gün Ay Çileği), rasathane ve uydu anteni.
+- **Mini golf:** fuardaki gişeden 9 delikli sahaya geçilir. Topu tut, geri çek ve bırak. Sunucuda fizik çalışır:
+  duvarlar, kum, su ve dönen yel değirmeni. Par altına inen ikramiye alır; tek vuruş ve sunucu rekoru ilan edilir.
+- **Bowling:** fuardaki salonda 10 çerçevelik gerçek puanlama oynanır. Nişan alınır, sonra falso verilir; lobutlar
+  sunucuda fizikle birbirini devirir. Puanın 3 katı TL kazanılır; 300 mükemmel oyundur.
+- 17 yeni başarım, havalimanında "Uzay Üssü" uçuşu ve dokunmatikte ekrana dokunarak saldırma eklendi.
+
 ## 1.7.1: Görsel yenileme
 
 | | |

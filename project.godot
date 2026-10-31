@@ -72,6 +72,12 @@ Cinema="*res://scripts/cinema.gd"
 Isles="*res://scripts/isles.gd"
 Cargo="*res://scripts/cargo.gd"
 Paint="*res://scripts/paint.gd"
+Combat="*res://scripts/combat.gd"
+Dungeon="*res://scripts/dungeon.gd"
+Zombies="*res://scripts/zombies.gd"
+Space="*res://scripts/space.gd"
+Golf="*res://scripts/golf.gd"
+Bowling="*res://scripts/bowling.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

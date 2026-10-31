@@ -162,6 +162,12 @@ func _ready() -> void:
 		await _wait(0.3)
 		get_tree().quit()
 		return
+	if "--sadece18" in OS.get_cmdline_user_args():
+		Net.add_money(1, 400000)
+		Rpg.add_xp(1, "", 60000)
+		await _shots_18(w)
+		get_tree().quit()
+		return
 	if "--sadece17" in OS.get_cmdline_user_args():
 		Net.add_money(1, 400000)
 		Rpg.add_xp(1, "", 20000)
@@ -2386,6 +2392,203 @@ func _rail_stop_shot() -> void:
 	var Map = preload("res://scripts/map.gd")
 	Map.rail_shift = 0.0
 	Map.rail_shift = 15.0 - fposmod(Time.get_unix_time_from_system(), Map.RAIL_PERIOD)
+
+
+func _shots_18(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	Env._sync = -1000000.0
+	Env.force_weather("clear")
+	Env.force_season("summer")
+	Holidays.force("yok")
+	Tutorial.finish()
+	Env.hour = 12.0
+	var me := 1
+	var apps := [["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+		["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+		["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]]
+	_fake_players(apps)
+	for it in ["kilic", "yay", "armor"]:
+		Combat.buy(it)
+	# --- mağara girişi ve silahçı (dağ)
+	Homes._teleport(me, Map.DUNGEON_DOOR + Vector2(90, 90))
+	Net.positions[9981] = Map.DUNGEON_DOOR + Vector2(-60, 70)
+	Net.positions[9982] = Map.DUNGEON_SHOP + Vector2(10, 40)
+	Net.positions[9983] = Map.DUNGEON_DOOR + Vector2(200, 160)
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(1.5)
+	await _clear_toasts(w)
+	_shot("zindan_giris")
+	# --- zindan katı: dört kişilik ekip
+	Combat.buy("kilic")
+	Homes._teleport(me, Map.DUNGEON_DOOR + Vector2(0, 40))
+	await _wait(0.4)
+	Dungeon.start_run()
+	await _wait(0.6)
+	var slot := int(Dungeon.run.slot)
+	var zn := "zindan:%d" % slot
+	for k in 3:
+		Dungeon._runs[slot].members.append(apps[k][0])
+	var st: Vector2 = Dungeon.run.start
+	Combat.clear_zone(zn)
+	var c := st + Vector2(380, 0)
+	Homes._teleport(me, c)
+	Net.positions[9981] = c + Vector2(-70, -60)
+	Net.positions[9982] = c + Vector2(-90, 70)
+	Net.positions[9983] = c + Vector2(30, 110)
+	for m in [["slime", Vector2(150, -30)], ["bat", Vector2(110, -110)], ["spider", Vector2(200, 80)], ["skeleton", Vector2(260, -10)], ["slime", Vector2(-20, 170)], ["bat", Vector2(240, -150)]]:
+		Combat.spawn(zn, m[0], c + m[1])
+	await _wait(0.3)
+	for k in Combat._mon:
+		Combat._mon[k]["hp"] = int(Combat._mon[k].max * 0.6)
+	w.camera.zoom = Vector2(1.1, 1.1)
+	await _wait(0.5)
+	Combat.attack(Vector2.RIGHT)
+	await _wait(0.15)
+	await _clear_toasts(w)
+	_shot("zindan_kat")
+	# --- boss
+	Combat.clear_zone(zn)
+	Combat.spawn(zn, "dragon", c + Vector2(260, 0), 1.0)
+	Combat.spawn(zn, "skeleton", c + Vector2(160, 120))
+	Combat.spawn(zn, "skeleton", c + Vector2(180, -120))
+	Combat.equip("yay")
+	await _wait(0.6)
+	for k in Combat._mon:
+		if Combat._mon[k].kind == "dragon":
+			Combat._mon[k]["hp"] = int(Combat._mon[k].max * 0.45)
+	Combat._atk_t.erase(me)
+	Combat.attack(Vector2.RIGHT)
+	await _wait(0.12)
+	await _clear_toasts(w)
+	_shot("zindan_boss")
+	Combat.clear_zone(zn)
+	Dungeon._runs[slot].members = [Net.my_name]
+	Combat._hurt_player(me, 99999.0, zn)
+	await _wait(0.6)
+	# --- zombi gecesi
+	Env.hour = 23.0
+	Env.force_season("autumn")
+	var dp: Vector2 = Zombies.defense_pos()
+	Homes._teleport(me, dp + Vector2(10, 120))
+	await _wait(0.4)
+	Zombies.force_start(5.0)
+	await _wait(0.3)
+	Combat.clear_zone("zombi")
+	Zombies._civ[0] = dp + Vector2(-40, 330)
+	Zombies._bar.append({"p": dp + Vector2(-10, 210), "hp": 90.0, "owner": Net.my_name})
+	Zombies._bar.append({"p": dp + Vector2(50, 215), "hp": 50.0, "owner": "Kerem"})
+	Zombies._broadcast()
+	Net.positions[9981] = dp + Vector2(50, 150)
+	Net.positions[9982] = dp + Vector2(-50, 90)
+	Net.positions[9983] = dp + Vector2(-40, 160)
+	for m in [["zombie", Vector2(-20, 290)], ["zombie", Vector2(40, 300)], ["brute", Vector2(10, 380)], ["zombie", Vector2(-50, 420)], ["zombie", Vector2(60, 440)]]:
+		Combat.spawn("zombi", m[0], dp + m[1])
+	Combat.equip("kilic")
+	w.camera.zoom = Vector2(1.05, 1.05)
+	await _wait(0.8)
+	w.camera.position = dp + Vector2(0, 160)
+	await _clear_toasts(w)
+	_shot("zombi_gecesi")
+	Zombies.force_stop()
+	Env.hour = 12.0
+	Env.force_season("summer")
+	await _wait(0.5)
+	# --- uzay üssü
+	Homes._teleport(me, Map.SPACE_PAD + Vector2(-160, 120))
+	Net.positions[9981] = Map.SPACE_SHOP + Vector2(40, 40)
+	Net.positions[9982] = Map.SPACE_PAD + Vector2(-60, 160)
+	Net.positions[9983] = Map.SPACE_STRIP + Vector2(-200, -60)
+	for it in ["rocket", "suit", "drill"]:
+		Space.buy(it)
+	w.camera.zoom = Vector2(0.8, 0.8)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("uzay_ussu")
+	# --- roket yolculuğu
+	Homes._teleport(me, Map.SPACE_PAD + Vector2(0, 50))
+	await _wait(0.4)
+	Space.launch()
+	await _wait(3.4)
+	_shot("roket")
+	await _wait(4.0)
+	# --- Ay
+	Net.save_data["moon_base"] = {"bayrak": {"rocks": 10, "he": 0}, "sera": {"rocks": 30, "he": 10}, "rasathane": {"rocks": 22, "he": 5}}
+	Space._broadcast_moon()
+	var rp: Vector2 = Space.rock_positions()[0]
+	var bc: Vector2 = Map.MOON_BASE.get_center()
+	Homes._teleport(me, bc + Vector2(-120, -260))
+	Net.positions[9981] = bc + Vector2(40, -20)
+	Net.positions[9982] = bc + Vector2(-260, -300)
+	Net.positions[9983] = bc + Vector2(200, -330)
+	w.camera.zoom = Vector2(0.8, 0.8)
+	await _wait(1.0)
+	await _clear_toasts(w)
+	_shot("ay_ussu")
+	Homes._teleport(me, rp + Vector2(-30, 50))
+	Net.positions[9981] = rp + Vector2(90, 40)
+	await _wait(0.8)
+	Space.mine(0)
+	await _wait(0.3)
+	await _clear_toasts(w)
+	_shot("ay_madeni")
+	Homes._teleport(me, Map.MOON_PAD + Vector2(0, -40))
+	await _wait(0.4)
+	Space.launch()
+	await _wait(Space.TRIP_TIME + 1.0)
+	# --- fuar: bowling salonu ve mini golf gişesi
+	var br: Rect2 = Map.BOWLING.rect
+	Homes._teleport(me, Vector2(br.get_center().x + 40, br.end.y + 130))
+	Net.positions[9981] = Map.GOLF_BOOTH + Vector2(-40, 50)
+	Net.positions[9982] = Vector2(br.get_center().x - 60, br.end.y + 60)
+	Net.positions[9983] = Map.GOLF_BOOTH + Vector2(80, 40)
+	w.camera.zoom = Vector2(0.9, 0.9)
+	await _wait(1.2)
+	await _clear_toasts(w)
+	_shot("bowling_golf_dis")
+	# --- mini golf
+	Homes._teleport(me, Map.GOLF_BOOTH + Vector2(0, 40))
+	await _wait(0.4)
+	Golf.enter()
+	await _wait(0.6)
+	Golf._finish_hole(me, 0, 2, 0.0)
+	Golf._finish_hole(me, 1, 3, 0.0)
+	await _wait(0.8)
+	var g := 2
+	var tee: Vector2 = Golf.tee(g)
+	Homes._teleport(me, tee + Vector2(-30, 20))
+	await _wait(0.6)
+	Net.positions[9981] = Golf.tee(3) + Vector2(-40, 30)
+	Net.positions[9982] = Golf.tee(5) + Vector2(-40, 30)
+	Net.positions[9983] = Golf.tee(1) + Vector2(60, 40)
+	w.adv._drag = true
+	w.adv._drag_to = tee + Vector2(-90, -60)
+	w.camera.position = Golf.hole_origin(g) + Golf.CELL / 2.0
+	w.camera.zoom = Vector2(1.0, 1.0)
+	await _wait(0.8)
+	await _clear_toasts(w)
+	_shot("mini_golf")
+	w.adv._drag = false
+	Golf.leave()
+	await _wait(0.6)
+	# --- bowling paneli
+	Homes._teleport(me, Vector2(br.get_center().x, br.end.y + 20))
+	await _wait(0.5)
+	w.zone = {"type": "adv", "do": "b_open"}
+	w._open_panel()
+	Bowling.start()
+	await _wait(0.5)
+	for k in 5:
+		Bowling._g[me]["busy"] = 0.0
+		Bowling.roll(randf_range(-3, 3), 0.3, 0.8)
+		await _wait(0.2)
+	Bowling._g[me]["busy"] = 0.0
+	w.panel.anim = {}
+	w.panel.phase = "aim"
+	w.panel.press()
+	w.panel.press()
+	await _wait(1.25)
+	_shot("bowling")
+	w._close_panel()
 
 
 func _shot(n: String) -> void:

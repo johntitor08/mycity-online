@@ -18,6 +18,7 @@ MyCity Online (Tarayıcı)
 **Resmi Sunucuya Katıl**'a tıkla. Masaüstü oyuncularıyla aynı şehirde, aynı sunucuda oynarsın.
 
 ### Neler var?
+- ⚔️ Mağara zindanı, 🧟 zombi geceleri, 🚀 Ay'a roket, ⛳ mini golf ve 🎳 bowling (1.8)
 - 🏙️ Arsa al, ev → villa → gökdelen kur; büfe, kafe, restoran işlet
 - 💼 Doktor, polis, itfaiyeci, taksici, kargocu, çiftçi ol
 - 🌊 30 adalı Açık Okyanus, hazineler, fırtınalar ve dev Kraken; kendi adanı satın al

@@ -128,6 +128,14 @@ static func rail_region(key: String) -> String:
 static func region_of(p: Vector2) -> String:
 	if OCEAN.has_point(p):
 		return "okyanus"
+	if DUNGEON.has_point(p):
+		return "zindan"
+	if MOON.has_point(p):
+		return "ay"
+	if SPACEPORT.has_point(p):
+		return "uzay"
+	if GOLF.has_point(p):
+		return "golf"
 	if MOUNTAIN.has_point(p):
 		return "dag"
 	if FAIR.has_point(p):
@@ -152,6 +160,22 @@ const ARENA_BOOTH := Vector2(12280, 610)
 const ARENA_COVER := [Rect2(12120, 190, 30, 110), Rect2(12410, 350, 30, 110), Rect2(12240, 160, 90, 26),
 	Rect2(12230, 460, 90, 26), Rect2(12030, 400, 70, 26), Rect2(12460, 210, 70, 26), Rect2(12260, 300, 50, 50)]
 const ARENA_BASE := {"kirmizi": Vector2(11990, 325), "mavi": Vector2(12570, 325)}
+
+# 1.8: harita dışı bölgeler: zindan katları (4 sefer yuvası alt alta), Ay, uzay üssü, mini golf sahası
+const DUNGEON := Rect2(31000, 0, 2000, 4800)
+const DUNGEON_SLOT_H := 1200.0
+const DUNGEON_DOOR := Vector2(8260, 520)          # dağda mağara girişi (karlı ormanın içinde)
+const DUNGEON_SHOP := Vector2(8420, 600)           # silahçı çadırı (mağaranın yanında)
+const MOON := Rect2(33500, 0, 3000, 2400)
+const MOON_BASE := Rect2(34700, 1660, 600, 360)   # Ay üssü kubbesi (oksijen, sera, dönüş rampası)
+const MOON_PAD := Vector2(35000, 2320)            # roket iniş/kalkış
+const SPACEPORT := Rect2(33500, 2700, 1800, 1000)
+const SPACE_PAD := Vector2(34500, 3050)            # fırlatma rampası
+const SPACE_SHOP := Vector2(33900, 3350)           # roket atölyesi ve uzay pazarı
+const SPACE_STRIP := Vector2(34900, 3560)          # uzay üssünün uçak pisti (havalimanına dönüş)
+const GOLF := Rect2(37000, 0, 1800, 1200)
+const GOLF_BOOTH := Vector2(12880, 1120)           # fuarda mini golf gişesi
+const BOWLING := {"type": "bowling", "label": "Bowling", "rect": Rect2(12660, 700, 440, 260), "sign_y": 70}
 
 # 1.6: Açık Okyanus (harita dışında; adalar ocean_map.gd'de)
 const OCEAN := Rect2(14000, 0, 16000, 10000)

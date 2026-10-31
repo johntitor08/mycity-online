@@ -152,6 +152,7 @@ var _fair := false          # fuar ve havalimanında mıyım (1.4)
 var _ocean := false         # Açık Okyanus'ta mıyım (1.6)
 var night_windows: Node2D   # gece yanan pencereler (karartmadan etkilenmesin diye ayrı katmanda)
 var touch: Control          # dokunmatik kontroller (telefonda)
+var adv                     # 1.8: zindan, zombi gecesi, uzay, golf, bowling (world_adventure.gd)
 var _win_queue: Array = []
 var _ocean_acc := 0.0
 var _ocean_flush := 0.0
@@ -224,6 +225,7 @@ func _ready() -> void:
 	hud.profile_requested.connect(open_profile)
 	hud.transfer_requested.connect(open_transfer)
 	ui_layer.layer = 3
+	adv = preload("res://scripts/world_adventure.gd").new(self)
 	touch = preload("res://scripts/ui/touch_controls.gd").new()
 	touch.world = self
 	ui_layer.add_child(touch)
@@ -381,6 +383,7 @@ func _process(delta: float) -> void:
 		if _spray_acc >= 0.25:
 			_spray_acc = 0.0
 			Work.spray(int(zone.id))
+	adv.tick(delta)
 	Net.update_my_pos(my_pos, delta)
 	if _ocean:
 		_ocean_tick(delta)
@@ -434,6 +437,8 @@ func my_ride() -> String:
 
 ## Bulunduğum alan: ev içiysem oda, değilsem şehir.
 func _clamp_to_area(p: Vector2) -> Vector2:
+	if adv.ext != "":
+		return adv.clamp_pos(p)
 	if _ocean:
 		return p.clamp(OM.OCEAN.position + Vector2(20, 20), OM.OCEAN.end - Vector2(20, 20))
 	if _fair:
@@ -467,6 +472,8 @@ func _clamp_to_area(p: Vector2) -> Vector2:
 func _can_stand(p: Vector2, ride: String) -> bool:
 	if _room >= 0 or _jail or _dive:
 		return true
+	if adv.ext != "":
+		return adv.can_stand(p)
 	if _ocean:
 		return _ocean_can_stand(p, ride)
 	if _fair and Paint.in_match():
@@ -477,6 +484,8 @@ func _can_stand(p: Vector2, ride: String) -> bool:
 		return not (_blocked(p) and not _blocked(my_pos))
 	if _blocked(p) and not _blocked(my_pos):
 		return false              # bina, ev ya da araba (içindeysen çıkabilirsin)
+	if adv.barricade_at(p) and not adv.barricade_at(my_pos):
+		return false              # zombi gecesi barikatı
 	if my_ride() == "kayik" or ride == "kayik":
 		return Map.in_lake(p)     # kayık gölde kalır (karaya ve iskeleye çıkmaz)
 	if Map.in_water(p):
@@ -500,8 +509,10 @@ func _update_area() -> void:
 	var mount := Map.MOUNTAIN.has_point(my_pos)
 	var fair := Map.FAIR.has_point(my_pos)
 	var ocean := OM.in_ocean(my_pos)
-	if room == _room and jail == _jail and dive == _dive and mount == _mount and fair == _fair and ocean == _ocean:
+	var ext: String = adv.ext_of(my_pos)
+	if room == _room and jail == _jail and dive == _dive and mount == _mount and fair == _fair and ocean == _ocean and ext == adv.ext:
 		return
+	adv.ext = ext
 	_fair = fair
 	_ocean = ocean
 	_room = room
@@ -509,7 +520,9 @@ func _update_area() -> void:
 	_dive = dive
 	_mount = mount
 	var r := Map.WORLD
-	if dive:
+	if ext != "":
+		r = adv.camera_rect()
+	elif dive:
 		r = Map.SEA_BED
 	elif mount:
 		r = Map.MOUNTAIN
@@ -660,6 +673,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event is InputEventKey and event.pressed and not event.echo:
 			_photo_input(event)
 		return
+	if adv.input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseButton and event.pressed and panel == null and Paint.in_match() \
 			and event.button_index == MOUSE_BUTTON_LEFT and not touch.visible:
 		if not Paint.is_out(Net.my_name):
@@ -762,6 +778,9 @@ func _update_zone() -> void:
 		if not zone.is_empty():
 			hint = "[%s]  %s\n%s" % [Settings.key_name("interact"), zone.label, hint]
 		hud.set_hint("" if panel != null else hint)
+		return
+	if adv.ext != "":
+		adv.update_zone()
 		return
 	if _mount:
 		_update_mountain_zone()
@@ -877,6 +896,7 @@ func _update_zone() -> void:
 	if my_ride() == "boat" and Ocean.GATE.has_point(my_pos):
 		z = {"type": "ocean_gate", "label": "AÇIK OKYANUS'a açıl (30 ada, hazineler, Kraken!)"}
 	z = _holiday_zone(z)
+	z = adv.extra_zone(z)
 	if not dz.is_empty():
 		z = dz
 	zone = z
@@ -884,11 +904,14 @@ func _update_zone() -> void:
 	var hint := "" if z.is_empty() else "[%s]  %s" % [Settings.key_name("interact"), z.label]
 	if not _g_action.is_empty():
 		hint += ("\n" if hint != "" else "") + "[%s]  %s" % [Settings.key_name("action"), _g_action.label]
-	hud.set_hint("" if panel != null else hint)
+	hud.set_hint("" if panel != null else adv.decorate(hint))
 
 
 ## G tuşu: görevdeki polis için tutuklama; diğerleri için yankesicilik ya da soygun.
 func _find_g_action() -> Dictionary:
+	var ag: Dictionary = adv.g_action()
+	if not ag.is_empty():
+		return ag
 	var hg := _holiday_g_action()
 	if not hg.is_empty():
 		return hg
@@ -930,6 +953,9 @@ func _do_g_action() -> void:
 	if _g_action.is_empty():
 		return
 	match _g_action.kind:
+		"adv":
+			adv.do_g(_g_action)
+			return
 		"knock":
 			Holidays.knock(str(_g_action.door))
 			Sfx.play("door", -4.0, 1.3)
@@ -948,6 +974,8 @@ func _do_g_action() -> void:
 
 func _open_panel() -> void:
 	if zone.is_empty():
+		return
+	if adv.open(zone):
 		return
 	if zone.type == "exit_home":
 		Homes.exit_home()
@@ -1208,7 +1236,7 @@ func _rebuild_blockers() -> void:
 	for k in Map.ZOO_PENS:
 		_blockers.append(Map.ZOO_PENS[k].grow(-4))
 	_blockers.append(Rect2(Map.KORSAN_SHIP.x - 120, Map.KORSAN_SHIP.y - 40, 220, 50))
-	for b in Map.FAIR_BUILDINGS + [Map.CINEMA]:
+	for b in Map.FAIR_BUILDINGS + [Map.CINEMA, Map.BOWLING]:
 		var fr: Rect2 = b.rect
 		_blockers.append(Rect2(fr.position.x + 6, fr.position.y + 16, fr.size.x - 12, fr.size.y - 26))
 	var fs: Rect2 = Map.FIRE_STATION
@@ -1968,6 +1996,13 @@ func _draw() -> void:
 		labels.items = _label_queue
 		labels.queue_redraw()
 		return
+	if adv.ext != "":
+		adv.draw_region()
+		labels.items = _label_queue
+		labels.queue_redraw()
+		night_windows.items = []
+		night_windows.queue_redraw()
+		return
 	var winter := Env.season == "winter"
 	draw_rect(Map.WORLD, GRASS.get(Env.season, GRASS.spring))
 	_draw_grass_patches()
@@ -2005,6 +2040,7 @@ func _draw() -> void:
 	_draw_ocean_gate()
 	_draw_rails()
 	_draw_arena()
+	adv.draw_ground()
 	_draw_city_extras()
 	_draw_holiday()
 	_draw_marathon()
@@ -2107,9 +2143,12 @@ func _draw() -> void:
 			items.append([Work.job.passenger.y, "pax", Work.job.passenger])
 	if Events.treasure_pos != null and Events.current.get("kind", "") == "treasure":
 		items.append([Events.treasure_pos.y, "t", Events.treasure_pos])
+	adv.add_items(items)
 	items.sort_custom(func(a, b): return a[0] < b[0])
 	for it in items:
-		if it[1] == "n":
+		if it[1] == "adv":
+			adv.draw_item(it[2])
+		elif it[1] == "n":
 			_draw_nature(it[2])
 		elif it[1] == "w":
 			var w: Dictionary = it[2]
@@ -2178,6 +2217,7 @@ func _draw() -> void:
 			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
 	_draw_sky()
 	_draw_fx()
+	adv.draw_overlay()
 	_draw_placement_ghost()
 	_draw_snow_fx()
 	_draw_nav()
@@ -3150,6 +3190,7 @@ func _update_mountain_zone() -> void:
 	mz = _camp_zone(mz)
 	mz = _rail_zone(mz)
 	mz = _detective_zone(mz)
+	mz = adv.extra_zone(mz)
 	zone = mz
 	var hint := ""
 	if my_ride() == "ski":
@@ -3158,7 +3199,7 @@ func _update_mountain_zone() -> void:
 			Settings.key_name("left"), Settings.key_name("right"), Settings.key_name("down"), Settings.key_name("up"), Settings.key_name("vehicle")]
 	elif not mz.is_empty():
 		hint = "[%s]  %s" % [Settings.key_name("interact"), mz.label]
-	hud.set_hint("" if panel != null else hint)
+	hud.set_hint("" if panel != null else adv.decorate(hint))
 
 
 func _make_mountain_nature() -> void:
@@ -3168,6 +3209,8 @@ func _make_mountain_nature() -> void:
 	var keep_out: Array = [Rect2(m.position.x, Map.RAIL.dag.y - 110.0, m.size.x, 200), Map.QUARRY.grow(40), Map.SLOPE.grow(70), Rect2(Map.LIFT.x - 50, Map.MOUNTAIN_TOP_Y, 100, Map.LIFT.y - Map.MOUNTAIN_TOP_Y + 80), Map.CAMP.grow(30)]
 	for b in Map.MOUNTAIN_BUILDINGS:
 		keep_out.append(b.rect.grow(60))
+	keep_out.append(Rect2(Map.DUNGEON_DOOR - Vector2(230, 260), Vector2(500, 380)))          # 1.8 mağara ağzı
+	keep_out.append(Rect2(Map.DUNGEON_SHOP - Vector2(120, 140), Vector2(300, 240)))          # silahçı çadırı
 	for seg in _mountain_paths():
 		keep_out.append(Rect2(seg[0], Vector2.ZERO).expand(seg[1]).grow(50))
 	for _k in 700:
@@ -3191,7 +3234,8 @@ func _make_mountain_nature() -> void:
 ## Dağ yolları (teleferik → Dağ Evi → telesiyej, ve maden ocağına).
 func _mountain_paths() -> Array:
 	return [[Map.MOUNTAIN_SPAWN, Vector2(8800, 2790)], [Vector2(8800, 2790), Vector2(9930, 2780)],
-		[Vector2(9930, 2780), Map.LIFT], [Vector2(8500, 2790), Vector2(8500, Map.QUARRY.end.y)]]
+		[Vector2(9930, 2780), Map.LIFT], [Vector2(8500, 2790), Vector2(8500, Map.QUARRY.end.y)],
+		[Vector2(8500, Map.QUARRY.position.y), Map.DUNGEON_DOOR + Vector2(0, 60)]]
 
 
 func _snowy(y: float) -> bool:
@@ -4204,6 +4248,7 @@ func _update_fair_zone() -> void:
 	if my_pos.distance_to(Map.ARENA_BOOTH) < 110.0:
 		z = {"type": "paint", "label": "Paintball Arenası — takım seç"}
 	z = _rail_zone(z)
+	z = adv.extra_zone(z)
 	zone = z
 	if Paint.in_match():
 		zone = {}
