@@ -273,6 +273,7 @@ func _ready() -> void:
 	hud.map_requested.connect(open_map)
 	hud.settings_requested.connect(open_settings)
 	hud.league_requested.connect(open_simple_panel.bind("res://scripts/ui/league_panel.gd"))
+	hud.guide_requested.connect(open_simple_panel.bind("res://scripts/ui/guide_panel.gd"))
 	Tutorial.start(ui_layer)
 	Work.job_changed.connect(_on_job_changed)
 	Jobs.fish_event.connect(_on_fish_event)
@@ -3076,8 +3077,23 @@ func _draw_placement_ghost() -> void:
 	draw_rect(fr, Color("#22c55e") if ok else Color("#ef4444"), false, 3)
 
 
-func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color, vstyle: Dictionary = {}) -> void:
-	var ang: float = FACING_ANGLE.get(facing, 0.0)
+## 2.1: araç gövdesinin ekranda görünen açısı yöne doğru yumuşakça döner (ani 90° dönüş yok).
+## Kendi arabam hız yönüne bakar (çapraz gidiş ve drift de görünür).
+var _veh_ang := {}
+
+
+func _vehicle_angle(key: String, facing: String, me: bool) -> float:
+	var target: float = FACING_ANGLE.get(facing, 0.0)
+	if me and my_ride() == "car" and town.car_vel.length() > 40.0:
+		target = town.car_vel.angle()
+	var cur: float = _veh_ang.get(key, target)
+	cur = lerp_angle(cur, target, clampf(get_process_delta_time() * 9.0, 0.0, 1.0))
+	_veh_ang[key] = cur
+	return cur
+
+
+func _draw_vehicle(p: Vector2, ride: String, facing: String, col: Color, vstyle: Dictionary = {}, angle: float = INF) -> void:
+	var ang: float = angle if angle != INF else FACING_ANGLE.get(facing, 0.0)
 	match ride:
 		"car":
 			if int(vstyle.get("car", -1)) >= 0:
@@ -3141,8 +3157,9 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	var name_col := Color("#fde68a") if me else Color.WHITE
 	match ride:
 		"car":
-			town.draw_flame(p, facing, str(extra.get("name", Net.my_name if me else "")))
-			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
+			var ca := _vehicle_angle(pname, facing, me)
+			town.draw_flame(p, facing, str(extra.get("name", Net.my_name if me else "")), ca)
+			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}), ca)
 			_name(p, -40, pname, name_col, extra)
 			return
 		"ski":
@@ -3170,7 +3187,7 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 			_name(p, -78, pname, name_col, extra)
 			return
 		"bike":
-			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}))
+			_draw_vehicle(p, ride, facing, col, extra.get("vstyle", {}), _vehicle_angle(pname, facing, me))
 			Avatar.draw(self, p, app, facing, [1, 0, 2, 0][int(_t * 8.0) % 4] if moving else 0)
 			_name(p, -56, pname, name_col, extra)
 			return

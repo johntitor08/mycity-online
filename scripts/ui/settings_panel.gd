@@ -66,6 +66,20 @@ func _ready() -> void:
 	add_button(row, "Varsayılan tuşlar", _reset_keys)
 	if world != null:
 		add_button(row, "Eğitimi yeniden başlat", func(): Settings.tutorial_done = false; Tutorial.start(world.ui_layer, true); close())
+		# 2.1: hesabı silme (şifreyle onay)
+		var del_row := HBoxContainer.new()
+		del_row.add_theme_constant_override("separation", 8)
+		right.add_child(del_row)
+		var pw := LineEdit.new()
+		pw.secret = true
+		pw.placeholder_text = "Şifren (onay için)"
+		pw.custom_minimum_size = Vector2(170, 0)
+		del_row.add_child(pw)
+		var db := add_button(del_row, "Hesabımı sil", func():
+			if pw.text.length() > 0:
+				Net.delete_account(pw.text))
+		db.add_theme_color_override("font_color", Color("#f87171"))
+		add_label(right, "Hesabını silersen paran, arsaların, eşyaların ve bütün ilerlemen kalıcı olarak silinir.", 12, Color("#fca5a5")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_label(right, "Esc pencereleri kapatır, Enter sohbete yazar; ok tuşları her zaman yürütür.", 12, Color("#7c859e")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_refresh_keys()
 

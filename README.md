@@ -37,6 +37,21 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.1.1: Android sürümü, başlangıç rehberi, hesap silme
+
+| | |
+|---|---|
+| ![Telefonda](docs/ekran/dokunmatik_oyun.png) | ![Başlangıç rehberi](docs/ekran/rehber.png) |
+
+- **Android:** Play Store'a hazır, imzalı AAB derlemesi (`build/android/MyCityOnline.aab`, paket `com.johntitor.mycityonline`).
+  - Dokunmatik kontroller telefonda kendiliğinden açılır. Arabada **Nitro** düğmesi çıkar. Festivalde DJ ve dans dokunmatik düğmelerle oynanır.
+  - Mağaza metni, form cevapları, simge, öne çıkan görsel ve ekran görüntüleri `docs/play/`'de; yükleme adımları `docs/play/ADIMLAR.md`'de.
+  - Gizlilik politikası `docs/gizlilik.md`'de.
+- **Başlangıç rehberi:** Üst menüde "Rehber" butonu var. Konular: ilk adımlar, para kazanmak, ev ve işletme, ulaşım, arkadaşlarla, gezilecek yerler, etkinlikler, kontroller. İlk girişteki eğitim telefonda joystick ve düğme adlarıyla anlatır.
+- **Hesap silme:** Ayarlar → "Hesabımı sil" (şifreyle onay). Hesap, arsalar, tezgâh ve ilanlar silinir.
+- **Araba dönüşleri** artık yumuşak: araba yönüne doğru dönerek geçer, kendi araban çapraz giderken ve driftte gerçek yönüne bakar.
+- **Otogar tabelaları** ve kasaba binalarının tabelaları ortalandı.
+
 ## 2.1: Otoyol, Yalıkent ve Çamlıbel, şehirler arası otobüs; araba sadece yolda
 
 | | |

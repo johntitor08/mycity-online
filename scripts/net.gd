@@ -17,7 +17,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "2.1"
+const VERSION := "2.1.1"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -593,6 +593,10 @@ func _on_peer_disconnected(id: int) -> void:
 	Festival.on_player_left(id)
 	Roads.on_player_left(id)
 	Bank.on_player_left(id)
+	if _deleting.has(pname):
+		_deleting.erase(pname)
+		save_data.players.erase(pname)          # 2.1: hesap silme (çıkış işlemlerinden sonra)
+		log_line("%s hesabını sildi" % pname)
 	players.erase(id)
 	positions.erase(id)
 	_save()
@@ -645,6 +649,59 @@ func req_register(d: Dictionary) -> void:
 		log_line("Giriş reddedildi (%s): %s" % [str(d.get("name", "")).left(16), reason])
 		await get_tree().create_timer(1.0).timeout    # şifre denemelerini yavaşlat
 		_kick(id, reason)
+
+
+# ------------------------------------------------------------------ 2.1: hesap silme (Play Store şartı)
+var _deleting := {}
+
+
+## İstemci: şifreyle onaylayıp hesabı ve bütün verileri sil.
+func delete_account(password: String) -> void:
+	rpc_id(1, "req_delete_account", {"h": hash_password(my_name, password)})
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_delete_account(d: Dictionary) -> void:
+	var id := sender()
+	if not players.has(id):
+		return
+	var pname: String = players[id].name
+	var rec: Dictionary = save_data.players.get(pname, {})
+	if rec.is_empty() or not rec.get("pass") is Dictionary:
+		return
+	if (str(rec.pass.salt) + str(d.get("h", ""))).sha256_text() != str(rec.pass.hash):
+		notify(id, "Şifre yanlış; hesap silinmedi.", false)
+		return
+	_wipe_account(id, pname)
+	_kick(id, "Hesabın ve bütün oyun verilerin silindi. Görüşmek üzere!")
+
+
+## Hesabın dünyadaki izlerini temizle; kayıt oyuncu çıkınca silinir.
+func _wipe_account(id: int, pname: String) -> void:
+	var c: Dictionary = Clans.clan_of(id) if players.has(id) else {}
+	if not c.is_empty():
+		Clans._remove(c, pname)
+	for i in Land.plots.size():
+		if Land.plots[i].owner == pname:
+			Homes.clear_plot(i, pname)
+			Land.plots[i].owner = ""
+			Land.plots[i].level = 0
+			Land.plots[i]["kind"] = "home"
+			for k in ["biz", "farm", "ranch"]:
+				Land.plots[i].erase(k)
+	if save_data.get("bazaar") is Array:
+		save_data["bazaar"] = save_data.bazaar.filter(func(l): return str(l.get("seller", "")) != pname)
+	if save_data.get("stalls") is Array:
+		for i in save_data.stalls.size():
+			if save_data.stalls[i] is Dictionary and str(save_data.stalls[i].get("owner", "")) == pname:
+				save_data.stalls[i] = {}
+	if save_data.get("wanted") is Array:
+		save_data["wanted"] = save_data.wanted.filter(func(w): return str(w.get("buyer", "")) != pname)
+	_deleting[pname] = true
+	Land._broadcast()
+	Bazaar._broadcast()
+	Stalls._broadcast()
+	mark_dirty()
 
 
 func _kick(id: int, reason: String) -> void:

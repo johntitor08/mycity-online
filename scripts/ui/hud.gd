@@ -15,6 +15,7 @@ signal map_requested
 signal settings_requested
 signal league_requested
 signal phone_requested
+signal guide_requested
 
 var money_label: Label
 var name_label: Label
@@ -105,6 +106,7 @@ func _ready() -> void:
 	_small_button(btns2, "Etkinlik", func(): events_requested.emit())
 	_small_button(btns2, "Başarım", func(): achievements_requested.emit())
 	_small_button(btns2, "Harita (M)", func(): map_requested.emit())
+	_small_button(btns2, "Rehber", func(): guide_requested.emit())
 	var btns3 := HBoxContainer.new()
 	tv.add_child(btns3)
 	_small_button(btns3, "Lig", func(): league_requested.emit())

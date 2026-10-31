@@ -800,10 +800,10 @@ func draw_car_over(vstyle: Dictionary) -> void:
 
 
 ## Nitro alevi (oyuncunun adına göre).
-func draw_flame(p: Vector2, facing: String, who: String) -> void:
+func draw_flame(p: Vector2, facing: String, who: String, angle: float = INF) -> void:
 	if float(Tuning.flames.get(who, 0.0)) < Time.get_ticks_msec() / 1000.0:
 		return
-	var ang: float = FACING.get(facing, 0.0)
+	var ang: float = angle if angle != INF else FACING.get(facing, 0.0)
 	w.draw_set_transform(p, ang, Vector2.ONE)
 	var fl := 18.0 + 10.0 * sin(float(w._t) * 40.0)
 	for s in [-12.0, 12.0]:

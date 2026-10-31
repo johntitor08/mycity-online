@@ -3599,7 +3599,12 @@ func _test_19(w) -> void:
 	await _wait(0.4)
 	check(Disasters.state.people.size() == 5 and int(Disasters.state.carry) == 2 and Net.my_money() > m4, "yaralıya ilk yardım")
 	var bd: Dictionary = Map.building(bt)
-	Homes._teleport(me, Vector2(bd.rect.get_center().x, bd.rect.end.y + 15))
+	var door := Vector2(bd.rect.get_center().x, bd.rect.end.y + 15)
+	# rastgele düşen enkaz/yaralı kapının önündeyse testi şaşırtmasın
+	Disasters._piles = Disasters._piles.filter(func(x): return (x.p as Vector2).distance_to(door) > 200.0)
+	Disasters._people = Disasters._people.filter(func(x): return (x.p as Vector2).distance_to(door) > 200.0)
+	Disasters._broadcast()
+	Homes._teleport(me, door)
 	await _wait(0.4)
 	check(w.zone.get("do", "") == "repair", "hasarlı binanın önü")
 	for k in Disasters.BLD_NEED:
@@ -4061,6 +4066,26 @@ func _test_21(w) -> void:
 		Land.plots[i].level = 0
 		Land.plots[i].erase("biz")
 	Net.save_data.players.erase(off)
+	Land._broadcast()
+
+	print("== 2.1: Hesap silme")
+	var gone := "Silinecek"
+	Net.save_data.players[gone] = {"money": 500, "pass": {"salt": "ab", "hash": "x"}}
+	var gp := -1
+	for i in Map.CITY_PLOTS:
+		if Land.plots[i].owner == "":
+			gp = i
+			break
+	Land.plots[gp].owner = gone
+	Land.plots[gp].level = 2
+	Stalls._store()[7] = {"owner": gone, "name": "x", "color": 0, "until": Time.get_unix_time_from_system() + 999.0, "items": [], "till": 0, "sold": 0}
+	Stalls._wanted().append({"id": 999, "buyer": gone, "kind": "crop", "key": "misir", "label": "Mısır", "qty": 1, "price": 1})
+	Net._wipe_account(0, gone)
+	check(Land.plots[gp].owner == "" and int(Land.plots[gp].level) == 0, "silinen hesabın arsası boşaldı")
+	check(Stalls._store()[7].is_empty() and Stalls._wanted().filter(func(w): return w.buyer == gone).is_empty(), "tezgâhı ve alım ilanı kaldırıldı")
+	check(Net._deleting.has(gone), "kayıt çıkışta silinmek üzere işaretlendi")
+	Net._deleting.erase(gone)
+	Net.save_data.players.erase(gone)
 	Land._broadcast()
 
 

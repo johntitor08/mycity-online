@@ -20,6 +20,7 @@ const BUTTONS := [
 	["profile", "Profil", 26.0, Vector2(330, 160)],
 	["dive", "Dal", 26.0, Vector2(196, 320)],
 	["horse", "At", 26.0, Vector2(270, 340)],
+	["nitro", "Nitro", 30.0, Vector2(380, 92)],          # 2.1: arabada nitro
 ]
 const CHAT_BTN := Vector2(64, 300)          # sol alttan (joystick'in üstü)
 
@@ -60,9 +61,14 @@ func _chat_pos() -> Vector2:
 
 func _hit_button(p: Vector2) -> int:
 	for i in BUTTONS.size():
-		if p.distance_to(_btn_pos(BUTTONS[i])) < float(BUTTONS[i][2]) + 10.0:
+		if _btn_shown(BUTTONS[i]) and p.distance_to(_btn_pos(BUTTONS[i])) < float(BUTTONS[i][2]) + 10.0:
 			return i
 	return -1
+
+
+## Nitro düğmesi sadece arabadayken görünür.
+func _btn_shown(b: Array) -> bool:
+	return b[0] != "nitro" or (world != null and world.my_ride() == "car")
 
 
 ## Bu ekran noktası bir kontrolün üstünde mi? (dünya tıklamaları bunu sorar)
@@ -187,6 +193,8 @@ func _draw() -> void:
 	draw_circle(base + _knob, KNOB_R, Color(1, 1, 1, 0.5 if _joy_touch != -99 else 0.32))
 	var f2 := ThemeDB.fallback_font
 	for b in BUTTONS:
+		if not _btn_shown(b):
+			continue
 		var p := _btn_pos(b)
 		var r := float(b[2])
 		var down: bool = b[0] in _held.values()

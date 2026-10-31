@@ -3,12 +3,12 @@ extends Node
 ## Adımlar oyuncu ilgili şeyi yaptıkça ilerler (note ile bildirilir). Ayarlar'dan yeniden başlatılabilir.
 
 const STEPS := [
-	["move", "Hoş geldin! {up}{left}{down}{right} (ya da ok tuşları) ile yürü."],
+	["move", "Hoş geldin! {walk} ile yürü."],
 	["panel", "Binalara yaklaşıp {interact} tuşuna bas. Hastane ve Market ana yolun kuzeyinde."],
 	["map", "{map} tuşuyla haritayı aç: bir yere tıkla, kırmızı yön oku seni oraya götürsün."],
 	["job", "Para kazan: Hastane'de doktorluk ya da Market'te kasiyerlik yap (ya da iskelede balık tut)."],
 	["talk", "Başında \"!\" olan Muhtar Rıza'ya git, {interact} ile konuş: hikâye görevleri seni yönlendirir."],
-	["done", "Harika! Sol üstteki butonlarda Profil, Klan, Etkinlik, Başarım ve Ayarlar var. İyi eğlenceler!"],
+	["done", "Harika! Takıldığında sol üstteki \"Rehber\" butonuna bas: para kazanma, ulaşım, ev ve arkadaşlarla oynama hepsi orada. İyi eğlenceler!"],
 ]
 
 var step := -1
@@ -62,8 +62,15 @@ func start(layer: CanvasLayer, force: bool = false) -> void:
 
 
 func _text(t: String) -> String:
+	# 2.1: telefonda tuş yerine dokunmatik düğme adları
+	var touch := Settings.touch_enabled()
+	t = t.replace("{walk}", "Sol alttaki joystick" if touch else "%s%s%s%s (ya da ok tuşları)" % [Settings.key_name("up"), Settings.key_name("left"),
+		Settings.key_name("down"), Settings.key_name("right")])
 	for a in Settings.ACTIONS:
-		t = t.replace("{%s}" % a, Settings.key_name(a))
+		var nm: String = Settings.key_name(a)
+		if touch:
+			nm = {"interact": "E düğmesi", "map": "Harita düğmesi", "vehicle": "F düğmesi", "action": "G düğmesi"}.get(a, nm)
+		t = t.replace("{%s}" % a, nm)
 	return t
 
 

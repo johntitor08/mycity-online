@@ -338,7 +338,7 @@ func draw_town(ext: String, view: Rect2, items: Array) -> void:
 			_bus_stop(sp, str(Map.BUS_STOPS[k][0]))
 	var rp: Vector2 = Map.TOWN_RAMPS[ext]
 	_ramp_sign(rp, ext == "camlibel")
-	_otogar(Map.OTOGARS[ext])
+	items.append([float(Map.OTOGARS[ext].y) + 2.0, "otogar", Map.OTOGARS[ext]])
 	# kasaba halkı
 	var tt: float = w._t
 	var road: Rect2 = (Map.YK_ROADS if ext == "yalikent" else Map.CB_ROADS)[0]
@@ -370,20 +370,26 @@ func _bus_stop(p: Vector2, name: String) -> void:
 	w.draw_line(p + Vector2(36, -32), p + Vector2(36, 8), Color("#6b7280"), 3)
 	w.draw_rect(Rect2(p.x - 30, p.y - 6, 60, 8), Color("#78350f"))
 	w.draw_rect(Rect2(p.x + 44, p.y - 50, 26, 26), Color("#facc15"))
-	w._text(p + Vector2(-80, -70), "DURAK: %s" % name, 11, Color.WHITE, 160)
+	w._text(p + Vector2(-80, -52), "DURAK: %s" % name, 11, Color.WHITE, 160)
 
 
 func _ramp_sign(p: Vector2, flip: bool) -> void:
 	var sx := p.x + (-60.0 if flip else 60.0)
 	w.draw_rect(Rect2(sx - 4, p.y - 140, 8, 90), Color("#6b7280"))
-	w.draw_rect(Rect2(sx - 90, p.y - 190, 180, 60), Color("#1d4ed8"))
-	w.draw_rect(Rect2(sx - 90, p.y - 190, 180, 60), Color.WHITE, false, 2)
-	w._text(Vector2(sx - 90, p.y - 180), "OTOYOL %s" % ("→" if not flip else "←"), 18, Color.WHITE, 180, false)
-	w._text(Vector2(sx - 90, p.y - 158), "Yalıkent · Çamlıbel · Şehir", 10, Color("#bfdbfe"), 180, false)
+	var sr := Rect2(sx - 90, p.y - 190, 180, 60)
+	w.draw_rect(sr, Color("#1d4ed8"))
+	w.draw_rect(sr, Color.WHITE, false, 2)
+	_sign_text(Rect2(sr.position, Vector2(sr.size.x, 36)), "OTOYOL %s" % ("→" if not flip else "←"), 18, Color.WHITE)
+	_sign_text(Rect2(sr.position + Vector2(0, 34), Vector2(sr.size.x, 22)), "Yalıkent · Çamlıbel · Şehir", 10, Color("#bfdbfe"))
 
 
 func _otogar(p: Vector2) -> void:
-	w.draw_rect(Rect2(p.x - 70, p.y - 34, 140, 10), Color("#f97316"))
+	# levha: direk + turuncu tabela, yazı tabelanın tam ortasında
+	w.draw_rect(Rect2(p.x - 3, p.y - 40, 6, 40), Color("#6b7280"))
+	var sr := Rect2(p.x - 70, p.y - 74, 140, 34)
+	w.draw_rect(sr, Color("#ea580c"))
+	w.draw_rect(sr, Color.WHITE, false, 2)
+	_sign_text(sr, "OTOGAR", 16, Color.WHITE)
 	# bekleyen şehirler arası otobüs
 	var bp := p + Vector2(130, 0)
 	w.draw_rect(Rect2(bp.x - 70, bp.y - 26, 140, 44), Color("#e5e7eb"))
@@ -392,7 +398,12 @@ func _otogar(p: Vector2) -> void:
 		w.draw_rect(Rect2(bp.x - 62 + k * 26, bp.y - 14, 20, 12), Color("#38bdf8"))
 	w.draw_circle(bp + Vector2(-44, 20), 8, Color("#111827"))
 	w.draw_circle(bp + Vector2(44, 20), 8, Color("#111827"))
-	w._text(p + Vector2(-80, -64), "OTOGAR", 14, Color("#fdba74"), 160)
+
+
+## Yazıyı bir tabela kutusunun tam ortasına yaz (yatay ve dikey).
+func _sign_text(box: Rect2, text: String, size: int, col: Color) -> void:
+	var baseline := box.position.y + box.size.y / 2.0 + size * 0.36
+	w._text(Vector2(box.position.x, baseline), text, size, col, box.size.x, false)
 
 
 func _draw_yalikent(view: Rect2, items: Array) -> void:
@@ -527,6 +538,8 @@ func draw_item(kind: String, d) -> bool:
 			w.draw_rect(Rect2(hp.x + 28, hp.y - 70, 28, 24), Color("#bfdbfe"))
 		"tbuild":
 			_draw_town_building(d)
+		"otogar":
+			_otogar(d)
 		_:
 			return false
 	return true
@@ -551,7 +564,7 @@ func _draw_town_building(b: Dictionary) -> void:
 			w.draw_set_transform(fp, 0, Vector2(1, 0.5))
 			w.draw_circle(Vector2.ZERO, 16, Color("#94a3b8"))
 			w.draw_set_transform(Vector2.ZERO)
-	w._text(r.position + Vector2(0, 10), U.upper_tr(str(b.label)), 18, Color.WHITE, r.size.x)
+	_sign_text(Rect2(r.position.x, r.position.y, r.size.x, 44), U.upper_tr(str(b.label)), 18, Color.WHITE)
 
 
 ## Şehirde (ana harita): batı ucundaki otoyol rampası ve otogar.

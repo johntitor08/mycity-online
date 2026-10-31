@@ -67,6 +67,20 @@ func _ready() -> void:
 	lanes.custom_minimum_size = Vector2(360, 520)
 	body.add_child(lanes)
 	add_label(body, "Boşluk: vuruş · E: DROP (8 vuruşta bir)" if mode == "dj" else "Ok tuşları: kutu çizgiye gelince bas · seri yap!", 13, Color("#94a3b8"))
+	# dokunmatik / fare için düğmeler
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	body.add_child(row)
+	if mode == "dj":
+		for spec in [["VUR", false], ["DROP", true]]:
+			var b := add_button(row, spec[0], func(): _dj(spec[1]))
+			b.custom_minimum_size = Vector2(150, 64)
+	else:
+		for spec in [["←", "left"], ["↓", "down"], ["↑", "up"], ["→", "right"]]:
+			var b2 := add_button(row, spec[0], func(): Festival.dance(spec[1]))
+			b2.custom_minimum_size = Vector2(80, 64)
+			b2.add_theme_font_size_override("font_size", 28)
 	Festival.beat_hit.connect(_on_hit)
 
 
@@ -89,17 +103,20 @@ func _on_hit(d: Dictionary) -> void:
 		{"perfect": Color("#facc15"), "good": Color("#86efac"), "miss": Color("#f87171"), "drop": Color("#f472b6")}.get(g, Color.WHITE), Time.get_ticks_msec() / 1000.0]
 
 
+func _dj(drop: bool) -> void:
+	Festival.dj_hit(drop)
+	Sfx.play("davul_1" if drop else "davul_3", -2.0 if drop else -4.0, 0.7 if drop else 1.0)
+
+
 func _input(e: InputEvent) -> void:
 	if not (e is InputEventKey) or not e.pressed or e.echo:
 		return
 	if mode == "dj":
 		if e.physical_keycode == KEY_SPACE:
-			Festival.dj_hit(false)
-			Sfx.play("davul_3", -4.0)
+			_dj(false)
 			get_viewport().set_input_as_handled()
 		elif Settings.is_key(e, "interact"):
-			Festival.dj_hit(true)
-			Sfx.play("davul_1", -2.0, 0.7)
+			_dj(true)
 			get_viewport().set_input_as_handled()
 	else:
 		var m := {KEY_LEFT: "left", KEY_DOWN: "down", KEY_UP: "up", KEY_RIGHT: "right"}

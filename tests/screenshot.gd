@@ -42,6 +42,7 @@ func _ready() -> void:
 		Env.hour = 12.0
 		Env.force_weather("clear")
 		Settings.touch_mode = "on"
+		Settings.hud_collapsed = {}           # telefonda ilk açılış gibi
 		w.refresh_touch()
 		await _wait(0.5)
 		var t: Control = w.touch
@@ -161,6 +162,54 @@ func _ready() -> void:
 		for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
 			w.hud.set_collapsed(k, false)
 		await _wait(0.3)
+		get_tree().quit()
+		return
+	if "--tanitim" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(2.0)
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		Env.force_season("summer")
+		_fake_players([["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+			["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+			["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]])
+		for spot in [["tanitim_sehir", Vector2(1500, 700)], ["tanitim_sahil", Vector2(1300, 1700)]]:
+			Homes._teleport(1, spot[1])
+			Net.positions[9981] = spot[1] + Vector2(80, 30)
+			Net.positions[9982] = spot[1] + Vector2(-120, 60)
+			Net.positions[9983] = spot[1] + Vector2(200, -40)
+			w.camera.zoom = Vector2(0.8, 0.8)
+			await _wait(1.4)
+			w.hud.visible = false
+			w.touch.visible = false
+			await _wait(0.4)
+			_shot(spot[0])
+			w.hud.visible = true
+		get_tree().quit()
+		return
+	if "--rehber" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(1.5)
+		w.open_simple_panel("res://scripts/ui/guide_panel.gd")
+		await _wait(0.6)
+		_shot("rehber")
+		w.panel._select(3)
+		await _wait(0.4)
+		_shot("rehber_ulasim")
+		get_tree().quit()
+		return
+	if "--otogar" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		for k in ["camlibel", "yalikent", "sehir"]:
+			Homes._teleport(1, Map.OTOGARS[k] + Vector2(0, 90))
+			w.camera.zoom = Vector2(1.3, 1.3)
+			await _wait(1.2)
+			await _clear_toasts(w)
+			_shot("otogar_" + k)
 		get_tree().quit()
 		return
 	if "--sadece21" in OS.get_cmdline_user_args():
