@@ -26,9 +26,21 @@ kaydet() {
 		srv=$!
 		sleep 4
 	fi
-	rm -f "$OUT/$s.avi"
-	$G --display-driver x11 --resolution 1920x1080 --fixed-fps 30 --write-movie "$OUT/$s.avi" \
-		-- --foto --klip "${extra[@]}" > "$OUT/$s.log" 2>&1 || true
+	local deneme
+	for deneme in 1 2; do
+		rm -f "$OUT/$s.avi"
+		$G --display-driver x11 --resolution 1920x1080 --fixed-fps 30 --write-movie "$OUT/$s.avi" \
+			-- --foto --klip "${extra[@]}" > "$OUT/$s.log" 2>&1 || true
+		# ekran kilitlenir/uyursa Godot çizmez: yazılan kare son klibe yetişmiyorsa bir kez daha
+		local yazilan son
+		yazilan=$(grep -oE "^[0-9]+ frames at" "$OUT/$s.log" | cut -d' ' -f1)
+		son=$(grep -oE "KLIP_BITTI [0-9]+" "$OUT/$s.log" | tail -1 | cut -d' ' -f2)
+		if [ -n "$son" ] && [ "${yazilan:-0}" -lt "$son" ]; then
+			echo "  UYARI: $s eksik kaydedildi ($yazilan/$son kare; ekran kilitli/uykuda mıydı?)"
+			continue
+		fi
+		break
+	done
 	[ -n "$srv" ] && for p in $(pgrep -f "godot-bin.*teaser_srv2[.]json"); do kill "$p"; done
 	grep -E "SCRIPT ERROR" "$OUT/$s.log" | head -3 || true
 	python3 - "$OUT/$s.log" "$OUT/$s.avi" "$OUT/$s.mp4" <<'PY'
@@ -78,3 +90,10 @@ ffmpeg -y -loglevel error -i "$OUT/ham.mp4" -stream_loop -1 -i "$OUT/muzik.wav" 
 	-map 0:v -map "[a]" -vf "scale=1920:1080:flags=lanczos" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart -shortest build/teaser/mycity-teaser-dev.mp4
 ls -la build/teaser/mycity-teaser-dev.mp4
 echo "süre: $DUR sn"
+# donma denetimi: 1,5 sn'den uzun hiç değişmeyen görüntü (aynı sahne art arda, takılan kare)
+ffmpeg -hide_banner -i build/teaser/mycity-teaser-dev.mp4 -vf "mpdecimate=hi=64*4:lo=64*2:frac=0.1,showinfo" -an -f null - 2>&1 |
+	grep -o "pts_time:[0-9.]*" | sed 's/pts_time://' | python3 -c "
+import sys
+ts = [float(l) for l in sys.stdin]
+runs = [(round(ts[i-1], 1), round(ts[i] - ts[i-1], 1)) for i in range(1, len(ts)) if ts[i] - ts[i-1] > 1.5]
+print('donma denetimi:', 'yok' if not runs else ', '.join('%d:%04.1f (%.1f sn)' % (t // 60, t % 60, d) for t, d in runs))"

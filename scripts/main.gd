@@ -352,6 +352,22 @@ func _on_failed(reason: String) -> void:
 	status.text = reason
 	for b in buttons:
 		b.disabled = false
+	if OS.has_feature("web") and reason.contains("Sürüm uyuşmuyor"):
+		_add_update_button()
+
+
+## Tarayıcıda (PWA) eski sürüm önbellekte kalabiliyor: önbelleği ve service worker'ı silip yeniden yükle.
+func _add_update_button() -> void:
+	if status == null or status.get_parent().has_node("Guncelle"):
+		return
+	var b := Button.new()
+	b.name = "Guncelle"
+	b.text = "Güncelle (yeni sürümü yükle)"
+	b.custom_minimum_size = Vector2(0, 44)
+	b.add_theme_color_override("font_color", Color("#facc15"))
+	b.pressed.connect(ServerList.reload_web)
+	status.get_parent().add_child(b)
+	status.get_parent().move_child(b, status.get_index() + 1)
 
 
 func _on_disconnected(reason: String) -> void:

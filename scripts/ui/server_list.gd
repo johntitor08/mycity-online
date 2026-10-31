@@ -108,6 +108,15 @@ func _store(l: Array) -> void:
 	cfg.save(SETTINGS_PATH)
 
 
+## Tarayıcı/PWA: service worker'ı ve önbelleği silip sayfayı yeni sürümle yeniden yükle.
+static func reload_web() -> void:
+	JavaScriptBridge.eval("""(async () => {
+		try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) {}
+		try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
+		location.reload();
+	})()""", true)
+
+
 static func _key(address: String, port: int) -> String:
 	return address if address.begins_with("ws") else "%s:%d" % [address, port]
 
@@ -377,6 +386,12 @@ func _row(e: Dictionary) -> Control:
 	j.custom_minimum_size = Vector2(84, 40)
 	j.disabled = not can_join
 	j.pressed.connect(func(): join_requested.emit(str(e.get("url", e.address)), int(e.port)))
+	if not can_join and OS.has_feature("web") and str(info.get("version", "")) != "":
+		# tarayıcıda eski sürüm önbellekte kalmış olabilir: tek dokunuşla yenisini yükle
+		j.text = "Güncelle"
+		j.disabled = false
+		j.pressed.disconnect(j.pressed.get_connections()[0].callable)
+		j.pressed.connect(reload_web)
 	btns.add_child(j)
 	if e.source == "benim":
 		var x := Button.new()

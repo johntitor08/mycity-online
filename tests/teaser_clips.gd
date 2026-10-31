@@ -133,6 +133,8 @@ var cap_tag: Label
 var cap_text: Label
 var title_box: VBoxContainer
 var _clips := 0
+var _drawn := 0                   # gerçekten çizilen (kayda yazılan) kare sayısı
+var _used := {}                    # aynı sahne iki kez gelmesin (art arda aynı görüntü donmuş gibi duruyordu)
 
 
 func _ready() -> void:
@@ -166,6 +168,20 @@ func _ready() -> void:
 	title_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(title_box)
 	Engine.time_scale = FAST
+	# Ekran kilitlenince/küçültülünce Godot çizmez ve kayda kare yazılmaz; oyun yine ilerler.
+	# Klip sınırları ve süreleri bu yüzden çizilen karelerle sayılır.
+	RenderingServer.frame_post_draw.connect(func() -> void: _drawn += 1)
+
+
+## Kayda n kare daha yazılana kadar bekle (çizim durursa beklemeye devam eder).
+func _hold_frames(n: int) -> void:
+	var target := _drawn + n
+	var waited := 0
+	while _drawn < target:
+		await get_tree().process_frame
+		waited += 1
+		if waited == 300 and _drawn < target:
+			print("UYARI: ekran çizmiyor (kilit/uyku?), kayıt bekliyor")
 
 
 ## Oyun saatini dondur: hazırlık 10 kat hızlı geçtiği için saat ilerleyip (ve gerçek saate eşitlenip)
@@ -202,15 +218,22 @@ func _world():
 
 
 func clip(n: String) -> void:
-	if not CAPS.has(n):
+	if not CAPS.has(n) or _used.has(n):
 		return
+	_used[n] = true
 	var c: Array = CAPS[n]
+	# pencere (panel) sahneleri durağan: kamera yakınlaşması pencereyi oynatmaz, kısa tut
+	var w = _world()
+	var hold := HOLD
+	if w != null and is_instance_valid(w) and w.get("panel") != null:
+		hold = 1.7
+	print("KLIP_AD %s" % n)
 	await _show(func():
 		cap_tag.text = c[0]
 		cap_text.text = c[1]
 		var tw := _tween().set_parallel()
 		tw.tween_property(cap_box, "modulate:a", 1.0, 0.35)
-		tw.tween_property(cap_band, "modulate:a", 1.0, 0.35), HOLD, 0.0, n != "dokunmatik")
+		tw.tween_property(cap_band, "modulate:a", 1.0, 0.35), hold, 0.0, n != "dokunmatik")
 	var tw2 := _tween().set_parallel()
 	tw2.tween_property(cap_box, "modulate:a", 0.0, 0.2)
 	tw2.tween_property(cap_band, "modulate:a", 0.0, 0.2)
@@ -232,17 +255,18 @@ func _show(on_open: Callable, hold: float, open_alpha := 0.0, hide_ui := true) -
 	var z0 := cam.zoom if cam else Vector2.ONE
 	await get_tree().process_frame
 	_clips += 1
-	print("KLIP_BASLA %d" % Engine.get_process_frames())
+	print("KLIP_BASLA %d" % _drawn)
 	var tw := _tween()
 	tw.tween_property(black, "color:a", open_alpha, 0.22 if open_alpha == 0.0 else 0.8)
 	on_open.call()
 	if cam:
 		_tween().tween_property(cam, "zoom", z0 * 1.07, hold + 0.45)
-	await _hold(hold + 0.22)
+	await _hold_frames(int((hold + 0.22) * 30.0))
 	var tw3 := _tween()
 	tw3.tween_property(black, "color:a", 1.0, 0.22)
 	await tw3.finished
-	print("KLIP_BITTI %d" % Engine.get_process_frames())
+	await _hold_frames(1)
+	print("KLIP_BITTI %d" % _drawn)
 	if cam and is_instance_valid(cam):
 		cam.zoom = z0
 	for u in ui_was:

@@ -1000,7 +1000,9 @@ func add_money_by_name(player_name: String, amount: int) -> void:
 
 
 func _money_changed(id: int) -> void:
-	save_data.players[players[id].name]["money"] = players[id].money
+	var rec = save_data.players.get(players[id].name)
+	if rec is Dictionary:                  # kaydı olmayan (ekran görüntüsündeki sahte) oyuncu
+		rec["money"] = players[id].money
 	Ach.set_max(id, "money", int(players[id].money))
 	_dirty = true
 	_broadcast_roster()
