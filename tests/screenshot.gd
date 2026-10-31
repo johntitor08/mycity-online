@@ -1,18 +1,30 @@
 extends Node
 ## Ekran görüntüsü alır: godot --path . -- --foto  (user://foto_*.png)
 
+## --klip: her görüntü yerine kısa bir video klibi (büyük tanıtım videosu, tools/teaser_dev.sh)
+var _tz = null
+
+
 func _ready() -> void:
+	if "--klip" in OS.get_cmdline_user_args():
+		_tz = load("res://tests/teaser_clips.gd").new()
+		add_child(_tz)
+		if await _tz.special(self):
+			get_tree().quit()
+			return
 	Net.save_path = "user://foto_kayit.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Net.save_path))
 	get_parent()._build_menu()
 	if "--sunucular" in OS.get_cmdline_user_args():
 		await _wait(9.0)          # resmi liste + yoklamalar + yerel ağ duyurusu
-		_shot("sunucular")
+		await _shot("sunucular")
 		get_tree().quit()
 		return
 	await _wait(0.8)
-	_shot("menu")
+	await _shot("menu")
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
+	if _tz != null:
+		Holidays.force("yok")      # gerçek takvimdeki özel gün her klibe girmesin
 	await _wait(0.5)
 	var w = get_parent().world
 	if "--genel" in OS.get_cmdline_user_args():
@@ -34,7 +46,7 @@ func _ready() -> void:
 			await _wait(1.0)
 			w.camera.reset_smoothing()
 			await _wait(0.3)
-			_shot(part[1])
+			await _shot(part[1])
 		get_tree().quit()
 		return
 	if "--kapak" in OS.get_cmdline_user_args():
@@ -81,7 +93,7 @@ func _ready() -> void:
 		_drag(2, jb + Vector2(-40, -60))
 		await _wait(0.3)
 		await _clear_toasts(w)
-		_shot("dokunmatik")
+		await _shot("dokunmatik")
 		_touch(2, jb, false)
 		get_tree().quit()
 		return
@@ -93,7 +105,7 @@ func _ready() -> void:
 		c.set_anchors_preset(Control.PRESET_FULL_RECT)
 		layer.add_child(c)
 		await _wait(0.8)
-		_shot("avatar_tablo")
+		await _shot("avatar_tablo")
 		get_tree().quit()
 		return
 	if "--gorsel" in OS.get_cmdline_user_args():
@@ -116,7 +128,7 @@ func _ready() -> void:
 			w.camera.zoom = Vector2.ONE * float(part[3])
 			await _wait(1.2)
 			await _clear_toasts(w)
-			_shot(part[2])
+			await _shot(part[2])
 		get_tree().quit()
 		return
 	if "--tekne" in OS.get_cmdline_user_args():
@@ -137,7 +149,7 @@ func _ready() -> void:
 		w.camera.zoom = Vector2(1.4, 1.4)
 		await _wait(1.0)
 		await _clear_toasts(w)
-		_shot("tekne_yeni")
+		await _shot("tekne_yeni")
 		get_tree().quit()
 		return
 	if "--hud" in OS.get_cmdline_user_args():
@@ -159,11 +171,11 @@ func _ready() -> void:
 			await _wait(0.03)
 		await _wait(0.8)
 		await _clear_toasts(w)
-		_shot("hud_acik")
+		await _shot("hud_acik")
 		for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
 			w.hud.set_collapsed(k, true)
 		await _wait(0.6)
-		_shot("hud_kucuk")
+		await _shot("hud_kucuk")
 		for k in ["bilgi", "zenginler", "sohbet", "tuslar", "harita"]:
 			w.hud.set_collapsed(k, false)
 		await _wait(0.3)
@@ -189,7 +201,7 @@ func _ready() -> void:
 			w.hud.visible = false
 			w.touch.visible = false
 			await _wait(0.4)
-			_shot(spot[0])
+			await _shot(spot[0])
 			w.hud.visible = true
 		get_tree().quit()
 		return
@@ -202,10 +214,10 @@ func _ready() -> void:
 		Homes._teleport(1, Vector2(Map.HWY_RAMPS.sehir + 60, Map.HWY_ROAD.position.y + 60))
 		w.camera.zoom = Vector2(1.3, 1.3)
 		await _wait(1.2)
-		_shot("tabela_cikis")
+		await _shot("tabela_cikis")
 		Homes._teleport(1, Vector2(52200, Map.HWY_ROAD.position.y + 60))
 		await _wait(1.0)
-		_shot("tabela_mesafe")
+		await _shot("tabela_mesafe")
 		get_tree().quit()
 		return
 	if "--rehber" in OS.get_cmdline_user_args():
@@ -213,10 +225,10 @@ func _ready() -> void:
 		await _wait(1.5)
 		w.open_simple_panel("res://scripts/ui/guide_panel.gd")
 		await _wait(0.6)
-		_shot("rehber")
+		await _shot("rehber")
 		w.panel._select(3)
 		await _wait(0.4)
-		_shot("rehber_ulasim")
+		await _shot("rehber_ulasim")
 		get_tree().quit()
 		return
 	if "--otogar" in OS.get_cmdline_user_args():
@@ -229,7 +241,7 @@ func _ready() -> void:
 			w.camera.zoom = Vector2(1.3, 1.3)
 			await _wait(1.2)
 			await _clear_toasts(w)
-			_shot("otogar_" + k)
+			await _shot("otogar_" + k)
 		get_tree().quit()
 		return
 	if "--sadece21" in OS.get_cmdline_user_args():
@@ -328,7 +340,7 @@ func _ready() -> void:
 		for i in kinds.size():
 			w.add_fx(kinds[i][0], c + Vector2(-300 + (i % 5) * 150, -60 + int(i / 5) * 160), kinds[i][1], kinds[i][2])
 		await _wait(0.22)
-		_shot("fx")
+		await _shot("fx")
 		get_tree().quit()
 		return
 	if "--olta3" in OS.get_cmdline_user_args():
@@ -343,22 +355,22 @@ func _ready() -> void:
 		Jobs._set_fishing(1, "cast")
 		for t in [0.15, 0.3, 0.5, 0.75, 1.4]:
 			await _wait(t - (0.0 if t == 0.15 else 0.0))
-			_shot("o3_cast_%d" % int(t * 100))
+			await _shot("o3_cast_%d" % int(t * 100))
 		Jobs._set_fishing(1, "bite")
 		await _wait(0.4)
-		_shot("o3_bite")
+		await _shot("o3_bite")
 		Jobs._set_fishing(1, "caught")
 		await _wait(0.35)
-		_shot("o3_caught_a")
+		await _shot("o3_caught_a")
 		await _wait(0.8)
-		_shot("o3_caught_b")
+		await _shot("o3_caught_b")
 		Jobs._set_fishing(1, "")
 		await _wait(0.2)
 		Jobs._set_fishing(1, "cast")
 		await _wait(1.0)
 		Jobs._set_fishing(1, "escaped")
 		await _wait(0.4)
-		_shot("o3_escaped")
+		await _shot("o3_escaped")
 		get_tree().quit()
 		return
 	if "--olta2" in OS.get_cmdline_user_args():
@@ -375,7 +387,7 @@ func _ready() -> void:
 			await _wait(0.4)
 			w.panel._on_action()
 			await _wait(1.2)
-			_shot("o2_" + k)
+			await _shot("o2_" + k)
 			print("O2 ", k, " zone=", w.zone, " fishing=", Net.roster[1].get("fishing", "-"), " pos=", w.my_pos)
 			w._close_panel()
 			Jobs._fish.clear()
@@ -403,10 +415,10 @@ func _ready() -> void:
 	Net.send_chat("Selam! Pokere gelen var mı?")
 	w.my_pos = Vector2(1220, 600)
 	await _wait(1.5)
-	_shot("sehir")
+	await _shot("sehir")
 	w.my_pos = Vector2(1630, 300)
 	await _wait(1.0)
-	_shot("sehir2")
+	await _shot("sehir2")
 	# Vitrin: farklı seviyelerde arsalar ve farklı yönlere yürüyen sahte oyuncular
 	var owners := ["Ayşe", "Mehmet", "Zeynep", "Can"]
 	for i in 4:
@@ -431,11 +443,11 @@ func _ready() -> void:
 			Net.positions[9001 + k] = start + Vector2(k * 55, 0) + dirs[k] * f * 1.5
 		await get_tree().process_frame
 		await get_tree().process_frame
-	_shot("karakterler")
+	await _shot("karakterler")
 	w.camera.zoom = Vector2(1, 1)
 	w.my_pos = Vector2(1500, 1000)
 	await _wait(1.2)
-	_shot("arsalar")
+	await _shot("arsalar")
 	# Plaj: biri yüzüyor, biri kumda, biri iskelede
 	Net.positions[9001] = Vector2(1250, 1960)
 	Net.positions[9002] = Vector2(1330, 1790)
@@ -443,10 +455,10 @@ func _ready() -> void:
 	Net.positions[9004] = Vector2(1180, 2010)
 	w.my_pos = Vector2(1400, 1880)
 	await _wait(1.5)
-	_shot("plaj")
+	await _shot("plaj")
 	w.open_character_editor()
 	await _wait(1.0)
-	_shot("karakter_duzenle")
+	await _shot("karakter_duzenle")
 	w._close_panel()
 	# RPG: biraz XP ve eşya, sonra Karakter Kartı ve market alışverişi
 	Rpg.add_xp(1, "fishing", 260)
@@ -463,13 +475,13 @@ func _ready() -> void:
 	await _wait(0.5)
 	w.open_profile()
 	await _wait(1.0)
-	_shot("profil")
+	await _shot("profil")
 	w._close_panel()
 	w.zone = {"type": "market", "label": "Market"}
 	w._open_panel()
 	w.panel._show(true)
 	await _wait(0.8)
-	_shot("magaza")
+	await _shot("magaza")
 	w._close_panel()
 	for k in 4:
 		Net.players.erase(9001 + k)
@@ -488,12 +500,12 @@ func _ready() -> void:
 			"market": Jobs.ask_market()
 			"fishing": Jobs.cast()
 		await _wait(3.4)
-		_shot(k)
+		await _shot(k)
 		w._close_panel()
 	w.zone = {"type": "poker", "label": "poker"}
 	w._open_panel()
 	await _wait(3.0)
-	_shot("poker")
+	await _shot("poker")
 	w._close_panel()
 	await _shots_04(w)
 	await _shots_05(w)
@@ -531,7 +543,7 @@ func _shots_cover(w) -> void:
 	w.camera.zoom = Vector2(1.1, 1.1)
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("kapak_sehir")
+	await _shot("kapak_sehir")
 	# korsan adası
 	Env.hour = 16.5
 	w.my_pos = Map.KORSAN.get_center() + Vector2(60, 20)
@@ -539,7 +551,7 @@ func _shots_cover(w) -> void:
 	Net.positions[9972] = Map.KORSAN.get_center() + Vector2(140, -20)
 	w.camera.zoom = Vector2(1.2, 1.2)
 	await _wait(1.6)
-	_shot("kapak_korsan")
+	await _shot("kapak_korsan")
 	# dağ köyü
 	Env.hour = 12.0
 	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(0, 70)
@@ -552,7 +564,7 @@ func _shots_cover(w) -> void:
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("kapak_dag")
+	await _shot("kapak_dag")
 	w.my_pos = Map.MOUNTAIN_BUILDINGS[1].rect.get_center() + Vector2(0, 80)
 	await _wait(0.3)
 	Mountain.go_down()
@@ -573,7 +585,7 @@ func _shots_cover(w) -> void:
 		Net.positions[9971] = Fair.seat_pos(3, Land.server_now())
 		await get_tree().process_frame
 	await _clear_toasts(w)
-	_shot("kapak_luna")
+	await _shot("kapak_luna")
 
 
 func _shots_15(w) -> void:
@@ -594,7 +606,7 @@ func _shots_15(w) -> void:
 	w.camera.zoom = Vector2(1.3, 1.3)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("iskele_tekneler")
+	await _shot("iskele_tekneler")
 	w.camera.zoom = Vector2(1, 1)
 	# Cadılar Bayramı gecesi
 	Holidays.force("cadilar")
@@ -613,7 +625,7 @@ func _shots_15(w) -> void:
 	w.camera.zoom = Vector2(1.4, 1.4)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("cadilar")
+	await _shot("cadilar")
 	w.camera.zoom = Vector2(1, 1)
 	for k in 3:
 		Net.players.erase(9961 + k)
@@ -630,7 +642,7 @@ func _shots_15(w) -> void:
 	w.camera.zoom = Vector2(1.5, 1.5)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("yilbasi")
+	await _shot("yilbasi")
 	w.camera.zoom = Vector2(1, 1)
 	Holidays.force("yok")
 	Env.hour = 13.0
@@ -645,7 +657,7 @@ func _shots_15(w) -> void:
 	await _wait(2.4)
 	Gym.lift()
 	await _wait(0.5)
-	_shot("spor_salonu")
+	await _shot("spor_salonu")
 	await _wait(9.0)
 	w._close_panel()
 	# maraton
@@ -662,7 +674,7 @@ func _shots_15(w) -> void:
 		w.my_moving = true
 		await get_tree().process_frame
 	await _clear_toasts(w)
-	_shot("maraton")
+	await _shot("maraton")
 	Gym._runs.clear()
 	Gym.run = {}
 	w.nav_target = null
@@ -683,7 +695,7 @@ func _shots_15(w) -> void:
 	await _wait(0.3)
 	w._open_panel()
 	await _wait(0.6)
-	_shot("hazine_haritasi")
+	await _shot("hazine_haritasi")
 	w._close_panel()
 	var spot := Vector2(float(rec.pirate.spot[0]), float(rec.pirate.spot[1]))
 	for off in [Vector2(-160, 40), Vector2(140, -30), Vector2(60, 80), Vector2(-60, -50)]:
@@ -696,7 +708,7 @@ func _shots_15(w) -> void:
 	w.camera.zoom = Vector2(1.1, 1.1)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("korsan_adasi")
+	await _shot("korsan_adasi")
 	w.camera.zoom = Vector2(1, 1)
 	# hayvanat bahçesi ve akvaryum
 	Env.hour = 12.0
@@ -712,11 +724,11 @@ func _shots_15(w) -> void:
 	w.camera.zoom = Vector2(0.8, 0.8)
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("hayvanat_bahcesi")
+	await _shot("hayvanat_bahcesi")
 	w.camera.zoom = Vector2(1.6, 1.6)
 	w.my_pos = Zoo.pen_front("zurafa") + Vector2(-120, -40)
 	await _wait(1.2)
-	_shot("zurafa")
+	await _shot("zurafa")
 	w.camera.zoom = Vector2(1, 1)
 	for n in ["Sazan", "Levrek", "Lüfer", "Kalkan", "Alabalık", "Orkinos", "Hamsi", "Kızılkanat", "Turna", "Palamut", "Köpekbalığı"]:
 		Museum._data()["fish:" + n] = {"by": "Eren", "d": "2026-10-26"}
@@ -725,7 +737,7 @@ func _shots_15(w) -> void:
 	await _wait(0.4)
 	w._open_panel()
 	await _wait(1.2)
-	_shot("akvaryum")
+	await _shot("akvaryum")
 	w._close_panel()
 
 
@@ -749,7 +761,7 @@ func _shots_14(w) -> void:
 	await _wait(0.3)
 	School.start_exam("surucu")
 	await _wait(0.6)
-	_shot("okul_sinav")
+	await _shot("okul_sinav")
 	w._close_panel()
 	# dedektif: vaka, ipucu ve şüpheli
 	w.my_pos = Map.DETECTIVE + Vector2(0, 40)
@@ -770,13 +782,13 @@ func _shots_14(w) -> void:
 	w.camera.zoom = Vector2(1.4, 1.4)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("dedektif_supheli")
+	await _shot("dedektif_supheli")
 	w.camera.zoom = Vector2(1, 1)
 	w.my_pos = Map.DETECTIVE + Vector2(0, 40)
 	await _wait(0.4)
 	w._open_panel()
 	await _wait(0.6)
-	_shot("dedektif_dosya")
+	await _shot("dedektif_dosya")
 	w._close_panel()
 	# fuar
 	w.my_pos = Map.SHUTTLE_CITY + Vector2(0, 20)
@@ -810,11 +822,11 @@ func _shots_14(w) -> void:
 	w.my_pos = Map.BUMPER.get_center() + Vector2(-200, 120)
 	await _wait(0.8)
 	await _clear_toasts(w)
-	_shot("lunapark")
+	await _shot("lunapark")
 	w.camera.zoom = Vector2(1.4, 1.4)
 	w.my_pos = Map.BUMPER.get_center() + Vector2(40, 30)
 	await _wait(0.8)
-	_shot("carpisan")
+	await _shot("carpisan")
 	Fair._bumper[1].end = 0.0
 	await _wait(0.4)
 	w.camera.zoom = Vector2(1, 1)
@@ -825,7 +837,7 @@ func _shots_14(w) -> void:
 	w.camera.zoom = Vector2(1.2, 1.2)
 	await _wait(0.8)
 	await _clear_toasts(w)
-	_shot("donme_dolap")
+	await _shot("donme_dolap")
 	Fair._ferris[1] = 0.0
 	await _wait(0.4)
 	w.camera.zoom = Vector2(1, 1)
@@ -843,7 +855,7 @@ func _shots_14(w) -> void:
 			Fair.shoot(int(tg.id))
 			break
 	await _wait(0.3)
-	_shot("atis_poligonu")
+	await _shot("atis_poligonu")
 	w._close_panel()
 	Fair._data(Net.save_data.players["Eren"])["bilet"] = 64
 	Fair.send_state(1)
@@ -851,7 +863,7 @@ func _shots_14(w) -> void:
 	await _wait(0.4)
 	w._open_panel()
 	await _wait(0.5)
-	_shot("odul_standi")
+	await _shot("odul_standi")
 	w._close_panel()
 	# havalimanı
 	w.my_pos = Map.FAIR_BUILDINGS[0].rect.get_center() + Vector2(220, 240)
@@ -860,7 +872,7 @@ func _shots_14(w) -> void:
 	await _clear_toasts(w)
 	w.camera.zoom = Vector2(0.75, 0.75)
 	await _wait(0.6)
-	_shot("havalimani")
+	await _shot("havalimani")
 	w.camera.zoom = Vector2(1, 1)
 	# balon turu
 	w.my_pos = Map.BALLOON_FIELD + Vector2(0, 60)
@@ -868,7 +880,7 @@ func _shots_14(w) -> void:
 	Airport.ride_balloon()
 	await _wait(14.0)
 	await _clear_toasts(w)
-	_shot("balon")
+	await _shot("balon")
 	Airport._balloon[1] = 0.0
 	await _wait(0.6)
 	# uçuş
@@ -876,7 +888,7 @@ func _shots_14(w) -> void:
 	await _wait(0.3)
 	Airport.fly("ada")
 	await _wait(1.4)
-	_shot("ucus")
+	await _shot("ucus")
 	await _wait(2.5)
 
 
@@ -900,13 +912,13 @@ func _shots_13(w) -> void:
 	Jobs._set_fishing(1, "cast")
 	await _wait(0.45)
 	await _clear_toasts(w)
-	_shot("olta_atis")
+	await _shot("olta_atis")
 	Jobs._set_fishing(1, "bite")
 	await _wait(0.35)
-	_shot("olta_vurdu")
+	await _shot("olta_vurdu")
 	Jobs._set_fishing(1, "caught")
 	await _wait(1.0)
-	_shot("olta_cekis")
+	await _shot("olta_cekis")
 	Jobs._set_fishing(1, "")
 	w.camera.zoom = Vector2(1, 1)
 	# telefon
@@ -928,7 +940,7 @@ func _shots_13(w) -> void:
 	await _wait(0.4)
 	w.panel._open_chat("Ayşe")
 	await _wait(0.5)
-	_shot("telefon")
+	await _shot("telefon")
 	w._close_panel()
 	# fotoğraf modu (vintage)
 	w.my_pos = Map.FOUNTAIN + Vector2(80, 60)
@@ -938,7 +950,7 @@ func _shots_13(w) -> void:
 	w.photo_filter = 5
 	w._update_photo_hint()
 	await _wait(0.5)
-	_shot("foto_modu")
+	await _shot("foto_modu")
 	w.set_photo_mode(false)
 	Env.hour = 13.0
 	# takas (örnek görünüm)
@@ -951,7 +963,7 @@ func _shots_13(w) -> void:
 	await _wait(0.2)
 	w._on_trade_open(Trade.view)
 	await _wait(0.6)
-	_shot("takas")
+	await _shot("takas")
 	Trade.view = {}
 	w._close_panel()
 	# hara: ata binmiş oyuncu ve padok
@@ -974,7 +986,7 @@ func _shots_13(w) -> void:
 		w.my_moving = true
 		await get_tree().process_frame
 	await _clear_toasts(w)
-	_shot("hara")
+	await _shot("hara")
 	w.camera.zoom = Vector2(1, 1)
 	Garage.ride("")
 	# hipodrom yarışı
@@ -991,12 +1003,12 @@ func _shots_13(w) -> void:
 	w.camera.zoom = Vector2(1.2, 1.2)
 	await _wait(0.6)
 	await _clear_toasts(w)
-	_shot("hipodrom")
+	await _shot("hipodrom")
 	w.camera.zoom = Vector2(1, 1)
 	w.zone = {"type": "hipodrom", "label": "x"}
 	w._open_panel()
 	await _wait(0.6)
-	_shot("hipodrom_panel")
+	await _shot("hipodrom_panel")
 	w._close_panel()
 	await _wait(12.0)
 	# kamp (gece)
@@ -1034,7 +1046,7 @@ func _shots_13(w) -> void:
 	w.camera.zoom = Vector2(1.5, 1.5)
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("kamp")
+	await _shot("kamp")
 	w.camera.zoom = Vector2(1, 1)
 	# teleskop
 	w.my_pos = Map.TELESCOPE + Vector2(0, 40)
@@ -1043,7 +1055,7 @@ func _shots_13(w) -> void:
 	await _wait(0.3)
 	Camp.on_star({"a": 0.15, "b": 0.12})
 	await _wait(0.5)
-	_shot("teleskop")
+	await _shot("teleskop")
 	w._close_panel()
 	# orman ürünleri (gündüz)
 	Env.hour = 11.0
@@ -1052,7 +1064,7 @@ func _shots_13(w) -> void:
 	w.camera.zoom = Vector2(1.6, 1.6)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("orman")
+	await _shot("orman")
 	w.camera.zoom = Vector2(1, 1)
 
 
@@ -1074,7 +1086,7 @@ func _shots_12(w) -> void:
 	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(-60, 120)
 	await _wait(1.4)
 	await _clear_toasts(w)
-	_shot("teleferik")
+	await _shot("teleferik")
 	# dağ köyü
 	w.my_pos = Map.building("teleferik").rect.get_center() + Vector2(0, 70)
 	await _wait(0.3)
@@ -1095,7 +1107,7 @@ func _shots_12(w) -> void:
 	Net._broadcast_roster()
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("dag_koyu")
+	await _shot("dag_koyu")
 	# maden ocağı
 	var r: Dictionary = Mountain.rocks[0]
 	for x in Mountain.rocks:
@@ -1109,7 +1121,7 @@ func _shots_12(w) -> void:
 	w.camera.zoom = Vector2(1.3, 1.3)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("maden")
+	await _shot("maden")
 	w.camera.zoom = Vector2(1, 1)
 	# kayak
 	Env.force_season("winter")
@@ -1124,7 +1136,7 @@ func _shots_12(w) -> void:
 	Net._broadcast_roster()
 	await _wait(0.6)
 	await _clear_toasts(w)
-	_shot("kayak")
+	await _shot("kayak")
 	Mountain.ski_stop()
 	await _wait(0.3)
 	Net.players[9702]["ride"] = ""
@@ -1138,7 +1150,7 @@ func _shots_12(w) -> void:
 	await _wait(0.4)
 	w._open_panel()
 	await _wait(0.6)
-	_shot("dag_evi")
+	await _shot("dag_evi")
 	w._close_panel()
 	for id in [9701, 9702]:
 		Net.players.erase(id)
@@ -1165,11 +1177,11 @@ func _shots_12(w) -> void:
 	w.camera.zoom = Vector2(1.1, 1.1)
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("muze_dis")
+	await _shot("muze_dis")
 	w.camera.zoom = Vector2(1, 1)
 	w._open_panel()
 	await _wait(0.8)
-	_shot("muze")
+	await _shot("muze")
 	w._close_panel()
 	# restoran menüsü
 	var bp := 5
@@ -1197,7 +1209,7 @@ func _shots_12(w) -> void:
 	w.zone = {"type": "realestate", "label": "x", "plot": bp}
 	w._open_panel()
 	await _wait(0.8)
-	_shot("restoran_menu")
+	await _shot("restoran_menu")
 	w._close_panel()
 	# konser (akşam)
 	Env.hour = 18.4
@@ -1219,7 +1231,7 @@ func _shots_12(w) -> void:
 	w.camera.zoom = Vector2(1.5, 1.5)
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("konser")
+	await _shot("konser")
 	w.camera.zoom = Vector2(1, 1)
 	w.zone = {"type": "stage", "label": "x"}
 	w._open_panel()
@@ -1239,7 +1251,7 @@ func _shots_12(w) -> void:
 			await _wait(wt)
 		w.panel._lane_pressed(int(nts[i][1]))
 	await _wait(0.12)
-	_shot("ritim")
+	await _shot("ritim")
 	w._close_panel()
 
 
@@ -1270,14 +1282,14 @@ func _shots_11(w) -> void:
 	w.camera.zoom = Vector2(1.6, 1.6)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("ahir")
+	await _shot("ahir")
 	w.camera.zoom = Vector2(1, 1)
 	w.my_pos = Map.plot_rect(rp).get_center()
 	await _wait(0.3)
 	w.zone = {"type": "realestate", "label": "x", "plot": rp}
 	w._open_panel()
 	await _wait(0.8)
-	_shot("ahir_panel")
+	await _shot("ahir_panel")
 	w._close_panel()
 	# boyalı ev ve araba
 	var hp := 7
@@ -1302,7 +1314,7 @@ func _shots_11(w) -> void:
 	w.zone = {"type": "galeri", "label": "Galeri"}
 	w._open_panel()
 	await _wait(0.8)
-	_shot("galeri_ozellestir")
+	await _shot("galeri_ozellestir")
 	w._close_panel()
 	w.my_pos = Map.plot_rect(hp).get_center() + Vector2(0, 95)
 	await _wait(0.3)
@@ -1310,7 +1322,7 @@ func _shots_11(w) -> void:
 	w.camera.zoom = Vector2(1.5, 1.5)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("boyali_ev_araba")
+	await _shot("boyali_ev_araba")
 	w.camera.zoom = Vector2(1, 1)
 	Garage.ride("")
 	await _wait(0.3)
@@ -1337,7 +1349,7 @@ func _shots_11(w) -> void:
 	w.panel = null
 	w._open_panel()
 	await _wait(0.8)
-	_shot("mutfak")
+	await _shot("mutfak")
 	w._close_panel()
 	Rpg.use("menemen")
 	await _wait(0.3)
@@ -1359,11 +1371,11 @@ func _shots_11(w) -> void:
 	w.my_pos = Vector2(Map.SEA_BED.position.x + 1100, Map.SEA_BED.end.y - 180)
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("deniz_alti")
+	await _shot("deniz_alti")
 	w.my_pos = Map.WRECK + Vector2(-120, -60)
 	await _wait(1.4)
 	await _clear_toasts(w)
-	_shot("batik_gemi")
+	await _shot("batik_gemi")
 	Dive.surface()
 	await _wait(0.4)
 
@@ -1386,7 +1398,7 @@ func _shots_10(w) -> void:
 	# feribot iskelesi ve gemi
 	w.my_pos = Map.FERRY_STOPS.sehir[1] + Vector2(60, -120)
 	await _wait(1.5)
-	_shot("feribot")
+	await _shot("feribot")
 	# Sanayi Limanı: vinçler, konteynerler
 	w.my_pos = Map.FERRY_STOPS.liman[1]
 	await _wait(0.2)
@@ -1394,17 +1406,17 @@ func _shots_10(w) -> void:
 	await _wait(0.5)
 	w.my_pos = Vector2(1900, 3700)
 	await _wait(1.5)
-	_shot("liman")
+	await _shot("liman")
 	# fabrika
 	w.my_pos = Map.building("fabrika").rect.get_center() + Vector2(120, 170)
 	await _wait(1.2)
-	_shot("fabrika_dis")
+	await _shot("fabrika_dis")
 	w.zone = {"type": "fabrika", "label": "x"}
 	w._open_panel()
 	await _wait(0.3)
 	w.panel._start()
 	await _wait(0.9)
-	_shot("fabrika")
+	await _shot("fabrika")
 	w._close_panel()
 	# lig
 	League.add(1, "fish", 4200.0)
@@ -1427,10 +1439,10 @@ func _shots_10(w) -> void:
 	await _wait(0.3)
 	w.panel._show("fish")
 	await _wait(0.6)
-	_shot("lig")
+	await _shot("lig")
 	w.panel._show("wall")
 	await _wait(0.6)
-	_shot("sampiyonlar")
+	await _shot("sampiyonlar")
 	w._close_panel()
 
 
@@ -1446,19 +1458,19 @@ func _shots_09(w) -> void:
 	Tutorial.start(w.ui_layer, true)
 	w.my_pos = Vector2(523, 520)
 	await _wait(1.5)
-	_shot("nehir")
+	await _shot("nehir")
 	Tutorial.finish()
 	# park, çeşme, saat kulesi
 	w.my_pos = Map.FOUNTAIN + Vector2(120, 70)
 	Env.hour = 17.5
 	await _wait(1.5)
-	_shot("park")
+	await _shot("park")
 	Env.hour = 12.0
 	# otobüs: güzergâhta gelirken (saati otobüs durağa yakın olacak şekilde seçemeyiz; otobüsün olduğu yere git)
 	var bus := Map.bus_at(Land.server_now() + 2.0)
 	w.my_pos = bus[0] + Vector2(0, 70)
 	await _wait(1.5)
-	_shot("otobus")
+	await _shot("otobus")
 	# taksi
 	w.my_pos = Map.building("galeri").rect.get_center()
 	await _wait(0.2)
@@ -1474,7 +1486,7 @@ func _shots_09(w) -> void:
 	w.my_pos = pk + Vector2(170, 30)
 	w.my_facing = "left"
 	await _wait(1.2)
-	_shot("taksi")
+	await _shot("taksi")
 	Work.quit_job()
 	Garage.ride("")
 	await _wait(0.3)
@@ -1489,7 +1501,7 @@ func _shots_09(w) -> void:
 	w.my_pos = Vector2(float(f.x), float(f.y)) + Vector2(-70, 50)
 	w.my_facing = "right"
 	await _wait(1.5)
-	_shot("yangin")
+	await _shot("yangin")
 	for _k in 30:
 		Work.spray(int(f.id))
 	Work.fire_duty(false)
@@ -1500,7 +1512,7 @@ func _shots_09(w) -> void:
 	await _wait(0.3)
 	w.my_pos = Map.RECYCLE + Vector2(60, -40)
 	await _wait(1.2)
-	_shot("geri_donusum")
+	await _shot("geri_donusum")
 	# parti
 	var plot := 4
 	w.my_pos = Map.plot_rect(plot).get_center()
@@ -1529,19 +1541,19 @@ func _shots_09(w) -> void:
 	await _wait(0.5)
 	w.my_pos = Map.interior_rect(plot, 2).get_center() + Vector2(-40, 60)
 	await _wait(1.2)
-	_shot("parti")
+	await _shot("parti")
 	w.zone = {"type": "home", "label": "x", "plot": plot}
 	w.panel = null
 	w._open_panel()
 	await _wait(0.6)
-	_shot("parti_panel")
+	await _shot("parti_panel")
 	w._close_panel()
 	Homes.exit_home()
 	await _wait(0.4)
 	# ayarlar
 	w.open_settings()
 	await _wait(0.6)
-	_shot("ayarlar")
+	await _shot("ayarlar")
 	w._close_panel()
 
 
@@ -1573,7 +1585,7 @@ func _shots_08(w) -> void:
 	await _wait(0.4)
 	w.open_simple_panel("res://scripts/ui/ach_panel.gd")
 	await _wait(0.8)
-	_shot("basarim")
+	await _shot("basarim")
 	w._close_panel()
 	# plaj futbolu
 	var f: Rect2 = Football.FIELD
@@ -1587,7 +1599,7 @@ func _shots_08(w) -> void:
 	Football.vel = Vector2(120, -40)
 	w.camera.zoom = Vector2(1.3, 1.3)
 	await _wait(1.5)
-	_shot("futbol")
+	await _shot("futbol")
 	w.camera.zoom = Vector2(1, 1)
 	# langırt
 	w.my_pos = Langirt.POS + Vector2(0, 50)
@@ -1597,7 +1609,7 @@ func _shots_08(w) -> void:
 	w.zone = {"type": "langirt", "label": "x"}
 	w._open_panel()
 	await _wait(1.2)
-	_shot("langirt")
+	await _shot("langirt")
 	w._close_panel()
 	Langirt.leave()
 	# dondurmacı ve kiralık tekne
@@ -1621,7 +1633,7 @@ func _shots_08(w) -> void:
 	Net.players[9502]["fishing"] = "cast"
 	Net._broadcast_roster()
 	await _wait(2.0)
-	_shot("ada")
+	await _shot("ada")
 	Env.hour = 12.0
 	Net.players[9502]["fishing"] = ""
 	Garage.ride("")
@@ -1631,10 +1643,10 @@ func _shots_08(w) -> void:
 	await _wait(0.3)
 	w.set_nav(Map.building("carsi").rect.get_center() + Vector2(0, 130))
 	await _wait(1.0)
-	_shot("navigasyon")
+	await _shot("navigasyon")
 	w.open_map()
 	await _wait(0.8)
-	_shot("harita")
+	await _shot("harita")
 	w._close_panel()
 	w.nav_target = null
 	# kış: kardan adamlar, kartopu, sis
@@ -1657,15 +1669,15 @@ func _shots_08(w) -> void:
 	Seasonal._last_throw.clear()
 	Seasonal.throw(Vector2(1, 0))
 	await _wait(0.25)
-	_shot("kis_kartopu")
+	await _shot("kis_kartopu")
 	Env.force_weather("fog")
 	await _wait(1.0)
-	_shot("sis")
+	await _shot("sis")
 	Env.force_season("spring")
 	Env.force_weather("rainbow")
 	w.my_pos = Map.SPAWN + Vector2(300, 600)
 	await _wait(1.2)
-	_shot("gokkusagi")
+	await _shot("gokkusagi")
 	Env.force_weather("clear")
 	for k in 4:
 		Net.players.erase(9501 + k)
@@ -1693,12 +1705,12 @@ func _shots_rod(w) -> void:
 	await _wait(0.5)
 	Jobs.cast()
 	await _wait(1.2)
-	_shot("olta_gol")
+	await _shot("olta_gol")
 	# yakalama anı
 	Net.players[9401]["fishing"] = "caught"
 	Net._broadcast_roster()
 	await _wait(0.35)
-	_shot("olta_yakaladi")
+	await _shot("olta_yakaladi")
 	# deniz iskelesi
 	Jobs._fish.clear()
 	w.my_pos = Map.PIER_END.get_center() + Vector2(0, 40)
@@ -1709,12 +1721,12 @@ func _shots_rod(w) -> void:
 	await _wait(0.3)
 	Jobs.cast()
 	await _wait(1.0)
-	_shot("olta_deniz")
+	await _shot("olta_deniz")
 	w.camera.zoom = Vector2(1, 1)
 	w.zone = {"type": "fishing", "label": "x"}
 	w._open_panel()
 	await _wait(0.6)
-	_shot("olta_panel")
+	await _shot("olta_panel")
 	w._close_panel()
 
 
@@ -1737,7 +1749,7 @@ func _shots_07(w) -> void:
 	await _wait(0.3)
 	w.panel._try_on("hat", 5)
 	await _wait(0.8)
-	_shot("carsi")
+	await _shot("carsi")
 	w._close_panel()
 	var app: Dictionary = Net.roster[1].appearance.duplicate()
 	app.hat = 2
@@ -1767,7 +1779,7 @@ func _shots_07(w) -> void:
 		await get_tree().process_frame
 		await get_tree().process_frame
 	await _wait(0.4)
-	_shot("aksesuar")
+	await _shot("aksesuar")
 	w.camera.zoom = Vector2(1, 1)
 	# banka ve borsa
 	w.my_pos = Map.building("banka").rect.get_center()
@@ -1785,10 +1797,10 @@ func _shots_07(w) -> void:
 	w.zone = {"type": "banka", "label": "x"}
 	w._open_panel()
 	await _wait(0.6)
-	_shot("banka")
+	await _shot("banka")
 	w.panel._show("stock")
 	await _wait(0.6)
-	_shot("borsa")
+	await _shot("borsa")
 	w._close_panel()
 	# seçim: aday ol, oyla, kazan
 	var now := Time.get_unix_time_from_system()
@@ -1810,7 +1822,7 @@ func _shots_07(w) -> void:
 	await _wait(0.3)
 	w.panel._show("town")
 	await _wait(0.6)
-	_shot("secim")
+	await _shot("secim")
 	w._close_panel()
 	Election.vote(Net.my_name)
 	Election._data().candidates["Zeynep"].votes = 0
@@ -1825,7 +1837,7 @@ func _shots_07(w) -> void:
 	await _wait(0.3)
 	w.panel._show("town")
 	await _wait(0.6)
-	_shot("baskan")
+	await _shot("baskan")
 	w._close_panel()
 	Election.debug_offset = 0.0
 	# düğün
@@ -1842,16 +1854,16 @@ func _shots_07(w) -> void:
 	Net.tell_all(Family, "on_wedding", {"pos": wp, "a": Net.my_name, "b": "Ayşe"})
 	w.camera.zoom = Vector2(1.4, 1.4)
 	await _wait(2.0)
-	_shot("dugun")
+	await _shot("dugun")
 	w.camera.zoom = Vector2(1, 1)
 	w.open_simple_panel("res://scripts/ui/family_panel.gd")
 	await _wait(0.6)
-	_shot("aile")
+	await _shot("aile")
 	w._close_panel()
 	# yeni binalar
 	w.my_pos = Map.building("banka").rect.get_center() + Vector2(-200, 120)
 	await _wait(1.5)
-	_shot("dogu07")
+	await _shot("dogu07")
 	for k in 4:
 		Net.players.erase(9301 + k)
 		Net.positions.erase(9301 + k)
@@ -1893,24 +1905,24 @@ func _shots_06(w) -> void:
 	w.my_pos = Map.plot_rect(plot).get_center() + Vector2(130, 110)
 	w.camera.zoom = Vector2(1.5, 1.5)
 	await _wait(1.5)
-	_shot("tarla")
+	await _shot("tarla")
 	w.camera.zoom = Vector2(1, 1)
 	w.my_pos = Map.plot_rect(plot).get_center()
 	await _wait(0.3)
 	w.zone = {"type": "realestate", "label": "x", "plot": plot}
 	w._open_panel()
 	await _wait(0.8)
-	_shot("tarla_panel")
+	await _shot("tarla_panel")
 	w._close_panel()
 	# mevsimler
 	Env.force_season("autumn")
 	w.my_pos = Vector2(1500, 300)
 	await _wait(1.2)
-	_shot("sonbahar")
+	await _shot("sonbahar")
 	Env.force_season("winter")
 	Env.force_weather("rain")
 	await _wait(1.5)
-	_shot("kis")
+	await _shot("kis")
 	Env.force_weather("clear")
 	Env.force_season("summer")
 	# klanlar ve sohbet
@@ -1930,7 +1942,7 @@ func _shots_06(w) -> void:
 	await _wait(0.5)
 	w.open_simple_panel("res://scripts/ui/clan_panel.gd")
 	await _wait(0.8)
-	_shot("klan")
+	await _shot("klan")
 	w._close_panel()
 	# sahte oyuncular: biri aranıyor, biri klanlı
 	var apps := [{"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}, {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}]
@@ -1955,7 +1967,7 @@ func _shots_06(w) -> void:
 	w.my_facing = "down"
 	Net.positions[9202] = Vector2(1020, 1220)
 	await _wait(1.5)
-	_shot("yaris")
+	await _shot("yaris")
 	Events.race_quit()
 	Garage.ride("")
 	await _wait(0.3)
@@ -1967,7 +1979,7 @@ func _shots_06(w) -> void:
 	Events._broadcast()
 	w.my_pos = Vector2(2000, 1560)
 	await _wait(1.5)
-	_shot("hazine")
+	await _shot("hazine")
 	Events._finish()
 	# festival gecesi
 	Events.start_event("festival")
@@ -1976,7 +1988,7 @@ func _shots_06(w) -> void:
 	Net.positions[9201] = Map.SPAWN + Vector2(120, 10)
 	Net.positions[9202] = Map.SPAWN + Vector2(-110, 30)
 	await _wait(3.0)
-	_shot("festival")
+	await _shot("festival")
 	Events._finish()
 	Env.hour = 12.0
 	# karakol: görevde polis, aranan oyuncu, devriye arabası
@@ -1991,13 +2003,13 @@ func _shots_06(w) -> void:
 	w.npc.cars[0].lane = 2
 	w.npc.cars[0].x = 2300.0
 	await _wait(1.5)
-	_shot("karakol")
+	await _shot("karakol")
 	w.zone = {"type": "karakol", "label": "x"}
 	w._open_panel()
 	await _wait(0.3)
 	w.panel._next_case()
 	await _wait(0.8)
-	_shot("karakol_panel")
+	await _shot("karakol_panel")
 	w._close_panel()
 	Police.set_duty(false)
 	await _wait(0.3)
@@ -2005,7 +2017,7 @@ func _shots_06(w) -> void:
 	Police.crime(Net.save_data.players[Net.my_name])["wanted"] = 2
 	Police.jail(1, 2, 0)
 	await _wait(1.5)
-	_shot("hapis")
+	await _shot("hapis")
 	Police.bail()
 	await _wait(0.5)
 	# etkinlik penceresi
@@ -2017,11 +2029,11 @@ func _shots_06(w) -> void:
 	await _wait(0.3)
 	w.open_simple_panel("res://scripts/ui/event_panel.gd")
 	await _wait(0.8)
-	_shot("etkinlik")
+	await _shot("etkinlik")
 	w._close_panel()
 	w.open_profile()
 	await _wait(0.8)
-	_shot("profil06")
+	await _shot("profil06")
 	w._close_panel()
 
 
@@ -2042,7 +2054,7 @@ func _shots_05(w) -> void:
 	w.zone = {"type": "petshop", "label": "x"}
 	w._open_panel()
 	await _wait(0.8)
-	_shot("evcil_panel")
+	await _shot("evcil_panel")
 	w._close_panel()
 	# işletme: arsaya büfe → kafe, malzeme, müşteriler
 	var plot := 6
@@ -2061,11 +2073,11 @@ func _shots_05(w) -> void:
 	await _wait(0.3)
 	w.my_pos = Map.plot_rect(plot).get_center() + Vector2(0, 70)
 	await _wait(3.5)
-	_shot("isletme")
+	await _shot("isletme")
 	w.zone = {"type": "realestate", "label": "x", "plot": plot}
 	w._open_panel()
 	await _wait(0.8)
-	_shot("isletme_panel")
+	await _shot("isletme_panel")
 	w._close_panel()
 	# doğu mahallesi, muhtar ve NPC'ler
 	Net.save_data.players[Net.my_name]["story"] = {"step": 0, "count": 0, "accepted": false}
@@ -2073,14 +2085,14 @@ func _shots_05(w) -> void:
 	w.my_pos = Map.NPCS.muhtar.pos + Vector2(-90, 30)
 	w.my_facing = "right"
 	await _wait(2.0)
-	_shot("muhtar")
+	await _shot("muhtar")
 	Story.talk("muhtar")
 	await _wait(0.8)
-	_shot("diyalog")
+	await _shot("diyalog")
 	w._close_panel()
 	w.my_pos = Vector2(1300, 450)
 	await _wait(1.5)
-	_shot("sehir_npc")
+	await _shot("sehir_npc")
 
 
 func _shots_04(w) -> void:
@@ -2106,18 +2118,18 @@ func _shots_04(w) -> void:
 	w.my_pos = Vector2(1200, 470)
 	w.my_facing = "right"
 	await _wait(1.2)
-	_shot("araclar")
+	await _shot("araclar")
 	# gece
 	Env.hour = 22.0
 	await _wait(1.0)
-	_shot("gece")
+	await _shot("gece")
 	# fırtına
 	Env.hour = 15.0
 	Env.force_weather("storm")
 	Garage.ride("")
 	w.my_pos = Vector2(1400, 1800)
 	await _wait(1.5)
-	_shot("firtina")
+	await _shot("firtina")
 	Env.force_weather("clear")
 	# ev içi: ev kur, mobilya al ve yerleştir
 	var plot := 5
@@ -2148,10 +2160,10 @@ func _shots_04(w) -> void:
 	Net._broadcast_roster()
 	w.my_pos = Map.interior_rect(plot, 2).get_center() + Vector2(-60, 40)
 	await _wait(1.2)
-	_shot("ev")
+	await _shot("ev")
 	Env.hour = 23.0
 	await _wait(0.8)
-	_shot("ev_gece")
+	await _shot("ev_gece")
 	Env.hour = 13.0
 	w.panel = null
 	Homes.exit_home()
@@ -2167,12 +2179,12 @@ func _shots_04(w) -> void:
 	w.zone = {"type": "pazar", "label": "Pazar"}
 	w._open_panel()
 	await _wait(0.8)
-	_shot("pazar")
+	await _shot("pazar")
 	w._close_panel()
 	w.zone = {"type": "galeri", "label": "Galeri"}
 	w._open_panel()
 	await _wait(0.6)
-	_shot("galeri")
+	await _shot("galeri")
 	w._close_panel()
 
 
@@ -2217,7 +2229,7 @@ func _shots_16(w) -> void:
 	w.camera.zoom = Vector2(0.8, 0.8)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("okyanus_liman")
+	await _shot("okyanus_liman")
 	# ada çeşitleri
 	for t in ["volkanik", "buzul", "batik", "mangrov"]:
 		for i in isl:
@@ -2233,7 +2245,7 @@ func _shots_16(w) -> void:
 				w.camera.zoom = Vector2(0.75, 0.75)
 				await _wait(1.3)
 				await _clear_toasts(w)
-				_shot("okyanus_" + t)
+				await _shot("okyanus_" + t)
 				break
 	# fırtına
 	var sp: Vector2 = OM.ARRIVE + Vector2(1600, 1400)
@@ -2245,7 +2257,7 @@ func _shots_16(w) -> void:
 	Net.positions[9972] = sp + Vector2(200, 90)
 	await _wait(1.6)
 	await _clear_toasts(w)
-	_shot("okyanus_firtina")
+	await _shot("okyanus_firtina")
 	Ocean._storms = [{"p": OM.OCEAN.end - Vector2(900, 900), "v": Vector2.ZERO, "r": 300.0}]
 	# Kraken
 	Ocean.spawn_kraken()
@@ -2262,7 +2274,7 @@ func _shots_16(w) -> void:
 	w._harpoon()
 	await _wait(0.15)
 	await _clear_toasts(w)
-	_shot("okyanus_kraken")
+	await _shot("okyanus_kraken")
 	Ocean._kraken = {}
 	Ocean._broadcast_world()
 	# keşif haritası
@@ -2273,7 +2285,7 @@ func _shots_16(w) -> void:
 	await _wait(0.6)
 	w.open_ocean_map()
 	await _wait(0.8)
-	_shot("okyanus_harita")
+	await _shot("okyanus_harita")
 	w._close_panel()
 	w.camera.zoom = Vector2(1, 1)
 	for k in 3:
@@ -2315,7 +2327,7 @@ func _shots_17(w) -> void:
 	w.camera.zoom = Vector2(1.1, 1.1)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("tren_sehir")
+	await _shot("tren_sehir")
 	# --- dağ istasyonu, tren giriyor
 	Map.rail_shift = 6.0 - fposmod(Time.get_unix_time_from_system(), Map.RAIL_PERIOD)
 	Homes._teleport(me, Map.RAIL.dag.booth + Vector2(-40, 10))
@@ -2325,12 +2337,12 @@ func _shots_17(w) -> void:
 	w.camera.zoom = Vector2(0.9, 0.9)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("tren_dag")
+	await _shot("tren_dag")
 	# --- yolculuk
 	_rail_stop_shot()
 	Rail.board("fuar")
 	await _wait(2.5)
-	_shot("tren_yolculuk")
+	await _shot("tren_yolculuk")
 	await _wait(5.0)
 	Map.rail_shift = 0.0
 	# --- sinema dışı
@@ -2342,7 +2354,7 @@ func _shots_17(w) -> void:
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("sinema_dis")
+	await _shot("sinema_dis")
 	# --- film
 	Cinema.shift = 4.0 - fposmod(Time.get_unix_time_from_system(), Cinema.SESSION)
 	Cinema.buy_ticket()
@@ -2354,7 +2366,7 @@ func _shots_17(w) -> void:
 	Cinema.reaction.emit({"who": "Kerem", "k": "kahkaha"})
 	Cinema.reaction.emit({"who": "Ayşe", "k": "alkis"})
 	await _wait(0.6)
-	_shot("sinema_film")
+	await _shot("sinema_film")
 	w._close_panel()
 	# --- karaoke
 	w.zone = {"type": "sinema"}
@@ -2362,7 +2374,7 @@ func _shots_17(w) -> void:
 	await _wait(0.3)
 	Cinema.karaoke_start(1)
 	await _wait(6.2)
-	_shot("karaoke")
+	await _shot("karaoke")
 	Cinema.karaoke_finish([])
 	w._close_panel()
 	Cinema.shift = 0.0
@@ -2377,7 +2389,7 @@ func _shots_17(w) -> void:
 	Paint.fire(Vector2(1, -0.2))
 	await _wait(0.12)
 	await _clear_toasts(w)
-	_shot("paintball")
+	await _shot("paintball")
 	Paint._finish("")
 	await _wait(0.5)
 	Paint.leave_team()
@@ -2412,7 +2424,7 @@ func _shots_17(w) -> void:
 	w.camera.zoom = Vector2(0.85, 0.85)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("ozel_ada")
+	await _shot("ozel_ada")
 	# --- ticaret: liman paneli ve korsan baskını
 	var home: Dictionary = OM.islands()[0]
 	Homes._teleport(me, OM.pier_end(home) + Vector2(home.dock_dir) * 60.0)
@@ -2424,7 +2436,7 @@ func _shots_17(w) -> void:
 	w.zone = {"type": "ocean_fuel", "port": 0}
 	w._open_panel()
 	await _wait(0.6)
-	_shot("liman_ticaret")
+	await _shot("liman_ticaret")
 	w._close_panel()
 	var far := Vector2(20500, 4200)
 	Homes._teleport(me, far)
@@ -2444,7 +2456,7 @@ func _shots_17(w) -> void:
 	w._harpoon()
 	await _wait(0.15)
 	await _clear_toasts(w)
-	_shot("korsan_baskini")
+	await _shot("korsan_baskini")
 	Cargo._raids.clear()
 	Cargo._broadcast_raids()
 	# --- göl: kayık ve yüzenler
@@ -2468,7 +2480,7 @@ func _shots_17(w) -> void:
 	w.camera.zoom = Vector2(0.9, 0.9)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("gol_kayik")
+	await _shot("gol_kayik")
 	for k in 3:
 		Net.players.erase(9981 + k)
 		Net.positions.erase(9981 + k)
@@ -2505,7 +2517,7 @@ func _shots_18(w) -> void:
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("zindan_giris")
+	await _shot("zindan_giris")
 	# --- zindan katı: dört kişilik ekip
 	Combat.buy("kilic")
 	Homes._teleport(me, Map.DUNGEON_DOOR + Vector2(0, 40))
@@ -2533,7 +2545,7 @@ func _shots_18(w) -> void:
 	Combat.attack(Vector2.RIGHT)
 	await _wait(0.15)
 	await _clear_toasts(w)
-	_shot("zindan_kat")
+	await _shot("zindan_kat")
 	# --- boss
 	Combat.clear_zone(zn)
 	Combat.spawn(zn, "dragon", c + Vector2(260, 0), 1.0)
@@ -2548,7 +2560,7 @@ func _shots_18(w) -> void:
 	Combat.attack(Vector2.RIGHT)
 	await _wait(0.12)
 	await _clear_toasts(w)
-	_shot("zindan_boss")
+	await _shot("zindan_boss")
 	Combat.clear_zone(zn)
 	Dungeon._runs[slot].members = [Net.my_name]
 	Combat._hurt_player(me, 99999.0, zn)
@@ -2576,7 +2588,7 @@ func _shots_18(w) -> void:
 	await _wait(0.8)
 	w.camera.position = dp + Vector2(0, 160)
 	await _clear_toasts(w)
-	_shot("zombi_gecesi")
+	await _shot("zombi_gecesi")
 	Zombies.force_stop()
 	Env.hour = 12.0
 	Env.force_season("summer")
@@ -2591,13 +2603,13 @@ func _shots_18(w) -> void:
 	w.camera.zoom = Vector2(0.8, 0.8)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("uzay_ussu")
+	await _shot("uzay_ussu")
 	# --- roket yolculuğu
 	Homes._teleport(me, Map.SPACE_PAD + Vector2(0, 50))
 	await _wait(0.4)
 	Space.launch()
 	await _wait(3.4)
-	_shot("roket")
+	await _shot("roket")
 	await _wait(4.0)
 	# --- Ay
 	Net.save_data["moon_base"] = {"bayrak": {"rocks": 10, "he": 0}, "sera": {"rocks": 30, "he": 10}, "rasathane": {"rocks": 22, "he": 5}}
@@ -2611,14 +2623,14 @@ func _shots_18(w) -> void:
 	w.camera.zoom = Vector2(0.8, 0.8)
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("ay_ussu")
+	await _shot("ay_ussu")
 	Homes._teleport(me, rp + Vector2(-30, 50))
 	Net.positions[9981] = rp + Vector2(90, 40)
 	await _wait(0.8)
 	Space.mine(0)
 	await _wait(0.3)
 	await _clear_toasts(w)
-	_shot("ay_madeni")
+	await _shot("ay_madeni")
 	Homes._teleport(me, Map.MOON_PAD + Vector2(0, -40))
 	await _wait(0.4)
 	Space.launch()
@@ -2632,7 +2644,7 @@ func _shots_18(w) -> void:
 	w.camera.zoom = Vector2(0.9, 0.9)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("bowling_golf_dis")
+	await _shot("bowling_golf_dis")
 	# --- mini golf
 	Homes._teleport(me, Map.GOLF_BOOTH + Vector2(0, 40))
 	await _wait(0.4)
@@ -2654,7 +2666,7 @@ func _shots_18(w) -> void:
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(0.8)
 	await _clear_toasts(w)
-	_shot("mini_golf")
+	await _shot("mini_golf")
 	w.adv._drag = false
 	Golf.leave()
 	await _wait(0.6)
@@ -2675,7 +2687,7 @@ func _shots_18(w) -> void:
 	w.panel.press()
 	w.panel.press()
 	await _wait(1.25)
-	_shot("bowling")
+	await _shot("bowling")
 	w._close_panel()
 
 
@@ -2718,7 +2730,7 @@ func _shots_19(w) -> void:
 	w.camera.zoom = Vector2(0.95, 0.95)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("pazar_meydani")
+	await _shot("pazar_meydani")
 	# --- tuning garajı ve drift alanı
 	var t: Dictionary = Tuning._data(rec)
 	t["engine"] = 3
@@ -2744,7 +2756,7 @@ func _shots_19(w) -> void:
 	await _wait(0.2)
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(0.3)
-	_shot("tuning_drift")
+	await _shot("tuning_drift")
 	w.town.drifting = false
 	Garage.ride("")
 	# --- evcil hayvan parkı: parkur yarışı
@@ -2770,13 +2782,13 @@ func _shots_19(w) -> void:
 	w.camera.zoom = Vector2(1.1, 1.1)
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("parkur_yarisi")
+	await _shot("parkur_yarisi")
 	# --- güzellik şovu sonucu
 	Homes._teleport(me, Vector2(Map.PET_STAGE.get_center().x, Map.PET_STAGE.end.y + 30))
 	await _wait(0.6)
 	PetShow.enter_show()
 	await _wait(0.8)
-	_shot("guzellik_sovu")
+	await _shot("guzellik_sovu")
 	w._close_panel()
 	await _wait(5.0)
 	# --- sokak yarışı
@@ -2795,7 +2807,7 @@ func _shots_19(w) -> void:
 	Tuning.fire_nitro()
 	await _wait(0.6)
 	await _clear_toasts(w)
-	_shot("sokak_yarisi")
+	await _shot("sokak_yarisi")
 	Street._finish()
 	Garage.ride("")
 	await _wait(1.0)
@@ -2813,7 +2825,7 @@ func _shots_19(w) -> void:
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(6.0)
 	await _clear_toasts(w)
-	_shot("deprem")
+	await _shot("deprem")
 	Disasters.stop(false)
 	await _wait(0.4)
 	# --- sel ve yardım çadırı
@@ -2827,7 +2839,7 @@ func _shots_19(w) -> void:
 	Net.positions[9982] = Map.AID_TENT + Vector2(260, 30)
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("sel_yardim")
+	await _shot("sel_yardim")
 	Disasters.stop(false)
 	# --- kar fırtınası
 	Disasters.start("kar")
@@ -2840,7 +2852,7 @@ func _shots_19(w) -> void:
 	Net.positions[9981] = Map.SPAWN + Vector2(-140, 50)
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("kar_firtinasi")
+	await _shot("kar_firtinasi")
 	Disasters.stop(false)
 
 
@@ -2888,7 +2900,7 @@ func _shots_20(w) -> void:
 				kp._press(st)
 				break
 	await _wait(1.0)
-	_shot("mutfak_servisi")
+	await _shot("mutfak_servisi")
 	w._close_panel()
 	Chef._shifts.erase(me)
 	Land.plots[rp].owner = ""
@@ -2904,14 +2916,14 @@ func _shots_20(w) -> void:
 	w.camera.zoom = Vector2(0.85, 0.85)
 	await _wait(1.5)
 	await _clear_toasts(w)
-	_shot("akademi")
+	await _shot("akademi")
 	# --- denizaltı tersanesi
 	Homes._teleport(me, Map.SUB_DOCK + Vector2(-60, 60))
 	Net.positions[9981] = Map.SUB_DOCK + Vector2(100, 70)
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("denizalti_tersanesi")
+	await _shot("denizalti_tersanesi")
 	# --- Batık Şehir
 	Deep._data(rec)["sub"] = true
 	Deep._data(rec)["light_lv"] = 2
@@ -2925,17 +2937,17 @@ func _shots_20(w) -> void:
 	Homes._teleport(me, kc + Vector2(-160, 40))
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("batik_sehir")
+	await _shot("batik_sehir")
 	var dm: Dictionary = Deep.DOMES[0]
 	Homes._teleport(me, dm.c + Vector2(-80, 140))
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("hava_kubbesi")
+	await _shot("hava_kubbesi")
 	var sp = preload("res://scripts/ui/sub_panel.gd").new()
 	sp.mode = "book"
 	w.open_panel_node(sp)
 	await _wait(0.5)
-	_shot("ansiklopedi")
+	await _shot("ansiklopedi")
 	w._close_panel()
 	Deep.surface()
 	Homes._teleport(me, Map.DEEP_GATE + Vector2(20, 20))
@@ -2953,14 +2965,14 @@ func _shots_20(w) -> void:
 	w.camera.zoom = Vector2(0.8, 0.8)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("projeler_park")
+	await _shot("projeler_park")
 	Env.hour = 22.0
 	Zombies.force_stop()
 	Zombies._skipped_night = Zombies._night_key()
 	Homes._teleport(me, Vector2(860, 1030))
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("fiskiye_gece")
+	await _shot("fiskiye_gece")
 	Env.hour = 12.0
 	Election._data()["mayor"] = Net.my_name
 	Election._data()["treasury"] = 8400
@@ -2973,7 +2985,7 @@ func _shots_20(w) -> void:
 	w.zone = {"type": "v20", "do": "projects"}
 	w._open_panel()
 	await _wait(0.6)
-	_shot("projeler_paneli")
+	await _shot("projeler_paneli")
 	w._close_panel()
 	# --- festival
 	Festival.force(5.0)
@@ -2991,13 +3003,13 @@ func _shots_20(w) -> void:
 	fp.mode = "dance"
 	w.open_panel_node(fp)
 	await _wait(1.0)
-	_shot("festival_dans")
+	await _shot("festival_dans")
 	w._close_panel()
 	Env.hour = 22.5
 	w.v20._on_fireworks({"big": true})
 	await _wait(1.4)
 	await _clear_toasts(w)
-	_shot("festival_havai_fisek")
+	await _shot("festival_havai_fisek")
 	Festival.force_stop()
 	Env.hour = 12.0
 
@@ -3031,7 +3043,7 @@ func _shots_21(w) -> void:
 	w.camera.zoom = Vector2(1.0, 1.0)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("sehir_otoyol_girisi")
+	await _shot("sehir_otoyol_girisi")
 	# --- otoyol
 	Roads.enter_highway()
 	await _wait(0.6)
@@ -3040,15 +3052,15 @@ func _shots_21(w) -> void:
 	w.camera.zoom = Vector2(0.75, 0.75)
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("otoyol_sahil")
+	await _shot("otoyol_sahil")
 	Homes._teleport(me, Vector2(66500, Map.HWY_ROAD.position.y + 60))
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("otoyol_dag")
+	await _shot("otoyol_dag")
 	Homes._teleport(me, Map.HWY_REST.get_center() + Vector2(-200, -150))
 	await _wait(1.0)
 	await _clear_toasts(w)
-	_shot("dinlenme_tesisi")
+	await _shot("dinlenme_tesisi")
 	# --- Yalıkent
 	Homes._teleport(me, Vector2(Map.HWY_RAMPS.yalikent, Map.HWY_ROAD.position.y + 60))
 	await _wait(0.5)
@@ -3066,12 +3078,12 @@ func _shots_21(w) -> void:
 	w.camera.zoom = Vector2(0.7, 0.7)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("yalikent")
+	await _shot("yalikent")
 	Homes._teleport(me, Vector2(51000, 1350))
 	w.camera.zoom = Vector2(0.75, 0.75)
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("yalikent_carsi")
+	await _shot("yalikent_carsi")
 	# --- Çamlıbel
 	Garage.ride("")
 	await _wait(0.3)
@@ -3084,17 +3096,17 @@ func _shots_21(w) -> void:
 	Land._broadcast()
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("camlibel")
+	await _shot("camlibel")
 	Homes._teleport(me, Vector2(57500, 3120))
 	await _wait(1.2)
 	await _clear_toasts(w)
-	_shot("camlibel_kaplica")
+	await _shot("camlibel_kaplica")
 	# --- otobüs yolculuğu
 	Homes._teleport(me, Map.OTOGARS.camlibel + Vector2(0, 20))
 	await _wait(0.4)
 	Roads.take_bus("yalikent")
 	await _wait(3.0)
-	_shot("sehirlerarasi_otobus")
+	await _shot("sehirlerarasi_otobus")
 	await _wait(6.0)
 
 
@@ -3108,6 +3120,9 @@ func Players_on_highway(Map) -> void:
 
 
 func _shot(n: String) -> void:
+	if _tz != null:
+		await _tz.clip(n)
+		return
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(ProjectSettings.globalize_path("user://foto_%s.png" % n))
 

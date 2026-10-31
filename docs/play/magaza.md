@@ -1,6 +1,6 @@
 # Google Play — Mağaza kaydı (MyCity Online)
 
-Paket adı: `com.johntitor.mycityonline` · Sürüm: 2.1 (sürüm kodu 1)
+Paket adı: `com.johntitor.mycityonline` · Sürüm: 2.2 (sürüm kodu 2)
 
 ## Uygulama adı (en fazla 30 karakter)
 
