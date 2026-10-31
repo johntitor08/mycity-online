@@ -28,7 +28,7 @@ Kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — T
 - 🧟 **Zombi gecesi:** dolunay gecelerinde şehri savun, barikat kur, mahsur vatandaşları kurtar
 - 🚀 **Uzay üssü ve Ay:** roketini yap, Ay'a uç, Ay taşı kaz, herkesle birlikte Ay üssünü kur
 - ⛳ **Mini golf ve bowling:** 9 delikli golf sahası, gerçek puanlamalı bowling salonu
-- 🏙️ **Şehir:** 12 arsa, ev → villa → gökdelen, büfe → kafe → restoran, bina ve araba boyama
+- 🏙️ **Şehir:** 20 arsa, ev → villa → gökdelen, büfe → kafe → restoran, bina ve araba boyama
 - 💼 **Meslekler:** doktor, kasiyer, polis, itfaiyeci, taksi, kargo, çöpçü, fabrika işçisi, hayvanat bahçesi bakıcısı
 - 🎣 **Balıkçılık ve dalış:** göl, deniz, açık deniz, Martı Adası; deniz altında inci ve batık gemi
 - 🌊 **Açık Okyanus:** 30 ada (tropik, volkanik, buzul, batık şehir...), sandıklar ve hazineler, keşif haritası ve fenerler, fırtınalar ve dev **Kraken**
