@@ -25,6 +25,7 @@ func _ready() -> void:
 	Net.host("Eren", 7792, false, Net.hash_password("Eren", "foto1234"))
 	if _tz != null:
 		Holidays.force("yok")      # gerçek takvimdeki özel gün her klibe girmesin
+		Env.hour = 12.0            # saat klipte donuk: kayıt gece/sabah yapılsa da sahneler gündüz
 	await _wait(0.5)
 	var w = get_parent().world
 	if "--genel" in OS.get_cmdline_user_args():

@@ -173,6 +173,15 @@ func _ready() -> void:
 	RenderingServer.frame_post_draw.connect(func() -> void: _drawn += 1)
 
 
+## Kayıt sürerken pencereye giden tuş ve tıklamaları yut: başka bir pencereye yazılan bir "C" kayıt
+## penceresine düşüp Karakter Kartı'nı açmış, sonraki klipler o pencereyle kaydedilmişti.
+func _input(event: InputEvent) -> void:
+	if "--dokunmatik" in OS.get_cmdline_user_args():
+		return                     # o bölüm dokunuşları kodla simüle ediyor
+	if event is InputEventKey or event is InputEventMouseButton or event is InputEventScreenTouch:
+		get_viewport().set_input_as_handled()
+
+
 ## Kayda n kare daha yazılana kadar bekle (çizim durursa beklemeye devam eder).
 func _hold_frames(n: int) -> void:
 	var target := _drawn + n
