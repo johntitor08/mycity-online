@@ -11,7 +11,7 @@ const FAST := 10.0                 # siyah ekrandaki hazırlık hızı
 ## görüntü adı -> [etiket, yazı]. Listede olmayanlar videoya girmez.
 const CAPS := {
 	"sehir": ["ŞEHİR", "Arkadaşlarınla aynı şehirde yaşa"],
-	"karakterler": ["KARAKTER", "Kendi karakterini tasarla"],
+	"karakter_duzenle": ["KARAKTER", "Kendi karakterini tasarla"],     # (karakterler sahnesinde kamera hızlı hazırlığa yetişmiyordu)
 	"arsalar": ["ARSA", "Arsa al, evini gökdelene büyüt"],
 	"plaj": ["PLAJ", "Denizde yüz, iskelede balık tut"],
 	"hospital": ["MESLEKLER", "Doktor ol, teşhis koy"],
@@ -253,7 +253,12 @@ func _show(on_open: Callable, hold: float, open_alpha := 0.0, hide_ui := true) -
 				ui_was.append([c, c.visible])
 				c.visible = false
 	var z0 := cam.zoom if cam else Vector2.ONE
-	await get_tree().process_frame
+	# kamera karakteri yumuşak takip ediyor; hızlı hazırlıkta ışınlanmaya yetişemiyor ve klip bir önceki
+	# sahnenin yerinden başlıyordu: ekran karanlıkken yerine oturt
+	if cam and w != null and is_instance_valid(w):
+		cam.position = w.my_pos
+		cam.reset_smoothing()
+	await _hold_frames(2)
 	_clips += 1
 	print("KLIP_BASLA %d" % _drawn)
 	var tw := _tween()
@@ -319,9 +324,17 @@ func special(foto: Node) -> bool:
 	await foto._wait(1.5)
 	w.camera.reset_smoothing()
 	if opening:
+		# siyahtan açılmasın: şehir hafif karartılmış başlar, karakterler kaldırımda yürür
+		black.color.a = 0.45
+		Engine.time_scale = 1.0
+		var walk := _tween().set_parallel()
+		for k in 4:
+			var p0: Vector2 = Net.positions[9901 + k]
+			var dir := 1.0 if k % 2 == 0 else -1.0
+			walk.tween_method(func(v: Vector2) -> void: Net.positions[9901 + k] = v, p0, p0 + Vector2(dir * 170.0, 0), 5.2)
 		await _show(func():
 			_title([["MyCity Online", 96, Color.WHITE], ["arkadaşlarınla kendi şehrini kur", 32, Color("#facc15")],
-				["", 20, Color.WHITE], ["onlarca meslek  •  3 şehir  •  okyanus, dağ, uzay  •  hepsi aynı dünyada", 24, Color("#e2e8f0")]]), 4.2, 0.5)
+				["", 20, Color.WHITE], ["onlarca meslek  •  3 şehir  •  okyanus, dağ, uzay  •  hepsi aynı dünyada", 24, Color("#e2e8f0")]]), 4.2, 0.45)
 	else:
 		await _show(func():
 			_title([["MyCity Online", 96, Color.WHITE], ["Ücretsiz  •  Çok oyunculu  •  Windows · Linux · Android · Tarayıcı", 28, Color("#e2e8f0")],

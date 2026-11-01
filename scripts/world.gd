@@ -4452,7 +4452,8 @@ func _draw_sky() -> void:
 		riders.append([my_pos, me.get("appearance", {}), _name_of(me)])
 	for r in riders:
 		var p: Vector2 = r[0] + Vector2(0, -170 + sin(_t * 1.2) * 6.0)
-		var cols := [Color("#ef4444"), Color("#facc15"), Color("#3b82f6"), Color("#22c55e")]
+		# kırmızı balon: dilimler koyu/açık kırmızı (hacim için)
+		var cols := [Color("#ef4444"), Color("#dc2626"), Color("#f87171"), Color("#b91c1c")]
 		draw_set_transform(p + Vector2(0, -80), 0, Vector2(1.0, 1.15))
 		draw_circle(Vector2.ZERO, 66, cols[0])
 		for k in 4:
@@ -4603,10 +4604,9 @@ func _draw_fair() -> void:
 		var bp := bf + Vector2(-150 + k * 150, -40 + (k % 2) * 30)
 		if k == 1:
 			bp = bf
-		var cols := [Color("#ef4444"), Color("#3b82f6"), Color("#a855f7")]
 		draw_set_transform(bp + Vector2(0, -110 + sin(_t * 1.5 + k) * 5.0), 0, Vector2(1.0, 1.15))
-		draw_circle(Vector2.ZERO, 48, cols[k])
-		draw_colored_polygon(PackedVector2Array([Vector2(-16, -46), Vector2(16, -46), Vector2(10, 46), Vector2(-10, 46)]), Color("#facc15"))
+		draw_circle(Vector2.ZERO, 48, Color("#ef4444"))
+		draw_colored_polygon(PackedVector2Array([Vector2(-16, -46), Vector2(16, -46), Vector2(10, 46), Vector2(-10, 46)]), Color("#b91c1c"))
 		draw_set_transform(Vector2.ZERO)
 		draw_line(bp + Vector2(-16, -50), bp + Vector2(-12, -12), Color("#78350f"), 2)
 		draw_line(bp + Vector2(16, -50), bp + Vector2(12, -12), Color("#78350f"), 2)
