@@ -273,6 +273,8 @@ func _ready() -> void:
 	hud.events_requested.connect(open_simple_panel.bind("res://scripts/ui/event_panel.gd"))
 	hud.family_requested.connect(open_simple_panel.bind("res://scripts/ui/family_panel.gd"))
 	Family.proposal.connect(_on_proposal)
+	PetRole.asked.connect(_on_petrole_asked)
+	PetRole.acted.connect(_on_petrole_act)
 	hud.achievements_requested.connect(open_simple_panel.bind("res://scripts/ui/ach_panel.gd"))
 	hud.map_requested.connect(open_map)
 	hud.settings_requested.connect(open_settings)
@@ -358,6 +360,8 @@ func _process(delta: float) -> void:
 			dir.x -= 1
 		if Settings.held("right"):
 			dir.x += 1
+		if dir == Vector2.ZERO and PetRole.following and not PetRole.my_role().is_empty():
+			dir = _petrole_follow_dir()          # 2.4: evcil hayvan sahibini takip eder
 		if dir != Vector2.ZERO or my_ride() == "car" and town.coasting():
 			if dir != Vector2.ZERO:
 				my_facing = _facing_of(dir)
@@ -586,6 +590,10 @@ func _on_teleport(pos: Vector2) -> void:
 
 ## F: araca bin / in.
 func _toggle_vehicle() -> void:
+	if not PetRole.my_role().is_empty():
+		PetRole.following = not PetRole.following       # 2.4: evcil hayvan: F = sahibini takip et
+		hud.show_toast("Sahibini takip ediyorsun." if PetRole.following else "Takibi bıraktın.")
+		return
 	if v20.toggle_vehicle():
 		return
 	var ride := my_ride()
@@ -962,6 +970,9 @@ func _update_zone() -> void:
 
 ## G tuşu: görevdeki polis için tutuklama; diğerleri için yankesicilik ya da soygun.
 func _find_g_action() -> Dictionary:
+	var pr := PetRole.my_role()
+	if not pr.is_empty():
+		return {"kind": "petrole", "label": PetRole.SOUNDS.get(str(pr.kind), "Ses çıkar")}
 	var ag: Dictionary = adv.g_action()
 	if not ag.is_empty():
 		return ag
@@ -1013,6 +1024,9 @@ func _do_g_action() -> void:
 	match _g_action.kind:
 		"adv":
 			adv.do_g(_g_action)
+			return
+		"petrole":
+			PetRole.act("ses")
 			return
 		"knock":
 			Holidays.knock(str(_g_action.door))
@@ -3055,6 +3069,96 @@ func _draw_quest_npc(k: String) -> void:
 		_text(p + Vector2(-20, -74 + bob), m, 30, Color("#facc15") if m == "!" else Color("#4ade80"), 40)
 
 
+## 2.4: evcil hayvan rolündeki oyuncu hayvan olarak çizilir (normal evcil hayvandan iri), adının altında sahibi.
+func _draw_petrole(p: Vector2, r: Dictionary, pname: String, name_col: Color, facing: String, moving: bool) -> void:
+	var kind := str(r.get("kind", "cat"))
+	var tex: Texture2D = PET_TEX.get(kind)
+	draw_set_transform(p + Vector2(0, 4), 0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, 16, Color(0, 0, 0, 0.22))
+	var flying := kind == "parrot"
+	var lift := -22.0 + sin(_t * 3.0) * 3.0 if flying else 0.0
+	draw_set_transform(p + Vector2(0, lift), 0, Vector2(-1.5 if facing == "left" else 1.5, 1.5))
+	if tex != null:
+		var frame := int(_t * 8.0) % 2 if (moving or flying) else 0
+		draw_texture_rect_region(tex, Rect2(-20, -28, 40, 32), Rect2(frame * 80, 0, 80, 64))
+	draw_set_transform(Vector2.ZERO)
+	_text(p + Vector2(-100, -52 + lift), pname, 13, name_col, 200)
+	_text(p + Vector2(-100, -38 + lift), "%s · sahibi: %s" % [str(PetRole.KINDS.get(kind, "")), str(r.get("owner", ""))], 11, Color("#fbcfe8"), 200)
+
+
+## Kedi/köpek kulağı ve kuyruğu (karakterin kafasının ve belinin üstüne).
+func _draw_pet_costume(p: Vector2, kind: String, facing: String, moving: bool, swim: bool) -> void:
+	var fur := Color("#f59e0b") if kind == "cat" else Color("#92400e")
+	var inner := Color("#fbcfe8")
+	if not swim:
+		# kuyruk: yan tarafta, yürürken sallanır
+		var side := -1.0 if facing == "right" else 1.0
+		var wag := sin(_t * (9.0 if moving else 3.0)) * (6.0 if kind == "dog" else 3.0)
+		var base := p + Vector2(10.0 * side, -14)
+		if kind == "cat":
+			draw_polyline(PackedVector2Array([base, base + Vector2(8.0 * side, -2), base + Vector2(14.0 * side, -12 + wag * 0.5), base + Vector2(12.0 * side, -22 + wag)]), fur, 4.0)
+		else:
+			draw_line(base, base + Vector2(12.0 * side, -8 + wag), fur, 5.0)
+	# kulaklar (kafanın tepesi ~ y -50)
+	for s in [-1.0, 1.0]:
+		if kind == "cat":
+			var a := p + Vector2(4.0 * s, -48)
+			var b := p + Vector2(14.0 * s, -44)
+			var tip := p + Vector2(12.0 * s, -60)
+			draw_colored_polygon(PackedVector2Array([a, b, tip]), fur)
+			draw_colored_polygon(PackedVector2Array([a.lerp(b, 0.25), a.lerp(b, 0.75), a.lerp(tip, 0.6).lerp(b.lerp(tip, 0.6), 0.5)]), inner)
+		else:
+			var e := p + Vector2(14.0 * s, -40)
+			draw_set_transform(e, 0.35 * s, Vector2(0.55, 1.0))
+			draw_circle(Vector2.ZERO, 9.0, fur)
+			draw_set_transform(Vector2.ZERO)
+
+
+func _on_petrole_act(d: Dictionary) -> void:
+	var who := str(d.get("who", ""))
+	var pos: Vector2 = d.get("p", my_pos)
+	if who == Net.my_name:
+		pos = my_pos
+	else:
+		for id in shown:
+			if str(Net.roster.get(id, {}).get("name", "")) == who:
+				pos = shown[id]
+	match str(d.get("act", "")):
+		"ses":
+			add_fx("say", pos + Vector2(0, -64), 1.6, {"t": str(d.get("text", "!"))})
+			Sfx.play("click", -4.0, randf_range(1.4, 1.8))
+		"sev":
+			for k in 4:
+				add_fx("heart", pos + Vector2(-24 + k * 16, -50 - k * 4), 1.3 + k * 0.1)
+			Sfx.play("success", -10.0, 1.4)
+		"mama":
+			add_fx("say", pos + Vector2(0, -64), 1.6, {"t": "Mama! (%s verdi)" % str(d.get("by", ""))})
+			Sfx.play("cash", -8.0, 1.3)
+
+
+## Evcil hayvan rolünde takipteyken sahibine doğru yürü (yanındaysa dur).
+func _petrole_follow_dir() -> Vector2:
+	var owner := str(PetRole.my_role().get("owner", ""))
+	for id in shown:
+		if str(Net.roster.get(id, {}).get("name", "")) == owner:
+			var t: Vector2 = shown[id]
+			if t.distance_to(my_pos) > 90.0 and t.distance_to(my_pos) < 1500.0:
+				return (t - my_pos).normalized()
+	return Vector2.ZERO
+
+
+func _on_petrole_asked(from_name: String, kind: String, form: String = "hayvan") -> void:
+	if panel != null:
+		_close_panel()
+	panel = preload("res://scripts/ui/petrole_panel.gd").new()
+	panel.from_name = from_name
+	panel.kind = kind
+	panel.form = form
+	panel.closed.connect(_close_panel)
+	ui_layer.add_child(panel)
+	Sfx.play("notify")
+
+
 func _draw_pet(st: Dictionary, pet: Dictionary) -> void:
 	var tex: Texture2D = PET_TEX.get(pet.kind)
 	if tex == null:
@@ -3176,6 +3280,10 @@ func _name(p: Vector2, y: float, pname: String, col: Color, extra: Dictionary) -
 func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: String, moving: bool,
 		ride: String = "", col: Color = Color.WHITE, extra: Dictionary = {}) -> void:
 	var name_col := Color("#fde68a") if me else Color.WHITE
+	var pr := PetRole.role_of(extra)
+	if not pr.is_empty() and ride == "" and str(pr.get("form", "hayvan")) != "insan":
+		_draw_petrole(p, pr, pname, name_col, facing, moving)    # 2.4: evcil hayvan rolündeki oyuncu
+		return
 	match ride:
 		"car":
 			var ca := _vehicle_angle(pname, facing, me)
@@ -3247,6 +3355,9 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 	if moving:
 		frame = [1, 0, 2, 0][int(_t * (6.0 if swim else 9.0)) % 4]
 	Avatar.draw(self, p, app, facing, frame, 1.0, swim)
+	if not pr.is_empty():
+		_draw_pet_costume(p, str(pr.get("kind", "cat")), facing, moving, swim)      # 2.4: insan şeklinde evcil hayvan
+		_text(p + Vector2(-100, 22), "%s · sahibi: %s" % [str(PetRole.KINDS.get(str(pr.kind), "")), str(pr.get("owner", ""))], 11, Color("#fbcfe8"), 200)
 	if str(extra.get("playing", "")) != "":
 		_draw_instrument(p, str(extra.playing), facing)
 	if str(extra.get("costume", "")) != "":
@@ -3784,6 +3895,14 @@ func _draw_fx() -> void:
 		var u: float = clampf((_t - float(f.t0)) / float(f.dur), 0.0, 1.0)
 		var p: Vector2 = f.pos
 		match str(f.k):
+			"say":
+				_text(p + Vector2(-120, -u * 16.0), str(f.d.get("t", "")), 18, Color(1, 1, 1, 1.0 - u * u), 240)
+			"heart":
+				var hp := p + Vector2(sin(u * 6.0 + p.x) * 6.0, -u * 40.0)
+				var hc := Color(0.96, 0.3, 0.55, 1.0 - u)
+				draw_circle(hp + Vector2(-4, 0), 5, hc)
+				draw_circle(hp + Vector2(4, 0), 5, hc)
+				draw_colored_polygon(PackedVector2Array([hp + Vector2(-9, 2), hp + Vector2(9, 2), hp + Vector2(0, 12)]), hc)
 			"smoke":
 				draw_circle(p + Vector2(0, -u * 14.0), 4.0 + u * 8.0, Color(0.55, 0.55, 0.6, 0.45 * (1.0 - u)))
 			"harpoon":
@@ -5973,7 +6092,7 @@ func _draw_moored_kayik() -> void:
 	draw_rect(Rect2(sp.x - 2, sp.y - 34, 4, 34), Color("#5b3a1e"))
 	draw_rect(Rect2(sp.x - 46, sp.y - 58, 92, 26), Color("#fef3c7"))
 	draw_rect(Rect2(sp.x - 46, sp.y - 58, 92, 26), Color("#7c2d12"), false, 2)
-	_text(Vector2(sp.x - 46, sp.y - 52), "KAYIK (bedava)", 11, Color("#7c2d12"), 92, false)
+	_text(Vector2(sp.x - 46, sp.y - 58 + 13 + 11 * 0.36), "KAYIK (bedava)", 11, Color("#7c2d12"), 92, false)    # kutunun dikey ortası
 
 
 

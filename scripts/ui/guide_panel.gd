@@ -32,6 +32,7 @@ const TOPICS := [
 • [b]Teleferik:[/b] dağa; [b]Havalimanı[/b] (lunaparkta): okyanus ve uzay üssüne uçuş."""],
 	["Arkadaşlarla", """• [b]Sohbet:[/b] Enter (telefonda "Sohbet" düğmesi). /k klan, /y yakındakiler, /m isim özel mesaj.
 • Bir oyuncunun adına tıklayıp [b]para gönderebilir[/b] ya da [b]takas[/b] yapabilirsin.
+• [b]Evcil hayvan rolü:[/b] aynı menüden bir arkadaşının kedisi, köpeği ya da papağanı olmayı iste; kabul ederse hayvan olarak görünürsün. {action} ile ses çıkar, {vehicle} ile onu takip et. İkiniz de istediğiniz an bitirebilirsiniz.
 • [b]Klan[/b] kur ya da katıl; klan kasası ve ligde klan puanı.
 • [b]Belediye seçimi:[/b] aday ol, oy ver; başkan şehre park, fıskiye, heykel gibi projeler önerir.
 • Birlikte: [b]sokak yarışı[/b], [b]paintball[/b], [b]futbol[/b], [b]mağara zindanı[/b] (4 kişilik ekip), [b]festival[/b]de DJ ve dans."""],

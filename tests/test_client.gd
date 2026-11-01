@@ -344,6 +344,7 @@ func _on_ok() -> void:
 		await _test_20(get_parent().world)
 		await _test_21(get_parent().world)
 		await _test_23(get_parent().world)
+		await _test_25(get_parent().world)
 		_finish()
 		return
 	await _client_kaplica(get_parent().world)          # şehirden başlar (kaya testi dağda bitiyor)
@@ -4449,6 +4450,82 @@ func _test_24(w) -> void:
 		await _wait(0.5)
 		check(w.panel == null, "maratona başlayınca pencere kapandı (%s)" % str(w.panel))
 		check(not Gym.run.is_empty(), "maraton başladı")
+
+
+## 2.4: başka bir oyuncunun evcil hayvanı olma rolü (yardımcı istemci sahip olur, isteği kabul eder)
+func _test_25(w) -> void:
+	var me := Net.my_id()
+	print("== 2.4: Evcil hayvan rolü")
+	var helper := Net.id_by_name("Yardimci")
+	var tw := 0.0
+	while helper == 0 and tw < 15.0:          # yardımcı istemci geç bağlanabilir
+		await _wait(0.5)
+		tw += 0.5
+		helper = Net.id_by_name("Yardimci")
+	if helper == 0:
+		print("  (yardımcı istemci yok: evcil hayvan rolü testi atlandı)")
+		return
+	Garage.ride("")
+	Homes._teleport(me, Vector2(1300, 522))
+	Homes._teleport(helper, Vector2(1380, 522))
+	await _wait(0.5)
+	PetRole.ask("Yardimci", "cat")
+	await _wait(1.0)
+	var r := PetRole.my_role()
+	check(str(r.get("owner", "")) == "Yardimci" and str(r.get("kind", "")) == "cat", "istek kabul edildi, Yardimci'nin kedisiyim (%s)" % str(r))
+	check(str(w._find_g_action().get("kind", "")) == "petrole", "G: miyavla")
+	var acts := []
+	PetRole.acted.connect(func(d): acts.append(d))
+	PetRole.act("ses")
+	await _wait(0.4)
+	check(not acts.is_empty() and str(acts[0].get("text", "")) == "Miyav!", "miyavladı")
+	if not "bike" in Garage._list(me):
+		Garage._list(me).append("bike")
+	Garage.ride("bike")
+	await _wait(0.4)
+	check(w.my_ride() == "", "evcil hayvan araca binemiyor")
+	# takip: sahip uzaklaşır, F ile takip açılır, evcil hayvan yanına gider
+	Homes._teleport(helper, Vector2(1700, 522))
+	await _wait(0.5)
+	w._toggle_vehicle()
+	check(PetRole.following, "F: takip açıldı")
+	await _wait(3.0)
+	check(w.my_pos.distance_to(Vector2(1700, 522)) < 140.0, "sahibini takip etti (%d px)" % int(w.my_pos.distance_to(Vector2(1700, 522))))
+	w._toggle_vehicle()
+	# rol başkasındayken menüde iste düğmeleri yok, bitir var; bitirince normale döner
+	PetRole.stop()
+	await _wait(0.5)
+	check(PetRole.my_role().is_empty() and not PetRole.following, "rolü evcil hayvan bitirdi")
+	# ters yön: Yardimci benim köpeğim (sunucudan başlat), sev ve mama ver
+	PetRole.start(helper, Net.my_name, "dog")
+	await _wait(0.5)
+	check("Yardimci" in PetRole.my_pets(), "Yardimci benim köpeğim")
+	Homes._teleport(helper, w.my_pos + Vector2(60, 0))
+	await _wait(0.4)
+	acts.clear()
+	PetRole.act("sev", "Yardimci")
+	await _wait(0.4)
+	check(not acts.is_empty() and str(acts[-1].get("act", "")) == "sev", "sevdim (kalpler)")
+	PetRole._last_act.clear()
+	var hrec: Dictionary = Net.save_data.players.Yardimci
+	Rpg.ensure(hrec)["energy"] = 10.0
+	var m0 := Net.my_money()
+	PetRole.act("mama", "Yardimci")
+	await _wait(0.4)
+	check(Net.my_money() == m0 - PetRole.FOOD_PRICE and float(Rpg.ensure(hrec).energy) > 10.0, "mama verdim (para düştü, onun enerjisi arttı)")
+	PetRole.stop("Yardimci")
+	await _wait(0.5)
+	check(PetRole.my_pets().is_empty(), "sahip rolü bitirdi")
+	# insan şeklinde (kulak + kuyruk)
+	Homes._teleport(helper, w.my_pos + Vector2(60, 0))
+	await _wait(0.4)
+	PetRole.ask("Yardimci", "dog", "insan")
+	await _wait(1.0)
+	var r2 := PetRole.my_role()
+	check(str(r2.get("form", "")) == "insan" and str(r2.get("kind", "")) == "dog", "insan şeklinde köpek rolü (%s)" % str(r2))
+	PetRole.stop()
+	await _wait(0.5)
+	check(PetRole.my_role().is_empty(), "insan şeklindeki rol bitti")
 
 
 func _finish() -> void:

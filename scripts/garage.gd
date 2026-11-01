@@ -240,6 +240,9 @@ func req_ride(d: Dictionary) -> void:
 	if not Net.players.has(id):
 		return
 	var kind := str(d.get("kind", ""))
+	if kind != "" and not PetRole.role_of(Net.players[id]).is_empty():
+		Net.notify(id, "Evcil hayvanlar araç kullanamaz. (Rolü bitirince binebilirsin.)", false)
+		return
 	if kind == "kayik":
 		# 1.7: Göl İskelesi'ndeki bedava kayık (sahiplik gerekmez)
 		var kp: Vector2 = Net.positions.get(id, Vector2(-9999, -9999))

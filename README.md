@@ -41,6 +41,16 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.4: Evcil hayvan rolü
+
+![Evcil hayvan rolü](docs/ekran/evcil_rol.png)
+
+- **Bir arkadaşının evcil hayvanı ol (rol yapma):** oyuncunun adına tıkla → "Evcil hayvanı ol" → kedi, köpek ya da papağan seç. O kabul ederse hayvan olarak görünürsün; adının altında "kedi · sahibi: …" yazar.
+  - Evcil hayvan: **G** ile miyavlar/havlar/gaklar, **F** ile sahibini kendiliğinden takip eder (yanına gelince durur). Araç kullanamaz.
+  - Sahip: adına tıklayıp **sever** (kalpler) ya da **mama verir** (40 TL, evcil hayvanın enerjisi +15).
+  - Rol iki tarafın onayıyla başlar; **ikisi de istediği an bitirebilir**, biri oyundan çıkınca kendiliğinden biter.
+- Göl iskelesindeki kayık tabelasının yazısı ortalandı.
+
 ## 2.3.1: Her yerde sokak lambası, kaplıca havuzu
 
 | | |

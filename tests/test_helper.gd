@@ -12,6 +12,7 @@ func _ready() -> void:
 	Net.connection_failed.connect(_retry)
 	Net.disconnected.connect(func(_r): get_tree().quit(0))
 	Family.proposal.connect(func(from): print("[yardımcı] teklif geldi: ", from); Family.answer(true))
+	PetRole.asked.connect(func(from, kind, form): print("[yardımcı] evcil hayvan isteği: ", from, " ", kind, " ", form); PetRole.answer(true))
 	# 1.3 takas: daveti kabul et, 40 TL koy; karşı taraf onaylayınca sen de onayla
 	Trade.invited.connect(func(fid, fname): print("[yardımcı] takas daveti: ", fname); Trade.respond(fid, true))
 	Trade.opened.connect(func(_d):

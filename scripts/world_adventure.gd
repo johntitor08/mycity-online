@@ -160,7 +160,7 @@ func status_line() -> String:
 
 func decorate(hint: String) -> String:
 	var s := status_line()
-	for extra: String in [w.town.status_line(), w.v20.status_line(), w.roads.status_line()]:
+	for extra: String in [w.town.status_line(), w.v20.status_line(), w.roads.status_line(), PetRole.status_line()]:
 		if extra != "":
 			s = extra if s == "" else s + "  ·  " + extra
 	if s == "":

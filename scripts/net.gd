@@ -18,7 +18,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "2.3.1"
+const VERSION := "2.4"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -397,6 +397,7 @@ func _reset_peer() -> void:
 	Projects.reset()
 	Festival.reset()
 	Roads.reset()
+	PetRole.reset()
 
 
 func _on_connected() -> void:
@@ -648,6 +649,7 @@ func _on_peer_disconnected(id: int) -> void:
 	Projects.on_player_left(id)
 	Festival.on_player_left(id)
 	Roads.on_player_left(id)
+	PetRole.on_player_left(id)
 	Bank.on_player_left(id)
 	if _deleting.has(pname):
 		_deleting.erase(pname)

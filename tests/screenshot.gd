@@ -245,6 +245,51 @@ func _ready() -> void:
 			await _shot("otogar_" + k)
 		get_tree().quit()
 		return
+	if "--evcilrol" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(3.0)
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		_fake_players([["Ayşe", {"skin": 1, "hair": 1, "hair_color": 4, "shirt": 9, "pants": 1}],
+			["Kerem", {"skin": 3, "hair": 3, "hair_color": 0, "shirt": 6, "pants": 0}],
+			["Zeynep", {"skin": 0, "hair": 2, "hair_color": 5, "shirt": 2, "pants": 4}]])
+		var c := Vector2(1300, 522)
+		Homes._teleport(1, c)
+		Net.players[9981]["petrole"] = {"owner": "Eren", "kind": "cat"}
+		Net.players[9982]["petrole"] = {"owner": "Zeynep", "kind": "dog", "form": "insan"}
+		Net._broadcast_roster()
+		Net.positions[9981] = c + Vector2(70, 10)
+		Net.positions[9982] = c + Vector2(170, 6)
+		Net.positions[9983] = c + Vector2(240, -4)
+		w.camera.zoom = Vector2(2.2, 2.2)
+		await _wait(1.5)
+		w.camera.reset_smoothing()
+		PetRole.acted.emit({"who": "Ayşe", "act": "sev", "by": "Eren", "p": c + Vector2(70, 10)})
+		PetRole.acted.emit({"who": "Kerem", "act": "ses", "text": "Hav hav!", "p": c + Vector2(170, 6)})
+		await _wait(0.5)
+		if w.panel != null:
+			w._close_panel()
+		w.hud.visible = false
+		w.touch.visible = false
+		await _wait(0.2)
+		await _shot("evcil_rol")
+		get_tree().quit()
+		return
+	if "--kayik" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(3.0)
+		Env.hour = 12.0
+		Homes._teleport(1, Vector2(Map.DOCK.end.x + 20, Map.DOCK.position.y - 40))
+		w.camera.zoom = Vector2(3.0, 3.0)
+		await _wait(1.5)
+		w.camera.reset_smoothing()
+		w.hud.visible = false
+		w.touch.visible = false
+		await _wait(0.3)
+		await _shot("kayik_tabela")
+		get_tree().quit()
+		return
 	if "--gece" in OS.get_cmdline_user_args():
 		var Map = preload("res://scripts/map.gd")
 		Tutorial.finish()
