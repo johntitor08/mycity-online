@@ -545,14 +545,33 @@ static func jail_spawn() -> Vector2:
 
 
 ## Sokak lambaları (yol kenarları).
+static var _lamps: Array = []
+
+
 static func lamp_positions() -> Array:
+	if not _lamps.is_empty():
+		return _lamps
 	var out: Array = []
 	for x in range(80, 2800, 240):
-		out.append(Vector2(x, 384))
+		out.append(Vector2(x, 508))           # ana yolun alt kaldırımı (üstte binaların arkasında kalıyordu)
 	for y in range(560, 1600, 220):
 		out.append(Vector2(952, y))
 	for x in range(1160, 2800, 240):
 		out.append(Vector2(x, 868))
+	# 2.3.1: sonradan eklenen yollar da aydınlansın (liman, Yeni Mahalle, kasabalar, otoyol)
+	for r: Rect2 in [PORT_ROAD, TOWN_ROAD, TOWN_AVE, TOWN_AVE2] + YK_ROADS + CB_ROADS + [HWY_ROAD]:
+		if r.size.x >= r.size.y:
+			var step := 400.0 if r == HWY_ROAD else 240.0
+			var x := r.position.x + 80.0
+			while x < r.end.x - 20.0:
+				out.append(Vector2(x, r.position.y - 6))
+				x += step
+		else:
+			var y := r.position.y + 80.0
+			while y < r.end.y - 20.0:
+				out.append(Vector2(r.position.x - 8, y))
+				y += 220.0
+	_lamps = out
 	return out
 
 

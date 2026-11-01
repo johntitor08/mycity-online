@@ -613,6 +613,8 @@ func draw_region() -> void:
 			w.town.draw_region(view, items)
 		"ic":
 			w.inside.draw_room(view, items)
+	if ext in ["mahalle", "yalikent", "camlibel", "otoyol"]:
+		w.draw_lamps(view)                    # 2.3.1: kasabalarda ve otoyolda da sokak lambası
 	if ext in ["mahalle", "yalikent", "camlibel"]:
 		for id in w.npc.pets:
 			var info = Net.roster.get(id)

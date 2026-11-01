@@ -41,6 +41,17 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.3.1: Her yerde sokak lambası, kaplıca havuzu
+
+| | |
+|---|---|
+| ![Çamlıbel gece](docs/ekran/gece_camlibel.png) | ![Şehir gece](docs/ekran/gece_sehir.png) |
+
+- **Sokak lambaları:** Yalıkent, Çamlıbel, Yeni Mahalle, liman yolu ve otoyolda da lambalar var; gece bu yollar aydınlanır. Şehir ana yolunun lambaları binaların arkasında kalıyordu, alt kaldırıma taşındı.
+- **Kaplıca havuzu:** Çamlıbel Kaplıcası'nın havuzlarına girilir; sıcak suda yüzersin ve enerjin yavaşça dolar (4 sn'de 1). Tezgâhtaki hizmet anında doldurur.
+- **Spor salonu:** koşu bandının tempo göstergesi görünmüyordu, düzeldi. Maratona başlayınca pencere kapanır, başlangıç çizgisine çıkarsın.
+- **Kaya kırma ve zıpkın:** bağlantı gecikmesinde basılı tutulan vuruşlar artık reddedilmiyor.
+
 ## 2.3: Kurumların içi
 
 | | |

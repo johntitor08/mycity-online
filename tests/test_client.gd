@@ -4433,6 +4433,22 @@ func _test_24(w) -> void:
 	print("  kondisyon %d -> %d, panel=%s" % [c0, int(Gym.fitness.get("cardio", 0)), str(w.panel)])
 	check(int(Gym.fitness.get("cardio", 0)) > c0, "A/D ile koşunca kondisyon arttı")
 	w._close_panel()
+	# maraton: penceredeki düğmeye basınca pencere kapanır, koşu başlar
+	await _wait(0.5)
+	w.my_pos = Map.inst_counter("spor").get_center() + Vector2(0, 80)
+	await _wait(0.4)
+	w._open_panel()
+	await _wait(0.4)
+	var mb: Button = null
+	for b in w.panel.find_children("*", "Button", true, false):
+		if (b as Button).text == "Maratona başla":
+			mb = b
+	check(mb != null and not mb.disabled, "pencerede Maratona başla düğmesi")
+	if mb != null:
+		mb.pressed.emit()
+		await _wait(0.5)
+		check(w.panel == null, "maratona başlayınca pencere kapandı (%s)" % str(w.panel))
+		check(not Gym.run.is_empty(), "maraton başladı")
 
 
 func _finish() -> void:

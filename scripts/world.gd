@@ -2120,9 +2120,7 @@ func _draw() -> void:
 	_draw_city_extras()
 	_draw_holiday()
 	_draw_marathon()
-	for lp in Map.lamp_positions():
-		draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
-		draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if Env.darkness() > 0.2 else Color("#e5e7eb"))
+	draw_lamps(_view_rect().grow(60))
 	for i in Map.PLOT_COUNT:
 		_draw_plot(i)
 	for b in Map.BUILDINGS:
@@ -2311,6 +2309,15 @@ func _draw() -> void:
 	night_windows.items = _win_queue
 	night_windows.dark = Env.darkness() if _room < 0 else 0.0
 	night_windows.queue_redraw()
+
+
+## Sokak lambası direkleri (görünen alandakiler; ışıkları lighting.gd'de).
+func draw_lamps(view: Rect2) -> void:
+	var lit := Env.darkness() > 0.2
+	for lp: Vector2 in Map.lamp_positions():
+		if view.has_point(lp):
+			draw_rect(Rect2(lp.x - 2, lp.y - 34, 4, 34), Color("#374151"))
+			draw_circle(lp + Vector2(0, -36), 6, Color("#fde68a") if lit else Color("#e5e7eb"))
 
 
 func _text(pos: Vector2, text: String, size: int, color: Color, width: float = -1, outline: bool = true) -> void:

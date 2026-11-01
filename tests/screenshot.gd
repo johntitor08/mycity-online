@@ -245,6 +245,26 @@ func _ready() -> void:
 			await _shot("otogar_" + k)
 		get_tree().quit()
 		return
+	if "--gece" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(3.0)
+		Env._sync = -1000000.0
+		Env.force_weather("clear")
+		for spot in [["gece_sehir", Vector2(1220, 600)], ["gece_sehir_dogu", Vector2(2500, 1100)], ["gece_sahil", Vector2(1400, 1700)],
+				["gece_yalikent", Map.YALIKENT.get_center()], ["gece_camlibel", Map.CAMLIBEL.get_center()], ["gece_mahalle", Map.TOWN.get_center()]]:
+			Homes._teleport(1, spot[1])
+			w.camera.zoom = Vector2(0.8, 0.8)
+			Env.hour = 22.0
+			await _wait(2.0)
+			w.camera.reset_smoothing()
+			w.hud.visible = false
+			w.touch.visible = false
+			await _wait(0.3)
+			await _shot(spot[0])
+			w.hud.visible = true
+		get_tree().quit()
+		return
 	if "--icmekan" in OS.get_cmdline_user_args():
 		var Map = preload("res://scripts/map.gd")
 		Tutorial.finish()
