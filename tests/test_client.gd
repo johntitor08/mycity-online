@@ -364,6 +364,9 @@ func _on_ok() -> void:
 func _client_kaplica(w) -> void:
 	var Map = preload("res://scripts/map.gd")
 	print("== İstemci: Çamlıbel kaplıcasına giriş")
+	if Net.my_money() < Roads.BUS_PRICE * 2 + 50:
+		print("  (para az — kumarhanede kaybedilmiş olabilir: kaplıca testi atlandı)")
+		return
 	w.my_pos = Map.OTOGARS.sehir + Vector2(0, 40)
 	await _wait(0.8)
 	Roads.take_bus("camlibel")
