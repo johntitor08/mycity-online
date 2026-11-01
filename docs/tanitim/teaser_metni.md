@@ -3,6 +3,7 @@
 Video: `build/teaser/mycity-teaser-dev.mp4` (1080p, 5:03, 213 MB; YouTube'a bunu yükle)
 Hafif sürüm: `build/teaser/mycity-teaser-dev-hafif.mp4` (70 MB; itch, Discord, WhatsApp)
 Kapak (1280×720): `docs/tanitim/youtube_kapak.png`
+**YouTube'da yayında:** https://www.youtube.com/watch?v=7lSSOXZ5BMM
 Yeniden çekmek için: `tools/teaser_dev.sh`
 
 ---

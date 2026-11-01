@@ -1,5 +1,9 @@
 # MyCity Online (Godot 4.6)
 
+[![MyCity Online tanıtım videosu](docs/tanitim/youtube_kapak.png)](https://www.youtube.com/watch?v=7lSSOXZ5BMM)
+
+▶ [Tanıtım videosu (5 dk, tüm özellikler)](https://www.youtube.com/watch?v=7lSSOXZ5BMM) · [Tarayıcıda oyna](https://johntitor08.github.io/mycity-online/) · [itch.io](https://johntitortheprog.itch.io/mycity-online)
+
 Çok oyunculu 2D şehir oyunu: arsa al ve üzerine bina dik, kumarhanede bahis oyna,
 Texas Hold'em poker oyna, gölde ve denizde balık tut, plajda yüz, hastanede doktor ve
 markette kasiyer olarak çalış. Seviye/XP, meslek yetenekleri, enerji, eşyalar ve günlük görevlerle
