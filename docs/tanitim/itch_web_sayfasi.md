@@ -18,6 +18,9 @@ MyCity Online (Tarayıcı)
 **Resmi Sunucuya Katıl**'a tıkla. Masaüstü oyuncularıyla aynı şehirde, aynı sunucuda oynarsın.
 
 ### Neler var?
+- 🏢 **Kurumların içi (yeni):** hastane, market, karakol, banka, okul, kumarhane, kaplıca dahil 19 binanın içine gir; görevlinin tezgâhında işini hallet, kaplıcanın sıcak havuzunda yüz ve dinlen
+- 🌐 **Sunucu listesi:** resmi sunucu, topluluk sunucuları, kendi listen ve aynı Wi-Fi'daki sunucular; oyuncu sayısını ve ping'i görerek tek dokunuşla katıl
+- 📱 **Her yerde oyna:** Windows, Linux, Android ve tarayıcı; telefonda dokunmatik kontroller, "Ana ekrana ekle" ile uygulama gibi kurulur
 - 🛣️ Otoyolda araba yolculuğu, 🏖️ Yalıkent ve 🌲 Çamlıbel kasabaları, 🚌 şehirler arası otobüs (2.1)
 - 👨‍🍳 Mutfak servisi ve aşçılık yarışması, 🌊 Batık Şehir ve denizaltı, 🏛️ belediye projeleri, 🎧 plaj festivali ve DJ (2.0)
 - 🏘️ Pazar tezgâhı, 🐶 evcil hayvan şovu, 🏎️ tuning ve sokak yarışı, 🌪️ afetler (1.9)
