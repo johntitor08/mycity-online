@@ -275,7 +275,13 @@ func _show(on_open: Callable, hold: float, open_alpha := 0.0, hide_ui := true) -
 	on_open.call()
 	if cam:
 		_tween().tween_property(cam, "zoom", z0 * 1.07, hold + 0.45)
-	await _hold_frames(int((hold + 0.22) * 30.0))
+	# klip sürerken oyun karakteri ışınlarsa (ör. golf turunun süresi dolar) yeni sahne klibe girmesin: erken kapat
+	var p0: Vector2 = w.my_pos if w != null and is_instance_valid(w) else Vector2.ZERO
+	var target := _drawn + int((hold + 0.22) * 30.0)
+	while _drawn < target:
+		await get_tree().process_frame
+		if w != null and is_instance_valid(w) and w.my_pos.distance_to(p0) > 600.0:
+			break
 	var tw3 := _tween()
 	tw3.tween_property(black, "color:a", 1.0, 0.22)
 	await tw3.finished
