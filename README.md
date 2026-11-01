@@ -45,7 +45,7 @@ Menüde:
 
 ![Evcil hayvan rolü](docs/ekran/evcil_rol.png)
 
-- **Bir arkadaşının evcil hayvanı ol (rol yapma):** oyuncunun adına tıkla → "Evcil hayvanı ol" → kedi, köpek ya da papağan seç. O kabul ederse hayvan olarak görünürsün; adının altında "kedi · sahibi: …" yazar.
+- **Bir arkadaşının evcil hayvanı ol (rol yapma):** oyuncunun adına tıkla → "Evcil hayvanı ol" → kedi, köpek ya da papağan seç. O kabul ederse hayvan olarak görünürsün ya da **insan şeklinde** kalıp kedi/köpek kulağı ve kuyruğu takarsın; adının altında "kedi · sahibi: …" yazar.
   - Evcil hayvan: **G** ile miyavlar/havlar/gaklar, **F** ile sahibini kendiliğinden takip eder (yanına gelince durur). Araç kullanamaz.
   - Sahip: adına tıklayıp **sever** (kalpler) ya da **mama verir** (40 TL, evcil hayvanın enerjisi +15).
   - Rol iki tarafın onayıyla başlar; **ikisi de istediği an bitirebilir**, biri oyundan çıkınca kendiliğinden biter.
