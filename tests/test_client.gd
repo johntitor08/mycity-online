@@ -346,6 +346,7 @@ func _on_ok() -> void:
 		await _test_23(get_parent().world)
 		_finish()
 		return
+	await _client_kaplica(get_parent().world)          # şehirden başlar (kaya testi dağda bitiyor)
 	await _client_rock_hold(get_parent().world)
 	print("== Durum sayfası (adanmış sunucu)")
 	var page := await _http_get("127.0.0.1", _port + 3, "/json")
@@ -356,6 +357,63 @@ func _on_ok() -> void:
 	Net.leave()
 	await _wait(0.5)
 	Net.join(_tname, _addr, _port, Net.hash_password(_tname, "yanlis"))
+
+
+## Uzak sunucuda (istemci modu) kasaba kurumuna giriş: otobüsle Çamlıbel'e, kaplıcaya yürü, E ile gir ve çık.
+func _client_kaplica(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	print("== İstemci: Çamlıbel kaplıcasına giriş")
+	w.my_pos = Map.OTOGARS.sehir + Vector2(0, 40)
+	await _wait(0.8)
+	Roads.take_bus("camlibel")
+	var t := 0.0
+	while t < Roads.BUS_TIME + 6.0 and not Map.CAMLIBEL.has_point(w.my_pos):
+		await _wait(0.5)
+		t += 0.5
+	if not Map.CAMLIBEL.has_point(w.my_pos):
+		check(false, "istemci otobüsle Çamlıbel'e vardı (%s)" % str(w.my_pos))
+		return
+	await _wait(0.5)
+	var br: Rect2 = Map.any_building("kaplica").rect
+	var door := Vector2(br.get_center().x, br.end.y)
+	# otogardan kaplıcanın kapısına yürü (sunucu hız denetimine takılmadan)
+	var path := [Vector2(w.my_pos.x, door.y + 160), door + Vector2(0, 160), door + Vector2(0, 30)]
+	for target in path:
+		while w.my_pos.distance_to(target) > 10.0:
+			var np: Vector2 = w.my_pos.move_toward(target, 9.0)
+			if not w._can_stand(np, ""):
+				break
+			w.my_pos = np
+			await get_tree().process_frame
+	await _wait(0.6)
+	print("  kapıda bölge: ", w.zone, "  konum farkı ", w.my_pos - door)
+	check(str(w.zone.get("do", "")) == "i_enter" and str(w.zone.get("t", "")) == "kaplica", "istemcide kaplıca kapısında içeri gir")
+	w._open_panel()
+	t = 0.0
+	while t < 3.0 and Map.inst_at(w.my_pos) != "kaplica":
+		await _wait(0.2)
+		t += 0.2
+	check(Map.inst_at(w.my_pos) == "kaplica", "istemci kaplıcanın içine girdi")
+	w.my_pos = Map.inst_counter("kaplica").get_center() + Vector2(0, 80)
+	await _wait(0.8)
+	check(str(w.zone.get("k", "")) == "kaplica", "istemcide kaplıca tezgâhı (%s)" % str(w.zone))
+	w.my_pos = Map.inst_door("kaplica").get_center()
+	await _wait(0.6)
+	w._open_panel()
+	await _wait(1.0)
+	check(Map.inst_at(w.my_pos) == "" and Map.CAMLIBEL.has_point(w.my_pos), "istemci kaplıcadan Çamlıbel'e çıktı")
+	# otobüsle şehre dön (sonraki testler şehirden başlar)
+	var og: Vector2 = Map.OTOGARS.camlibel + Vector2(0, 40)
+	while w.my_pos.distance_to(og) > 10.0:
+		w.my_pos = w.my_pos.move_toward(og, 9.0)
+		await get_tree().process_frame
+	await _wait(0.6)
+	Roads.take_bus("sehir")
+	t = 0.0
+	while t < Roads.BUS_TIME + 6.0 and Map.region_of(w.my_pos) != "sehir":
+		await _wait(0.5)
+		t += 0.5
+	check(Map.region_of(w.my_pos) == "sehir", "istemci otobüsle şehre döndü")
 
 
 ## Uzak sunucuda (istemci modu) kaya kırma: E basılı tutulunca vuruşlar sunucuya ulaşıyor mu?
@@ -4306,6 +4364,75 @@ func _test_23(w) -> void:
 	Inside.enter("banka")
 	await _wait(0.4)
 	check(Map.inst_at(w.my_pos) == "", "uzaktan kuruma girilemiyor")
+
+
+## Kasaba kurumlarının kapısına yoldan yürüyerek varılabiliyor mu (2.3.1)
+func _test_24(w) -> void:
+	var Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	print("== 2.3.1: Kasaba kurumlarına yürüyerek giriş")
+	Garage.ride("")
+	await _wait(0.2)
+	for t in ["kaplica", "lokanta", "yk_kafe", "balikhali"]:
+		var br: Rect2 = Map.any_building(t).rect
+		var door := Vector2(br.get_center().x, br.end.y)
+		# kapının 220 px altından yukarı doğru, oyundaki gibi engellere takılarak yürü
+		Homes._teleport(me, door + Vector2(0, 220))
+		await _wait(0.35)
+		var got := ""
+		var log := []
+		for k in 60:
+			var np: Vector2 = w.my_pos + Vector2(0, -8)
+			if w._can_stand(np, ""):
+				w.my_pos = np
+			await get_tree().process_frame
+			var zd := "%s/%s" % [str(w.zone.get("type", "")), str(w.zone.get("do", w.zone.get("k", "")))]
+			if log.is_empty() or log[-1][1] != zd:
+				log.append([int(door.y - w.my_pos.y), zd])
+			if str(w.zone.get("do", "")) == "i_enter" and str(w.zone.get("t", "")) == t:
+				got = "kapıya %d px kala" % int(w.my_pos.y - door.y)
+				break
+		print("  %s: %s  (yol: %s)" % [t, got if got != "" else "GİRİŞ YOK, durduğu yer %s" % str(w.my_pos - door), str(log)])
+		check(got != "", "%s kapısına yürüyerek gelince içeri gir çıkıyor" % t)
+	# kaplıca havuzu: girilir, yüzülür, yavaşça enerji verir
+	Homes._teleport(me, Map.inst_spawn("kaplica"))
+	await _wait(0.4)
+	var pool_c := Map.inst_rect("kaplica").position + Vector2(205, 380)
+	check(w._can_stand(pool_c, ""), "kaplıca havuzuna girilebiliyor")
+	w.my_pos = pool_c
+	Rpg.ensure(Net.save_data.players[Net.my_name])["energy"] = 10.0
+	await _wait(Inside.POOL_TICK * 2.0 + 0.5)
+	check(w.inside.in_pool(w.my_pos) and float(Rpg.sheet.energy) > 10.0, "havuzda enerji yenileniyor (%.1f)" % float(Rpg.sheet.energy))
+	# spor salonu: tezgâhta koşu bandı, gerçek A/D tuşlarıyla
+	print("== 2.3.1: Kondisyon (koşu bandı) gerçek tuşlarla")
+	Homes._teleport(me, Map.inst_counter("spor").get_center() + Vector2(0, 80))
+	await _wait(0.5)
+	Gym.buy_pass()
+	Net.save_data.players[Net.my_name].get("gym", {})["sessions"] = 0
+	await _wait(0.3)
+	w._open_panel()
+	await _wait(0.4)
+	check(w.panel != null and w.panel.get_script() == preload("res://scripts/ui/gym_panel.gd"), "salonun içinde spor penceresi açıldı")
+	var c0 := int(Gym.fitness.get("cardio", 0))
+	Gym.train("cardio")
+	await _wait(1.3)
+	check(not Gym.current.is_empty(), "koşu bandı başladı (%s)" % str(Gym.current))
+	var keys := [KEY_A, KEY_D]
+	for k in 90:
+		var ev := InputEventKey.new()
+		ev.physical_keycode = keys[k % 2]
+		ev.keycode = keys[k % 2]
+		ev.pressed = true
+		Input.parse_input_event(ev)
+		await _wait(0.05)
+		var up := ev.duplicate()
+		up.pressed = false
+		Input.parse_input_event(up)
+		await _wait(0.12)
+	await _wait(2.0)
+	print("  kondisyon %d -> %d, panel=%s" % [c0, int(Gym.fitness.get("cardio", 0)), str(w.panel)])
+	check(int(Gym.fitness.get("cardio", 0)) > c0, "A/D ile koşunca kondisyon arttı")
+	w._close_panel()
 
 
 func _finish() -> void:

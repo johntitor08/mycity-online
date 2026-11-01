@@ -6,6 +6,24 @@ extends Node
 const Map = preload("res://scripts/map.gd")
 
 
+const InsideView = preload("res://scripts/world_inside.gd")
+const POOL_TICK := 4.0                  # kaplıca havuzunda 4 sn'de 1 enerji
+var _pool_acc := 0.0
+
+
+## Kaplıca havuzunda bekleyen yavaşça dinlenir (tezgâhtaki ücretli hizmet anında doldurur).
+func _process(delta: float) -> void:
+	if not Net.is_server():
+		return
+	_pool_acc += delta
+	if _pool_acc < POOL_TICK:
+		return
+	_pool_acc = 0.0
+	for id in Net.players:
+		if InsideView.in_pool(_pos(id)):
+			Rpg.add_energy(id, 1.0)
+
+
 func enter(type: String) -> void:
 	Net.ask(self, "req_enter", {"t": type})
 

@@ -13,6 +13,8 @@ var _rep_flash := 0.0
 
 
 class Meter extends Control:
+	var p = null                     # spor penceresi (adım listesi için)
+
 	func _draw() -> void:
 		var c: Dictionary = Gym.current
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#111827"))
@@ -25,7 +27,6 @@ class Meter extends Control:
 			return
 		if c.kind == "cardio":
 			# tempo göstergesi: son 1 sn'deki adım sayısı
-			var p = get_parent().get_parent().get_parent()
 			var n := 0
 			for s in p._steps:
 				if t - float(s) < 1.0:
@@ -49,6 +50,7 @@ func _ready() -> void:
 	info = add_label(body, "", 15, Color("#facc15"))
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	game = Meter.new()
+	game.p = self
 	game.custom_minimum_size = Vector2(560, 120)
 	body.add_child(game)
 	status = add_label(body, "", 15)
@@ -87,7 +89,10 @@ func _refresh() -> void:
 	var b: Dictionary = Gym.best
 	add_label(box, "Maraton: salonun önünden başlar, şehirde %d noktadan geçip buraya dönersin (yaya). Rekor: %s" % [
 		Map.MARATHON.size() - 1, ("%s — %.1f sn" % [b.n, float(b.t)]) if not b.is_empty() else "yok"], 14, Color("#cbd5e1")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_button(box, "Maratona başla", func(): Gym.start_marathon(); marathon_started.emit()).disabled = not Gym.run.is_empty()
+	add_button(box, "Maratona başla", func():
+		Gym.start_marathon()
+		marathon_started.emit()
+		close()).disabled = not Gym.run.is_empty()          # koşuya başlarken pencere kapansın
 
 
 const Map = preload("res://scripts/map.gd")

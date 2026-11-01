@@ -180,6 +180,7 @@ var _fish_state := "idle"   # olta: idle, waiting, bite
 var _fish_since := 0.0
 var _spray_acc := 0.0
 var _step_acc := 0.0
+const Inside_ = preload("res://scripts/world_inside.gd")
 const INDOOR_PANELS := ["casino", "poker", "market", "hospital", "banka", "carsi", "fabrika", "karakol", "mobilya", "galeri", "pazar", "petshop", "muhtarlik", "realestate"]
 var npc: RefCounted         # şehir canlılığı (yürüyenler, arabalar, müşteriler, evcil hayvanlar)
 var labels: Node2D          # yazılar ayrı katmanda: gece karartmasından etkilenmez
@@ -419,7 +420,7 @@ func _process(delta: float) -> void:
 			Tutorial.note("move")
 	camera.position = my_pos
 	_update_area()
-	var swimming := (Map.in_sea(my_pos) or Map.in_water(my_pos)) and my_ride() == ""
+	var swimming := (Map.in_sea(my_pos) or Map.in_water(my_pos) or Inside_.in_pool(my_pos)) and my_ride() == ""
 	if swimming and not _was_swimming:
 		Sfx.play("splash", -4.0)
 	_was_swimming = swimming
@@ -3218,7 +3219,7 @@ func _draw_player(p: Vector2, app: Dictionary, pname: String, me: bool, facing: 
 				_draw_rod(p + Vector2(0, -6), facing, extra)
 			_name(p, -44, pname, name_col, extra)
 			return
-	var swim := Map.in_sea(p) or Map.in_water(p)
+	var swim := Map.in_sea(p) or Map.in_water(p) or Inside_.in_pool(p)
 	if swim:
 		var r := 18.0 + sin(_t * 4.0) * 2.0
 		draw_set_transform(p + Vector2(0, 4), 0, Vector2(1, 0.4))

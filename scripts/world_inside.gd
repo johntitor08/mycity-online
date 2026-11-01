@@ -74,7 +74,7 @@ const ROOMS := {
 		["mat", Rect2(60, 420, 240, 120), false], ["bench_press", Rect2(740, 220, 140, 70), true], ["bag", Rect2(940, 220, 50, 50), true],
 		["weights", Rect2(760, 380, 110, 80), true], ["f:fridge", Rect2(968, 520, 48, 48), true]]},
 	"kaplica": {"floor": ["#e0f2fe", "#bae6fd"], "wall": "#0f766e", "staff": "Hamamcı Sevim", "items": [
-		["pool", Rect2(40, 220, 330, 320), true], ["pool", Rect2(690, 220, 330, 200), true], ["towels", Rect2(700, 470, 150, 60), true],
+		["pool", Rect2(40, 220, 330, 320), false], ["pool", Rect2(690, 220, 330, 200), false], ["towels", Rect2(700, 470, 150, 60), true],
 		["f:plant", Rect2(960, 520, 48, 48), true], ["f:plant", Rect2(40, 30, 48, 48), false]]},
 	"lokanta": {"floor": ["#fed7aa", "#fdba74"], "wall": "#7c2d12", "staff": "Aşçı Hatice", "items": [
 		["f:table", Rect2(60, 250, 96, 96), true], ["f:chair", Rect2(160, 274, 48, 48), true], ["f:table", Rect2(60, 420, 96, 96), true],
@@ -99,6 +99,18 @@ func _init(world: Node2D) -> void:
 
 func room() -> String:
 	return Map.inst_at(w.my_pos)
+
+
+## Kaplıca havuzunun suyunda mı (yüzme çizimi ve sunucuda enerji yenileme için; havuzlara girilir).
+static func in_pool(p: Vector2) -> bool:
+	var t := Map.inst_at(p)
+	if t == "":
+		return false
+	var r := Map.inst_rect(t)
+	for it in ROOMS.get(t, {}).get("items", []):
+		if str(it[0]) == "pool" and Rect2(r.position + (it[1] as Rect2).position, (it[1] as Rect2).size).grow(-14).has_point(p):
+			return true
+	return false
 
 
 func label_of(t: String) -> String:
