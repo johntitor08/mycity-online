@@ -18,10 +18,11 @@ MyCity Online (Tarayıcı)
 **Resmi Sunucuya Katıl**'a tıkla. Masaüstü oyuncularıyla aynı şehirde, aynı sunucuda oynarsın.
 
 ### Neler var?
-- 🐾 **Evcil hayvan rolü (yeni):** arkadaşının kedisi, köpeği ya da papağanı ol — hayvan olarak ya da insan şeklinde kulak ve kuyrukla
+- 🚓 **Polis kovalamacası (yeni):** aranırken polis siren çalarak peşine düşer (araçtaysan polis arabasıyla); bir binaya saklan ya da 15 saniye kaç, yakalanırsan hapse girersin
+- 🐾 **Evcil hayvan rolü:** arkadaşının kedisi, köpeği ya da papağanı ol — hayvan olarak ya da insan şeklinde kulak ve kuyrukla
 - 🏢 **Kurumların içi:** hastane, market, karakol, banka, okul, kumarhane, kaplıca dahil 19 binanın içine gir; görevlinin tezgâhında işini hallet, kaplıcanın sıcak havuzunda yüz ve dinlen
 - 🌐 **Sunucu listesi:** resmi sunucu, topluluk sunucuları, kendi listen ve aynı Wi-Fi'daki sunucular; oyuncu sayısını ve ping'i görerek tek dokunuşla katıl
-- 📱 **Her yerde oyna:** Windows, Linux, Android ve tarayıcı; telefonda dokunmatik kontroller, "Ana ekrana ekle" ile uygulama gibi kurulur
+- 📱 **Her yerde oyna:** Windows, Linux, Android ve tarayıcı; telefonda dokunmatik kontroller (kartopu, fotoğraf modu, spor salonu ve ritim oyunları dahil), "Ana ekrana ekle" ile uygulama gibi kurulur
 - 🛣️ Otoyolda araba yolculuğu, 🏖️ Yalıkent ve 🌲 Çamlıbel kasabaları, 🚌 şehirler arası otobüs (2.1)
 - 👨‍🍳 Mutfak servisi ve aşçılık yarışması, 🌊 Batık Şehir ve denizaltı, 🏛️ belediye projeleri, 🎧 plaj festivali ve DJ (2.0)
 - 🏘️ Pazar tezgâhı, 🐶 evcil hayvan şovu, 🏎️ tuning ve sokak yarışı, 🌪️ afetler (1.9)
