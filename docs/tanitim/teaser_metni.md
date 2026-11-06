@@ -49,6 +49,12 @@ Oyun hakkında
 • Klan kur, belediye başkanı seç, festivalde DJ ol, zombi gecesinde şehri savun
 • Windows, Linux, Android ve tarayıcıda; telefonda dokunmatik kontroller
 
+Videodan sonra gelenler (2.3.1 – 2.4.1)
+• Polis kovalamacası: aranırken polis siren çalarak peşine düşer; bir binaya saklan ya da 15 saniye kaç
+• Evcil hayvan rolü: arkadaşının kedisi, köpeği ya da papağanı ol
+• Telefonda kartopu, fotoğraf modu, spor salonu ve ritim oyunları için dokunmatik düğmeler
+• Her yerde sokak lambaları, kaplıcada yüzme, enkazı kazmayla temizleme
+
 Godot 4 ile yapıldı. Oyun parasıyla şans oyunları (kumarhane, poker, at yarışı bahsi) vardır; gerçek parayla hiçbir şey satılmaz.
 
 #MyCityOnline #indiegame #godot #türkçeoyun #çokoyunculu #oyungeliştirme
