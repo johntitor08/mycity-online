@@ -965,8 +965,21 @@ func _test_06(w) -> void:
 	Ach.ach_of(Net.save_data.players[Net.my_name]).got["jailed"] = 1.0     # başarım ödülü cezayı karıştırmasın
 	var m5 := Net.my_money()
 	var stars := Police.wanted(me)
-	Police.jail(me, stars, 0)
-	await _wait(0.5)
+	# 2.4.1: NPC polis önce kovalar; süre dolarsa kaçarsın, yetişirse hapse atar
+	Police.start_chase(me)
+	await _wait(0.4)
+	check(Police.chases.has(me) and Police.chase_view.has(Net.my_name) and not Police.is_jailed(me), "polis kovalıyor (herkes görüyor)")
+	Police.chases[me].t = Police.CHASE_MAX + 1.0
+	await _wait(0.4)
+	check(not Police.chases.has(me) and not Police.chase_view.has(Net.my_name) and Police.wanted(me) == stars, "polisi atlattın, hâlâ aranıyorsun")
+	Police.start_chase(me)
+	var cp: Vector2 = Police.chases[me].p
+	check(cp.distance_to(w.my_pos) > 300.0, "polis biraz uzaktan başlıyor (%d px)" % int(cp.distance_to(w.my_pos)))
+	for _i in 30:
+		await _wait(0.2)
+		if Police.is_jailed(me):
+			break
+	await _wait(0.4)
 	check(Police.is_jailed(me) and w._jail and Map.JAIL.has_point(w.my_pos), "NPC polis yakaladı: hapishanedesin")
 	check(Police.jail_left() > 0.0 and Police.wanted(me) == 0, "hapis süresi işliyor, yıldızlar sıfırlandı")
 	check(Net.my_money() == m5 - stars * Police.FINE_PER_STAR, "para cezası kesildi (%d TL)" % (stars * Police.FINE_PER_STAR))
@@ -1634,7 +1647,7 @@ func _test_10(w) -> void:
 		check(float(Net._muted.get("Yardimci", 0.0)) > Time.get_unix_time_from_system(), "/sustur çalıştı")
 		Net._muted.erase("Yardimci")
 	var sd := Net.status_data()
-	check(sd.version == Net.VERSION and sd.has("online") and sd.has("backups"), "durum bilgisi hazır")
+	check(sd.version == Net.VERSION and sd.has("online") and sd.has("backups"), "durum bilgisi hazır (%s)" % [sd.get("version")])
 	print("== 1.0: Hız denetimi")
 	Net._pos_t.erase(me)
 	w.my_pos = Map.SPAWN
@@ -3805,7 +3818,7 @@ func _test_19(w) -> void:
 	Disasters._broadcast()
 	Homes._teleport(me, door)
 	await _wait(0.4)
-	check(w.zone.get("do", "") == "repair", "hasarlı binanın önü")
+	check(w.zone.get("do", "") == "repair", "hasarlı binanın önü (%s: %s)" % [bt, w.zone.get("label", w.zone.get("type", ""))])
 	for k in Disasters.BLD_NEED:
 		Disasters.repair(bt)
 		await _wait(0.08)
@@ -4436,6 +4449,24 @@ func _test_24(w) -> void:
 	await _wait(2.0)
 	print("  kondisyon %d -> %d, panel=%s" % [c0, int(Gym.fitness.get("cardio", 0)), str(w.panel)])
 	check(int(Gym.fitness.get("cardio", 0)) > c0, "A/D ile koşunca kondisyon arttı")
+	# 2.4.1: telefonda göstergenin sol/sağ yarısına sırayla dokunarak
+	var c1 := int(Gym.fitness.get("cardio", 0))
+	Gym.train("cardio")
+	await _wait(1.3)
+	var meter: Control = w.panel.game
+	var st0: int = w.panel._steps.size()
+	for k in 90:
+		# ekransız testte fare olayları arayüze yönlenmiyor; göstergenin dokunma işleyicisini doğrudan çağır
+		var mev := InputEventMouseButton.new()
+		mev.button_index = MOUSE_BUTTON_LEFT
+		mev.position = Vector2(meter.size.x * (0.25 if k % 2 == 0 else 0.75), meter.size.y / 2.0)
+		mev.pressed = true
+		meter._gui_input(mev)
+		await _wait(0.17)
+	check(w.panel._steps.size() - st0 >= 80, "dokunmalar adım sayıldı (%d)" % (w.panel._steps.size() - st0))
+	print("  dokunma adımları: %d" % w.panel._steps.size())
+	await _wait(2.0)
+	check(int(Gym.fitness.get("cardio", 0)) > c1, "dokunarak koşunca da kondisyon arttı (%d -> %d)" % [c1, int(Gym.fitness.get("cardio", 0))])
 	w._close_panel()
 	# maraton: penceredeki düğmeye basınca pencere kapanır, koşu başlar
 	await _wait(0.5)

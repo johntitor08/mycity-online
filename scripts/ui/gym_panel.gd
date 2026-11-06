@@ -15,6 +15,15 @@ var _rep_flash := 0.0
 class Meter extends Control:
 	var p = null                     # spor penceresi (adım listesi için)
 
+	# telefonda: koşu bandında sol/sağ yarıya sırayla, ağırlıkta herhangi bir yere dokun
+	func _gui_input(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and not Gym.current.is_empty():
+			if Gym.current.kind == "cardio":
+				p._cardio_step(0 if e.position.x < size.x / 2.0 else 1)
+			else:
+				p._lift()
+			accept_event()
+
 	func _draw() -> void:
 		var c: Dictionary = Gym.current
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#111827"))
@@ -36,13 +45,13 @@ class Meter extends Control:
 			draw_rect(Rect2(size.x * lo, 20, size.x * (hi - lo), size.y - 40), Color(0.2, 0.8, 0.3, 0.35))
 			var x := size.x * clampf(n / 10.0, 0.0, 1.0)
 			draw_rect(Rect2(x - 4, 10, 8, size.y - 20), Color("#facc15"))
-			draw_string(font, Vector2(0, size.y - 6), "A / D sırayla bas — tempo: %d adım/sn — kalan %d sn" % [n, int(ceil(Gym.CARDIO_TIME - t))], HORIZONTAL_ALIGNMENT_CENTER, size.x, 15, Color.WHITE)
+			draw_string(font, Vector2(0, size.y - 6), ("Sol / sağ yarıya sırayla dokun" if Settings.touch_enabled() else "A / D sırayla bas") + " — tempo: %d adım/sn — kalan %d sn" % [n, int(ceil(Gym.CARDIO_TIME - t))], HORIZONTAL_ALIGNMENT_CENTER, size.x, 15, Color.WHITE)
 		else:
 			var pos := Gym.lift_pos(t)
 			var zone := Gym.LIFT_ZONE
 			draw_rect(Rect2(size.x * (0.5 - zone), 20, size.x * zone * 2.0, size.y - 40), Color(0.2, 0.8, 0.3, 0.35))
 			draw_rect(Rect2(size.x * pos - 5, 10, 10, size.y - 20), Color("#e5e7eb"))
-			draw_string(font, Vector2(0, size.y - 6), "Çubuk yeşildeyken BOŞLUK — tekrar %d/%d, temiz %d" % [int(c.reps), Gym.LIFT_REPS, int(c.ok)], HORIZONTAL_ALIGNMENT_CENTER, size.x, 15, Color.WHITE)
+			draw_string(font, Vector2(0, size.y - 6), ("Çubuk yeşildeyken DOKUN" if Settings.touch_enabled() else "Çubuk yeşildeyken BOŞLUK") + " — tekrar %d/%d, temiz %d" % [int(c.reps), Gym.LIFT_REPS, int(c.ok)], HORIZONTAL_ALIGNMENT_CENTER, size.x, 15, Color.WHITE)
 
 
 func _ready() -> void:
@@ -110,14 +119,22 @@ func _unhandled_key_input(e: InputEvent) -> void:
 	var c: Dictionary = Gym.current
 	var t: float = Time.get_ticks_msec() / 1000.0 - float(c.t0)
 	if c.kind == "cardio" and k.physical_keycode in [KEY_A, KEY_D, KEY_LEFT, KEY_RIGHT]:
-		var side := 0 if k.physical_keycode in [KEY_A, KEY_LEFT] else 1
-		if side != _last_k and t >= 0.0:
-			_last_k = side
-			_steps.append(t)
-			Gym.step(side)
-			Sfx.play("step", -6.0)
+		_cardio_step(0 if k.physical_keycode in [KEY_A, KEY_LEFT] else 1)
 		get_viewport().set_input_as_handled()
 	elif c.kind == "strength" and k.physical_keycode == KEY_SPACE:
-		Gym.lift()
-		Sfx.play("place", -4.0, 0.8)
+		_lift()
 		get_viewport().set_input_as_handled()
+
+
+func _cardio_step(side: int) -> void:
+	var t: float = Time.get_ticks_msec() / 1000.0 - float(Gym.current.t0)
+	if side != _last_k and t >= 0.0:
+		_last_k = side
+		_steps.append(t)
+		Gym.step(side)
+		Sfx.play("step", -6.0)
+
+
+func _lift() -> void:
+	Gym.lift()
+	Sfx.play("place", -4.0, 0.8)

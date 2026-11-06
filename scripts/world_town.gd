@@ -275,6 +275,15 @@ func extra_zone(z: Dictionary) -> Dictionary:
 	return z
 
 
+## Enkaz/kar yığını ve onarımda her vuruşta kürek/çekiç sallanır, parçalar sıçrar (kaya kırmadaki gibi).
+func _work_fx(at: Vector2, snow: bool) -> void:
+	var side := 1.0 if at.x >= w.my_pos.x else -1.0
+	w.my_facing = "right" if side > 0.0 else "left"
+	w.add_fx("pick", w.my_pos, 0.35, {"side": side})
+	w.add_fx("chips", at + Vector2(0, -10), 0.6, {"snow": snow})
+	w.add_fx("dust", at + Vector2(randf_range(-10, 10), 6), 0.5)
+
+
 func open(z: Dictionary) -> bool:
 	if str(z.get("type", "")) != "town":
 		# hasarlı binanın paneli açılmaz
@@ -306,9 +315,15 @@ func open(z: Dictionary) -> bool:
 		"pile":
 			Disasters.work_pile(int(z.i))
 			Sfx.play("pick", -5.0, 0.8)
+			var piles: Array = Disasters.state.get("piles", [])
+			if int(z.i) < piles.size():
+				_work_fx(Vector2(piles[int(z.i)][0], piles[int(z.i)][1]), str(Disasters.state.get("kind", "")) == "kar")
 		"repair":
 			Disasters.repair(str(z.t))
 			Sfx.play("pick", -5.0, 1.2)
+			var bd: Dictionary = Map.building(str(z.t))
+			if not bd.is_empty():
+				_work_fx(w.my_pos.lerp(Vector2((bd.rect as Rect2).get_center().x, (bd.rect as Rect2).end.y), 0.6), false)
 		"person":
 			Disasters.help_person(int(z.i))
 			Sfx.play("success", -6.0)

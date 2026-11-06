@@ -183,7 +183,8 @@ func _ready() -> void:
 	top_mid.mouse_filter = MOUSE_FILTER_IGNORE
 	top_mid.add_theme_constant_override("separation", 6)
 	add_child(top_mid)
-	_place(top_mid, Vector2(0.5, 0), Vector2(-260, 10), Vector2(260, 400))
+	# soldaki bilgi kutusunun küçült düğmesine (x≈408) binmesin: dar tutulur, metinler alt satıra kayar
+	_place(top_mid, Vector2(0.5, 0), Vector2(-220, 10), Vector2(220, 400))
 	event_banner = _box(top_mid)
 	(event_banner.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Color(0.35, 0.2, 0.05, 0.88)
 	event_banner.mouse_filter = MOUSE_FILTER_STOP
@@ -191,6 +192,7 @@ func _ready() -> void:
 	event_banner.tooltip_text = "Tıkla: etkinlik ayrıntıları"
 	event_label = _label(event_banner, "", 15, Color("#fde68a"))
 	event_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	event_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	event_banner.visible = false
 	race_label = _label(top_mid, "", 30, Color("#ffffff"))
 	race_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -635,9 +637,11 @@ func _on_toast(text: String, good: bool) -> void:
 
 func show_toast(text: String, good: bool = true) -> void:
 	var p := _box(toast_box)
+	p.mouse_filter = MOUSE_FILTER_IGNORE        # bildirim altındaki düğmelere tıklanabilsin
 	(p.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Settings.good_color() if good else Settings.bad_color()
 	var l := _label(p, text, 17, Color.WHITE)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var tw := create_tween()
 	tw.tween_interval(3.0)
 	tw.tween_property(p, "modulate:a", 0.0, 0.6)

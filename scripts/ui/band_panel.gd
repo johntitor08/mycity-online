@@ -21,6 +21,12 @@ var _combo := 0
 
 class Lanes extends Control:
 	var p
+
+	# telefonda: şeride dokun
+	func _gui_input(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and Band.is_playing():
+			p._lane_pressed(clampi(int(e.position.x / (size.x / 4.0)), 0, 3))
+			accept_event()
 	func _draw() -> void:
 		var s: Dictionary = Band.session
 		var w := size.x / 4.0

@@ -275,6 +275,108 @@ func _ready() -> void:
 		await _shot("evcil_rol")
 		get_tree().quit()
 		return
+	if "--kar-dugme" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(3.0)
+		Env.force_season("winter")
+		Settings.touch_mode = "on"
+		w.touch.visible = true
+		await _wait(0.5)
+		Settings.touch_dir = Vector2.RIGHT
+		w.touch._key("throw", true)
+		w.touch._key("throw", false)
+		await _wait(0.25)
+		await _shot("kar_dugme")
+		get_tree().quit()
+		return
+	if "--tel-foto" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(3.0)
+		Settings.touch_mode = "on"
+		w.set_photo_mode(true)
+		await _wait(0.5)
+		await _shot("tel_foto")
+		for b in w._photo_btns.get_children():
+			if (b as Button).text == "Çık":
+				(b as Button).pressed.emit()
+		await _wait(0.3)
+		print("FOTO_CIKTI ", not w.photo_mode)
+		w.panel = null
+		var g := preload("res://scripts/ui/gym_panel.gd").new()
+		g.queue_free()
+		var Map = preload("res://scripts/map.gd")
+		Homes._teleport(1, Map.inst_counter("spor").get_center() + Vector2(0, 80))
+		await _wait(0.6)
+		Gym.buy_pass()
+		await _wait(0.4)
+		w._open_panel()
+		g = w.panel
+		await _wait(0.4)
+		Gym.train("cardio")
+		await _wait(1.5)
+		print("METER_RECT ", g.game.get_global_rect(), " ekran ", g.get_viewport_rect())
+		await _shot("tel_spor")
+		get_tree().quit()
+		return
+	if "--enkaz" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(3.0)
+		Env.hour = 12.0
+		for k in ["deprem", "kar"]:
+			Disasters.start(k)
+			await _wait(1.0)
+			var pl: Array = Disasters.state.piles
+			Homes._teleport(1, Vector2(pl[0][0] - 50, pl[0][1] + 10))
+			w.hud.visible = false
+			w.touch.visible = false
+			w.camera.zoom = Vector2(2.2, 2.2)
+			await _wait(1.0)
+			w.town.open({"type": "town", "do": "pile", "i": 0})
+			await _wait(0.12)
+			await _shot("enkaz_" + k)
+			Disasters.reset()
+			await _wait(0.5)
+		get_tree().quit()
+		return
+	if "--kovalama" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(3.0)
+		Env.hour = 12.0
+		Homes._teleport(1, Vector2(1500, 900))
+		await _wait(0.5)
+		Police._add_wanted(1, 3)
+		Police.start_chase(1)
+		Police.chases[1].p = Vector2(1500, 900) + Vector2(330, -20)
+		w.hud.visible = false
+		w.touch.visible = false
+		w.camera.zoom = Vector2(1.6, 1.6)
+		await _wait(0.7)
+		await _shot("kovalama_1")
+		Police.chases[1].p = Vector2(1500, 900) + Vector2(330, -20)
+		Garage.set_ride(1, "car")
+		await _wait(0.5)
+		await _shot("kovalama_2")
+		w.hud.visible = true
+		Garage.set_ride(1, "")
+		await _wait(6.0)
+		print("HAPIS ", Police.jail_left(), " kovalama=", Police.chases.size())
+		await _shot("kovalama_3")
+		get_tree().quit()
+		return
+	if "--bildirim" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(3.0)
+		w.hud.show_toast("Bu çok uzun bir bildirim metnidir; ekranın üst ortasında çıkar ve soldaki bilgi kutusuna kadar uzanabilir, bakalım ne oluyor.")
+		await _wait(0.4)
+		var btn: Button = w.hud._collapse["bilgi"][2]
+		var c := btn.get_global_rect().get_center()
+		print("BUTON ", btn.get_global_rect())
+		for n in w.hud.toast_box.get_children():
+			print("BILDIRIM ", (n as Control).get_global_rect(), " kapliyor=", (n as Control).get_global_rect().has_point(c), " fare=", (n as Control).mouse_filter)
+		print("ETKINLIK ", w.hud.event_banner.get_global_rect())
+		await _shot("bildirim")
+		get_tree().quit()
+		return
 	if "--kayik" in OS.get_cmdline_user_args():
 		var Map = preload("res://scripts/map.gd")
 		Tutorial.finish()

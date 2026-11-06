@@ -41,6 +41,19 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.4.1: Polis kovalamacası, enkaz animasyonu
+
+![Polis kovalamacası](docs/ekran/polis_kovalama.png)
+
+- **Polis seni kovalar:** Aranırken (★) NPC polis seni yakaladığında artık anında hapse ışınlanmazsın. Siren çalar, polis karakoldan ya da yakından koşarak peşine düşer (araçtaysan polis arabasıyla gelir). **Bir binaya girersen ya da 15 saniye yakalanmazsan** kurtulursun ama aranmaya devam edersin. Yetişirse hapse atar.
+- **Enkaz ve kar yığını:** E'yi basılı tutunca karakter kazma sallar, enkazdan parçalar ve toz sıçrar (kar yığınında beyaz kar). Hasarlı bina onarımında da aynı animasyon oynar.
+- **Telefonda eksik kalanlar tamamlandı:**
+  - Kışın **"Kar"** düğmesi: kartopunu yürüdüğün ya da baktığın yöne atar (Kartopu Savaşı artık telefonda da oynanır).
+  - **Fotoğraf modu:** Çek, Filtre, İsimler, Yakınlaş/Uzaklaş ve Çık düğmeleri (önceden telefonda fotoğraf modundan çıkılamıyordu).
+  - **Spor salonu:** koşu bandında göstergenin sol/sağ yarısına sırayla, ağırlıkta göstergeye dokun.
+  - **Park sahnesi** ritim oyununda şeritlere, **karaokede** perdeye dokun.
+- Üst ortadaki bildirimler artık soldaki bilgi kutusunun **küçült (–)** düğmesini kapatmıyor: uzun bildirimler alt satıra kayar, tıklamalar bildirimin altından geçer.
+
 ## 2.4: Evcil hayvan rolü
 
 ![Evcil hayvan rolü](docs/ekran/evcil_rol.png)

@@ -44,6 +44,8 @@ const TOPICS := [
 • [b]Yalıkent ve Çamlıbel:[/b] otoyolla ya da otobüsle."""],
 	["Etkinlikler", """• [b]Etkinlik[/b] butonu: sıradaki şehir etkinliği (yarış günü, balık turnuvası, hazine avı…) ve ödüller.
 • [b]Zombi geceleri[/b] (dolunay), [b]afetler[/b] (deprem, sel, kar fırtınası) ve [b]plaj festivali[/b] kendiliğinden gelir; duyurulara bak.
+• [b]Kartopu Savaşı[/b] sadece kışın gelir: etkinlik başlayınca {throw} ile kartopu at (bilgisayarda fareyle nişan alırsın, telefonda "Kar" düğmesi yürüdüğün yöne atar), en çok isabet ettiren kazanır. Kışın etkinlik dışında da atabilirsin.
+• [b]Aranırken[/b] (★) polis peşine düşebilir: bir binaya gir ya da 15 saniye yakalanma, yoksa hapse girersin.
 • [b]Lig[/b]: haftalık sıralamalar ve ödüller. [b]Başarım[/b]: hedefler ve unvanlar.
 • [b]Özel günler[/b] gerçek takvime göre gelir (Cadılar Bayramı, yılbaşı, bayramlar)."""],
 	["Kontroller", """[b]Bilgisayar:[/b] WASD/oklar yürü · E gir/kullan · F araç · G eylem · M harita · C profil · P telefon · O fotoğraf · V dal · H at · N nitro · Enter sohbet · Esc kapat. Tuşları Ayarlar'dan değiştirebilirsin.

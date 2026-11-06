@@ -21,6 +21,7 @@ const BUTTONS := [
 	["dive", "Dal", 26.0, Vector2(196, 320)],
 	["horse", "At", 26.0, Vector2(270, 340)],
 	["nitro", "Nitro", 30.0, Vector2(380, 92)],          # 2.1: arabada nitro
+	["throw", "Kar", 30.0, Vector2(380, 92)],            # 2.4.1: kışın kartopu (nitro ile aynı yer; arabada nitro)
 ]
 const CHAT_BTN := Vector2(64, 300)          # sol alttan (joystick'in üstü)
 
@@ -66,8 +67,10 @@ func _hit_button(p: Vector2) -> int:
 	return -1
 
 
-## Nitro düğmesi sadece arabadayken görünür.
+## Nitro düğmesi sadece arabadayken, kartopu düğmesi kışın yürürken görünür.
 func _btn_shown(b: Array) -> bool:
+	if b[0] == "throw":
+		return world != null and Env.season == "winter" and world.my_ride() != "car"
 	return b[0] != "nitro" or (world != null and world.my_ride() == "car")
 
 

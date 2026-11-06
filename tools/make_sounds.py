@@ -392,6 +392,15 @@ def instruments():
     save("rock_break", crumble, 0.65)
 
 
+def police():
+    # 2.4.1: polis sireni (iki tonlu, kısa; kovalamaca başlarken)
+    ts = t_of(1.6)
+    f = np.where((ts * 2.5) % 1 < 0.5, 960.0, 720.0)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    siren = (np.tanh(2.5 * np.sin(ph)) * 0.5 + 0.2 * np.sin(2 * ph)) * env(len(ts), 0.02, release=0.25)
+    save("siren", lowpass(siren, 3000), 0.5)
+
+
 if __name__ == "__main__":
     effects()
     waves()
@@ -400,3 +409,4 @@ if __name__ == "__main__":
     seasonal_music()
     ambience_more()
     instruments()
+    police()

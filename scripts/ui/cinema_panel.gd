@@ -20,6 +20,12 @@ class Screen extends Control:
 	func _process(_d: float) -> void:
 		queue_redraw()
 
+	# telefonda Boşluk yerine perdeye dokunulur
+	func _gui_input(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and not Cinema.karaoke.is_empty():
+			panel_ref._karaoke_hit()
+			accept_event()
+
 	func _draw() -> void:
 		var w := size.x
 		var h := size.y
@@ -284,6 +290,7 @@ func _ready() -> void:
 	h.add_theme_constant_override("separation", 14)
 	body.add_child(h)
 	screen = Screen.new()
+	screen.panel_ref = self
 	screen.clip_contents = true
 	screen.custom_minimum_size = Vector2(640, 380)
 	h.add_child(screen)
@@ -363,21 +370,25 @@ func _input(e: InputEvent) -> void:
 	if Cinema.karaoke.is_empty():
 		return
 	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_SPACE:
-		var el := Time.get_ticks_msec() / 1000.0 - float(Cinema.karaoke.t0)
-		_hits.append(snappedf(el, 0.001))
-		# en yakın hecenin notasını çal
-		var best = null
-		var bd := 1e9
-		for b in Cinema.karaoke.beats:
-			var dd := absf(float(b.t) - el)
-			if dd < bd:
-				bd = dd
-				best = b
-		if best != null and bd < Cinema.HIT_GOOD:
-			Sfx.play("piyano", -4.0, pow(2.0, float(best.note) / 12.0))
-		else:
-			Sfx.play("piyano", -10.0, 0.5)
+		_karaoke_hit()
 		get_viewport().set_input_as_handled()
+
+
+func _karaoke_hit() -> void:
+	var el := Time.get_ticks_msec() / 1000.0 - float(Cinema.karaoke.t0)
+	_hits.append(snappedf(el, 0.001))
+	# en yakın hecenin notasını çal
+	var best = null
+	var bd := 1e9
+	for b in Cinema.karaoke.beats:
+		var dd := absf(float(b.t) - el)
+		if dd < bd:
+			bd = dd
+			best = b
+	if best != null and bd < Cinema.HIT_GOOD:
+		Sfx.play("piyano", -4.0, pow(2.0, float(best.note) / 12.0))
+	else:
+		Sfx.play("piyano", -10.0, 0.5)
 
 
 func _process(delta: float) -> void:

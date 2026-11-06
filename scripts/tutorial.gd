@@ -69,7 +69,7 @@ func _text(t: String) -> String:
 	for a in Settings.ACTIONS:
 		var nm: String = Settings.key_name(a)
 		if touch:
-			nm = {"interact": "E düğmesi", "map": "Harita düğmesi", "vehicle": "F düğmesi", "action": "G düğmesi"}.get(a, nm)
+			nm = {"interact": "E düğmesi", "map": "Harita düğmesi", "vehicle": "F düğmesi", "action": "G düğmesi", "throw": "Kar düğmesi"}.get(a, nm)
 		t = t.replace("{%s}" % a, nm)
 	return t
 

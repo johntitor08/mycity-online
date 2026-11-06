@@ -794,7 +794,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_horse()
 	elif Settings.is_key(k, "throw") and Env.season == "winter" and _room < 0 and not _jail:
 		var aim := get_global_mouse_position() - my_pos
-		if aim.length() < 10.0:
+		if Settings.touch_enabled():          # telefonda: joystick yönüne, duruyorsan baktığın yöne
+			aim = Settings.touch_dir
+		if aim.length() < (0.1 if Settings.touch_enabled() else 10.0):
 			aim = {"left": Vector2.LEFT, "right": Vector2.RIGHT, "up": Vector2.UP, "down": Vector2.DOWN}.get(my_facing, Vector2.DOWN)
 		Seasonal.throw(aim)
 	elif Settings.is_key(k, "dive") and (_dive or (my_ride() == "boat" and Map.in_sea(my_pos))):
@@ -2171,6 +2173,8 @@ func _draw() -> void:
 			items.append([lane[0], "c", [Vector2(c.x, lane[0]), "right" if float(lane[1]) > 0 else "left", c.color, c.get("police", false)]])
 		for k in Map.NPCS:
 			items.append([Map.NPCS[k].pos.y, "q", k])
+		for n in Police.chase_view:
+			items.append([(Police.chase_view[n].shown as Vector2).y, "cop", Police.chase_view[n]])
 	for id in npc.pets:
 		var info = Net.roster.get(id)
 		if info and info.get("pet") is Dictionary and not info.pet.is_empty():
@@ -2307,6 +2311,8 @@ func _draw() -> void:
 			_draw_pet(it[2][0], it[2][1])
 		elif it[1] == "pbot":
 			_draw_paint_bot(it[2])
+		elif it[1] == "cop":
+			_draw_chasing_cop(it[2])
 		else:
 			var a: Array = it[2]
 			_draw_player(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
@@ -3044,6 +3050,23 @@ func _draw_heart(p: Vector2, s: float, col: Color) -> void:
 	draw_circle(p + Vector2(-s * 0.5, 0), s * 0.55, col)
 	draw_circle(p + Vector2(s * 0.5, 0), s * 0.55, col)
 	draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 1.02, s * 0.15), p + Vector2(s * 1.02, s * 0.15), p + Vector2(0, s * 1.3)]), col)
+
+
+## 2.4.1: aranan oyuncuyu kovalayan NPC polis (araçtaysan polis arabasıyla).
+const COP_APP := {"skin": 1, "hair": 0, "hair_color": 0, "shirt": 7, "pants": 1, "hat": 1, "glasses": 1, "neck": 0}
+
+
+func _draw_chasing_cop(v: Dictionary) -> void:
+	var p: Vector2 = v.shown
+	var facing := str(v.facing)
+	if bool(v.car):
+		_draw_vehicle(p, "car", facing, Color("#f8fafc"))
+		_draw_siren(p + Vector2(0, -14))
+		_text(p + Vector2(-90, -40), "POLİS", 15, Color("#60a5fa"), 180)
+		return
+	Avatar.draw(self, p, COP_APP, facing, [1, 0, 2, 0][int(_t * 12.0) % 4])
+	_draw_siren(p + Vector2(0, -66))
+	_text(p + Vector2(-90, -76), "POLİS — Dur!", 15, Color("#60a5fa"), 180)
 
 
 func _draw_siren(p: Vector2) -> void:
@@ -3944,7 +3967,8 @@ func _draw_fx() -> void:
 				for j in n:
 					var a := -PI * (0.1 + 0.8 * j / float(n - 1))
 					var q := p + Vector2(cos(a) * 40.0 * u, sin(a) * 34.0 * u + 60.0 * u * u)
-					draw_rect(Rect2(q - Vector2(2.5, 2.5), Vector2(5, 5)), Color(0.45, 0.42, 0.4, 1.0 - u))
+					var cc := Color(0.95, 0.97, 1.0, 1.0 - u) if f.d.get("snow", false) else Color(0.45, 0.42, 0.4, 1.0 - u)
+					draw_rect(Rect2(q - Vector2(2.5, 2.5), Vector2(5, 5)), cc)
 				if f.d.get("big", false):
 					draw_circle(p, 10.0 + u * 30.0, Color(0.7, 0.66, 0.6, 0.4 * (1.0 - u)))
 			"pick":
@@ -4290,6 +4314,7 @@ var photo_filter := 0
 var _photo_layer: CanvasLayer
 var _photo_rect: ColorRect
 var _photo_hint: Label
+var _photo_btns: HBoxContainer
 var _photo_flash: ColorRect
 var _photo_zoom := Vector2.ONE
 
@@ -4338,6 +4363,24 @@ func _build_photo_layer() -> void:
 	_photo_flash.color = Color(1, 1, 1, 0)
 	_photo_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_photo_layer.add_child(_photo_flash)
+	# 2.4.1: telefonda tuş yok; fotoğraf modunu düğmelerle de kullan
+	_photo_btns = HBoxContainer.new()
+	_photo_btns.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_photo_btns.offset_top = -110
+	_photo_btns.offset_bottom = -56
+	_photo_btns.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_photo_btns.add_theme_constant_override("separation", 10)
+	_photo_layer.add_child(_photo_btns)
+	for spec in [["Çek", _take_photo], ["Filtre", func(): photo_filter = (photo_filter + 1) % PHOTO_FILTERS.size(); _update_photo_hint()],
+			["İsimler", func(): labels.visible = not labels.visible], ["Yakınlaş", func(): camera.zoom = (camera.zoom * 1.25).clamp(Vector2(0.5, 0.5), Vector2(3, 3))],
+			["Uzaklaş", func(): camera.zoom = (camera.zoom / 1.25).clamp(Vector2(0.5, 0.5), Vector2(3, 3))], ["Çık", func(): set_photo_mode(false)]]:
+		var b := Button.new()
+		b.text = spec[0]
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(96, 50)
+		b.add_theme_font_size_override("font_size", 18)
+		b.pressed.connect(spec[1])
+		_photo_btns.add_child(b)
 
 
 func set_photo_mode(on: bool) -> void:
@@ -4361,7 +4404,8 @@ func _update_photo_hint() -> void:
 	var w := get_viewport_rect().size.x
 	_photo_hint.size = Vector2(w, 30)
 	_photo_hint.position = Vector2(0, get_viewport_rect().size.y - 46)
-	_photo_hint.text = "FOTOĞRAF MODU  ·  Boşluk: çek  ·  1-7: filtre (%s)  ·  tekerlek: yakınlaş  ·  N: isimler  ·  Esc: çık" % PHOTO_FILTERS[photo_filter]
+	_photo_hint.text = "FOTOĞRAF MODU  ·  filtre: %s" % PHOTO_FILTERS[photo_filter] if Settings.touch_enabled() else \
+		"FOTOĞRAF MODU  ·  Boşluk: çek  ·  1-7: filtre (%s)  ·  tekerlek: yakınlaş  ·  N: isimler  ·  Esc: çık" % PHOTO_FILTERS[photo_filter]
 
 
 func _photo_input(k: InputEventKey) -> void:
@@ -4383,9 +4427,11 @@ func _photo_input(k: InputEventKey) -> void:
 
 func _take_photo() -> void:
 	_photo_hint.visible = false
+	_photo_btns.visible = false
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	_photo_hint.visible = true
+	_photo_btns.visible = true
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://album"))
 	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
 	var path := "user://album/foto_%s_%d.png" % [stamp, Time.get_ticks_msec() % 1000]

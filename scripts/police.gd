@@ -39,6 +39,14 @@ const NPC_EVERY := 20.0
 const NPC_CATCH := 0.05            # yıldız başına yakalanma şansı (her 20 sn)
 const PATROL_TIME := 14.0
 const NPC_OFFICER := "Komiser Kemal"
+## 2.4.1: NPC polis seni yakalayınca önce karakoldan (ya da yakından) koşarak peşine düşer.
+## Bir binaya girersen ya da CHASE_MAX saniye yakalanmazsan kurtulursun; yetişirse hapse atar.
+const CHASE_SPEED := 340.0         # yürüyen oyuncudan (300) biraz hızlı
+const CHASE_CAR := 1.06            # araçtaysan polis arabasıyla senin hızının bu katıyla gelir
+const CHASE_MAX := 15.0
+const CHASE_CATCH := 36.0
+const CHASE_FAR := 700.0           # karakol bundan uzaksa polis yakında belirir
+const CHASE_START := 420.0
 
 const SECURITY := {
 	"wallet": {"name": "Cüzdan Zinciri", "price": 1500, "plot": false,
@@ -76,6 +84,8 @@ var _cool := {}                    # "pick:ad" / "rob:ad:arsa" -> unix
 var _immune := {}                  # kurban adı -> unix
 var _patrol := {}                  # id -> {correct, correct_text, deadline}
 var _jailed := {}                  # id -> true (hapiste ve çevrimiçi)
+var chases := {}                   # sunucu: id -> {p, t, last, spd, send}
+var chase_view := {}               # istemci: kovalanan adı -> {p, shown, car, facing, t}
 var _acc := 0.0
 var _npc_acc := 0.0
 
@@ -85,11 +95,15 @@ func reset() -> void:
 	jail_until = 0.0
 	_patrol.clear()
 	_jailed.clear()
+	chases.clear()
+	chase_view.clear()
 
 
 func on_player_left(id: int) -> void:
 	_patrol.erase(id)
 	_jailed.erase(id)
+	if chases.has(id):
+		_end_chase(id)
 
 
 func _now() -> float:
@@ -578,8 +592,10 @@ func req_security(d: Dictionary) -> void:
 # ------------------------------------------------------------------ sunucu: zamanlayıcılar
 
 func _process(delta: float) -> void:
+	_view_chases(delta)
 	if not Net.is_server():
 		return
+	_tick_chases(delta)
 	_acc += delta
 	_npc_acc += delta
 	if _acc >= 1.0:
@@ -596,5 +612,94 @@ func _process(delta: float) -> void:
 		_npc_acc = 0.0
 		for id in Net.players.keys():
 			var w := wanted(id)
-			if w > 0 and not is_jailed(id) and _outdoors(id) and randf() < NPC_CATCH * w:
-				jail(id, w, 0)
+			if w > 0 and not is_jailed(id) and not chases.has(id) and _outdoors(id) and randf() < NPC_CATCH * w:
+				start_chase(id)
+
+
+# ------------------------------------------------------------------ 2.4.1: polis kovalamacası
+
+## Sunucu: NPC polis peşine düşer (testler de doğrudan çağırır).
+func start_chase(id: int) -> void:
+	if not Net.players.has(id) or chases.has(id):
+		return
+	var tp: Vector2 = Net.positions.get(id, Vector2.ZERO)
+	var st: Rect2 = Map.building("karakol").rect
+	var from := Vector2(st.get_center().x, st.end.y + 20)
+	if from.distance_to(tp) > CHASE_FAR or from.distance_to(tp) < CHASE_START - 40.0:
+		from = tp + Vector2.from_angle(randf() * TAU) * CHASE_START
+		from = from.clamp(Map.WORLD.position + Vector2(40, 40), Map.WORLD.end - Vector2(40, 40))
+	chases[id] = {"p": from, "t": 0.0, "last": tp, "spd": 0.0, "send": 0.0}
+	Net.notify(id, "Polis peşinde! Bir binaya gir ya da %d saniye yakalanma." % int(CHASE_MAX), false)
+	Net.tell_all(self, "on_chase", {"who": Net.players[id].name, "p": from, "car": false, "new": true})
+
+
+func _tick_chases(delta: float) -> void:
+	for id in chases.keys():
+		var c: Dictionary = chases[id]
+		if not Net.players.has(id) or is_jailed(id) or wanted(id) <= 0:
+			_end_chase(id)
+			continue
+		var tp: Vector2 = Net.positions.get(id, Vector2.ZERO)
+		var moved := tp.distance_to(c.last)
+		c.last = tp
+		c.t = float(c.t) + delta
+		if moved > 600.0 or not _outdoors(id):          # binaya girdi / ışınlandı (feribot, ev)
+			_end_chase(id)
+			Net.notify(id, "Polisi atlattın! Ama hâlâ aranıyorsun.")
+			continue
+		c.spd = lerpf(float(c.spd), moved / maxf(delta, 0.001), 0.15)
+		var car := str(Net.players[id].get("ride", "")) != ""
+		var v := maxf(CHASE_SPEED, float(c.spd) * CHASE_CAR) if car else CHASE_SPEED
+		c.p = (c.p as Vector2).move_toward(tp, v * delta)
+		if (c.p as Vector2).distance_to(tp) < CHASE_CATCH + (20.0 if car else 0.0):
+			var stars := wanted(id)
+			_end_chase(id)
+			jail(id, stars, 0)
+			continue
+		if float(c.t) > CHASE_MAX:
+			_end_chase(id)
+			Net.notify(id, "Polisi atlattın! Ama hâlâ aranıyorsun.")
+			continue
+		c.send = float(c.send) - delta
+		if float(c.send) <= 0.0:
+			c.send = 0.1
+			Net.tell_all(self, "on_chase", {"who": Net.players[id].name, "p": c.p, "car": car})
+
+
+func _end_chase(id: int) -> void:
+	chases.erase(id)
+	if Net.players.has(id):
+		Net.tell_all(self, "on_chase_end", {"who": Net.players[id].name})
+
+
+@rpc("authority", "call_local", "unreliable_ordered")
+func on_chase(d: Dictionary) -> void:
+	var n := str(d.get("who", ""))
+	var p: Vector2 = d.get("p", Vector2.ZERO)
+	if not chase_view.has(n):
+		chase_view[n] = {"p": p, "shown": p, "car": false, "facing": "down", "t": 0.0}
+		Sfx.play("siren", -6.0)
+	var v: Dictionary = chase_view[n]
+	v.p = p
+	v.car = bool(d.get("car", false))
+	v.t = 0.0
+
+
+@rpc("authority", "call_local", "reliable")
+func on_chase_end(d: Dictionary) -> void:
+	chase_view.erase(str(d.get("who", "")))
+
+
+## İstemci: polisi yumuşak hareket ettir; mesaj gelmezse (kopma) kaldır.
+func _view_chases(delta: float) -> void:
+	for n in chase_view.keys():
+		var v: Dictionary = chase_view[n]
+		v.t = float(v.t) + delta
+		if float(v.t) > 2.0:
+			chase_view.erase(n)
+			continue
+		var old: Vector2 = v.shown
+		v.shown = old.lerp(v.p, minf(1.0, 12.0 * delta))
+		var dv: Vector2 = v.shown - old
+		if dv.length() > 0.3:
+			v.facing = ("right" if dv.x > 0 else "left") if absf(dv.x) > absf(dv.y) else ("down" if dv.y > 0 else "up")
