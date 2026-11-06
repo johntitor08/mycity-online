@@ -76,6 +76,8 @@ Sayfa düzenle → "Embed" bölümüne YouTube bağlantısını yapıştır (say
 
 **Devlog yazısı** (yayında: https://johntitortheprog.itch.io/mycity-online/devlog/1758876/241-polis-kovalamacas-evcil-hayvan-rol-ve-telefonda-tam-kontrol)
 
+Web sayfasında da aynı başlıkla yayında: https://johntitortheprog.itch.io/mycity-online-web/devlog/1758884/241-polis-kovalamacas-evcil-hayvan-rol-ve-telefonda-tam-kontrol (girişte "sayfayı açman yeterli, eski sürüm açılırsa Güncelle'ye bas"; telefon bölümü "Telefon tarayıcısında oynayanlar için"; sonda indirme sürümleri için ana sayfa bağlantısı)
+
 Başlık: `2.4.1: Polis kovalamacası, evcil hayvan rolü ve telefonda tam kontrol` · Tür: Major update · Ekler: 2.4.1 derlemeleri + `docs/ekran/polis_kovalama.png`, `docs/ekran/evcil_rol.png`
 
 ```
