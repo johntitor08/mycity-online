@@ -74,19 +74,32 @@ MyCity Online, türkçe oyun, çok oyunculu oyun, ücretsiz oyun, yaşam simüla
 
 Sayfa düzenle → "Embed" bölümüne YouTube bağlantısını yapıştır (sayfanın üstünde video görünür).
 
-**Devlog yazısı** (itch → Projeyi düzenle → Devlog → Yeni yazı):
+**Devlog yazısı** (yayında: https://johntitortheprog.itch.io/mycity-online/devlog/1758876/241-polis-kovalamacas-evcil-hayvan-rol-ve-telefonda-tam-kontrol)
 
-Başlık: `2.3 çıktı: kurumların içi ve 5 dakikalık tanıtım videosu`
+Başlık: `2.4.1: Polis kovalamacası, evcil hayvan rolü ve telefonda tam kontrol` · Tür: Major update · Ekler: 2.4.1 derlemeleri + `docs/ekran/polis_kovalama.png`, `docs/ekran/evcil_rol.png`
 
 ```
-MyCity Online'ın neredeyse tüm özelliklerini gösteren 5 dakikalık bir tanıtım videosu hazırladık (videoyu bu yazıya ekle).
+Merhaba! Tanıtım videosundan (2.3) bu yana MyCity Online'a gelen her şey bu yazıda. 2.4.1 şimdi Windows, Linux, Android ve tarayıcıda.
 
-2.3 ile gelenler:
-• Kurumların içi: Hastane, Market, Karakol, Banka, Kaplıca ve 14 kurum daha. Kapıda E ile içeri gir; görevlinin tezgâhında işini yap.
-• Kaya kırma ve zıpkın artık bağlantı gecikmesinde de akıcı.
-• Sunucu listesi (2.2): resmi sunucu, topluluk sunucuları, kendi listen ve aynı Wi-Fi'daki sunucular. Oyuncu sayısı ve ping'i görerek katıl.
+🚓 Polis kovalamacası (2.4.1)
+Aranırken (★) polis seni yakaladığında artık anında hapse ışınlanmıyorsun. Siren çalıyor, polis karakoldan ya da yakından koşarak peşine düşüyor; araçtaysan polis arabasıyla geliyor. Bir binaya saklan ya da 15 saniye yakalanma, kurtul. Ama aranmaya devam edersin!
 
-Tarayıcıda oyna: https://johntitor08.github.io/mycity-online/ (telefonda "Ana ekrana ekle" ile uygulama gibi kurulur)
+🐾 Evcil hayvan rolü (2.4)
+Bir arkadaşının adına tıkla → "Evcil hayvanı ol" → kedi, köpek ya da papağan seç. Kabul ederse hayvan olarak görünürsün ya da insan şeklinde kalıp kulak ve kuyruk takarsın. G ile miyavla ya da havla, F ile sahibini takip et; sahibin seni sevebilir ve mama verebilir. İkiniz de istediğiniz an bitirebilirsiniz.
+
+📱 Telefonda tam kontrol (2.4.1)
+• Kışın "Kar" düğmesi: Kartopu Savaşı artık telefonda da oynanıyor
+• Fotoğraf modunda Çek, Filtre, İsimler, Yakınlaş/Uzaklaş ve Çık düğmeleri
+• Spor salonu, park sahnesindeki ritim oyunu ve karaoke dokunarak oynanıyor
+
+🌙 Ve dahası
+• Yalıkent, Çamlıbel, Yeni Mahalle, liman yolu ve otoyolda sokak lambaları: geceleri her yer aydınlık (2.3.1)
+• Kaplıcanın sıcak havuzunda yüzebilirsin, enerjin yenilenir (2.3.1)
+• Afetlerde enkazı temizlerken kazma sallanıyor, taş ve toz sıçrıyor (2.4.1)
+• Üstte çıkan bildirimler artık soldaki bilgi kutusunun küçült düğmesini kapatmıyor (2.4.1)
+• Koşu bandı ve maraton düzeltmeleri; sıcak hava balonu artık kırmızı (2.3.1)
+
+▶ Tarayıcıda hemen oyna · 🎬 5 dakikalık tanıtım videosu · 💻 Kaynak kodu
 ```
 
 ---
