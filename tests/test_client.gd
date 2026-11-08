@@ -3955,11 +3955,15 @@ func _test_20(w) -> void:
 	Homes._teleport(me, Map.SUB_DOCK + Vector2(0, 40))
 	await _wait(0.5)
 	check(w.zone.get("do", "") == "sub", "denizaltı tersanesi")
+	# 2.4.2: denizaltı yokken tersanede F binmez, nereden alınacağını söyler
+	w._toggle_vehicle()
+	await _wait(0.4)
+	check(w.my_ride() == "" and not Map.DEEP.has_point(w.my_pos), "denizaltı yokken F ile binilmiyor")
 	Deep.buy("sub")
 	Deep.buy("light_lv")
 	await _wait(0.4)
 	check(bool(Deep.my.sub) and int(Deep.my.light_lv) == 1, "denizaltı alındı, far yükseltildi")
-	Deep.dive()
+	w._toggle_vehicle()                  # 2.4.2: tersanede F = denizaltına bin ve dal
 	await _wait(0.6)
 	check(w.adv.ext == "derin" and w.my_ride() == "sub" and Deep.bat > 100.0, "Batık Şehir'e dalındı (akü %d)" % int(Deep.bat))
 	var b0 := Deep.bat

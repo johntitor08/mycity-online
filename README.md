@@ -45,6 +45,11 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.4.2: Tersanede F ile denizaltına bin
+
+- **Denizaltı:** Sanayi Limanı'ndaki tersanede **F**'ye basınca denizaltına binip doğrudan Batık Şehir'e dalarsın (önceden yalnızca tersane penceresindeki "Dal" düğmesiyle biniliyordu; F "Aracın yok" diyordu). Denizaltın yoksa nereden alınacağı söylenir.
+- Hava kubbesinde F ile denizaltına yalnızca denizaltısı olan oyuncu binebilir.
+
 ## 2.4.1: Polis kovalamacası, enkaz animasyonu
 
 ![Polis kovalamacası](docs/ekran/polis_kovalama.png)

@@ -278,6 +278,8 @@ func req_toggle(_d: Dictionary) -> void:
 		Net.notify(id, "Denizaltıdan ancak hava kubbesinde inilir.", false)
 		return
 	var ride := str(Net.players[id].get("ride", ""))
+	if ride != "sub" and not bool(_data(_rec(id)).sub):
+		return
 	Garage.set_ride(id, "" if ride == "sub" else "sub")
 
 

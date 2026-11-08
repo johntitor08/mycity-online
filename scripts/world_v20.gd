@@ -60,8 +60,14 @@ func bike_mult() -> float:
 	return 1.15 if Projects.done("bisiklet") else 1.0
 
 
-## F tuşu: Batık Şehir'de denizaltıdan in/bin.
+## F tuşu: Batık Şehir'de denizaltıdan in/bin; tersanede denizaltına binip dal (2.4.2).
 func toggle_vehicle() -> bool:
+	if w.my_ride() == "" and w.my_pos.distance_to(Map.SUB_DOCK) < 140.0:
+		if bool(Deep.my.get("sub", false)):
+			Deep.dive()
+		else:
+			w.hud.show_toast("Denizaltın yok. Tersanede %s ile al (Sv.%d, %s)." % [Settings.key_name("interact"), Deep.SUB_LEVEL, U.money(Deep.SUB_PRICE)], false)
+		return true
 	if not Map.DEEP.has_point(w.my_pos):
 		return false
 	Deep.toggle_sub()
@@ -131,7 +137,7 @@ func extra_zone(z: Dictionary) -> Dictionary:
 	if me.distance_to(Map.PROJECT_BOARD) < 110.0:
 		z = {"type": "v20", "do": "projects", "label": "Belediye proje panosu"}
 	if me.distance_to(Map.SUB_DOCK) < 140.0:
-		z = {"type": "v20", "do": "sub", "label": "Denizaltı tersanesi — Batık Şehir"}
+		z = {"type": "v20", "do": "sub", "label": "Denizaltı tersanesi — Batık Şehir" + ("   ·   %s: denizaltına bin ve dal" % Settings.key_name("vehicle") if bool(Deep.my.get("sub", false)) else "")}
 	if Projects.done("kule") and me.distance_to(Map.PROJECT_SITES.kule) < 90.0:
 		z = {"type": "v20", "do": "tower", "label": "Gözlem kulesi — dürbünle bak"}
 	if Festival.active():

@@ -289,6 +289,42 @@ func _ready() -> void:
 		await _shot("kar_dugme")
 		get_tree().quit()
 		return
+	if "--denizalti" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(3.0)
+		var rec: Dictionary = Net.save_data.players[Net.my_name]
+		Rpg.add_xp(1, "", 60000)
+		Net.add_money(1, 100000)
+		await _wait(0.5)
+		Homes._teleport(1, Map.SUB_DOCK + Vector2(0, 50))
+		await _wait(0.8)
+		Deep.buy("sub")
+		await _wait(0.5)
+		print("DZ denizaltı var: ", Deep.my.get("sub"))
+		print("DZ tersane bölgesi: ", w.zone.get("label", "-"), " | ride=", w.my_ride())
+		w._toggle_vehicle()
+		await _wait(1.5)
+		print("DZ tersanede F sonrası ride=", w.my_ride(), " derin=", Map.DEEP.has_point(w.my_pos))
+		await _shot("dz_tersane")
+		await _wait(1.0)
+		print("DZ dalış sonrası ride=", w.my_ride(), " pos=", w.my_pos, " derin=", Map.DEEP.has_point(w.my_pos))
+		await _shot("dz_dalis")
+		var dome: Vector2 = Deep.DOMES[1].c
+		w.my_pos = dome
+		await _wait(1.0)
+		print("DZ kubbeye sürüldü ride=", w.my_ride())
+		await _wait(1.0)
+		print("DZ kubbede ride=", w.my_ride(), " ipucu=", w.hud.hint_label.text if "hint_label" in w.hud else "?")
+		w._toggle_vehicle()
+		await _wait(0.8)
+		print("DZ kubbede F (in) sonrası ride=", w.my_ride())
+		w._toggle_vehicle()
+		await _wait(0.8)
+		print("DZ kubbede F (bin) sonrası ride=", w.my_ride())
+		await _shot("dz_kubbe")
+		get_tree().quit()
+		return
 	if "--tel-foto" in OS.get_cmdline_user_args():
 		Tutorial.finish()
 		await _wait(3.0)
