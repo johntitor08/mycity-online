@@ -2,6 +2,7 @@ extends RefCounted
 ## 1.9 istemci: Yeni Mahalle (pazar meydanı, tuning garajı, drift alanı, evcil hayvan parkı), kayarak sürüş ve nitro,
 ## sokak yarışı ve pist hayaleti, afetler. world.gd'nin kancaları buraya gelir; çizimler world'ün _draw'ı içinde yapılır.
 
+const FD = preload("res://scripts/fastdraw.gd")
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
@@ -388,9 +389,9 @@ func draw_region(view: Rect2, items: Array) -> void:
 		for gy in range(int(maxf(t.position.y, view.position.y) / g) * g, int(minf(t.end.y, view.end.y)), g):
 			var h := absi((gx * 73856093) ^ (gy * 19349663))
 			if h % 4 == 0:
-				w.draw_circle(Vector2(gx + h % 100, gy + h % 90), 18 + h % 20, Color(0.35, 0.55, 0.12, 0.35))
+				FD.circle(w, Vector2(gx + h % 100, gy + h % 90), 18 + h % 20, Color(0.35, 0.55, 0.12, 0.35))
 			if h % 9 == 0:
-				w.draw_circle(Vector2(gx + h % 80, gy + h % 60), 3, Color("#fde047"))
+				FD.circle(w, Vector2(gx + h % 80, gy + h % 60), 3, Color("#fde047"))
 	_road(Map.TOWN_ROAD, true)
 	_draw_konut(view)
 	_road(Map.TOWN_AVE, false)
@@ -401,7 +402,7 @@ func draw_region(view: Rect2, items: Array) -> void:
 	_draw_pet_park(items)
 	w.v20.draw_town(view)
 	for p: Rect2 in [Rect2(t.position.x + 20, 290, 40, 40), Rect2(t.end.x - 70, 300, 40, 40)]:
-		w.draw_circle(p.get_center(), 30, Color("#166534"))
+		FD.circle(w, p.get_center(), 30, Color("#166534"))
 	# meydanı dolaşan müşteriler
 	var tt: float = w._t
 	for k in 7:
@@ -429,13 +430,20 @@ func _draw_konut(view: Rect2) -> void:
 
 func _road(r: Rect2, horizontal: bool) -> void:
 	w.draw_rect(r, Color("#374151"))
+	var v: Rect2 = w._vr
 	if horizontal:
-		for x in range(int(r.position.x) + 20, int(r.end.x), 80):
+		var x0 := int(r.position.x) + 20
+		if v.has_area():
+			x0 += maxi(0, int((v.position.x - x0) / 80.0)) * 80          # 2.5.1: sadece görünen şeritler
+		for x in range(x0, int(minf(r.end.x, v.end.x + 80.0) if v.has_area() else r.end.x), 80):
 			w.draw_rect(Rect2(x, r.get_center().y - 2, 40, 4), Color("#f8fafc"))
 		w.draw_rect(Rect2(r.position.x, r.position.y - 8, r.size.x, 8), Color("#d6d3d1"))
 		w.draw_rect(Rect2(r.position.x, r.end.y, r.size.x, 8), Color("#d6d3d1"))
 	else:
-		for y in range(int(r.position.y) + 20, int(r.end.y), 80):
+		var y0 := int(r.position.y) + 20
+		if v.has_area():
+			y0 += maxi(0, int((v.position.y - y0) / 80.0)) * 80
+		for y in range(y0, int(minf(r.end.y, v.end.y + 80.0) if v.has_area() else r.end.y), 80):
 			w.draw_rect(Rect2(r.get_center().x - 2, y, 4, 40), Color("#f8fafc"))
 		w.draw_rect(Rect2(r.position.x - 8, r.position.y, 8, r.size.y), Color("#d6d3d1"))
 		w.draw_rect(Rect2(r.end.x, r.position.y, 8, r.size.y), Color("#d6d3d1"))
@@ -463,11 +471,11 @@ func _draw_market() -> void:
 	w._text(b + Vector2(-60, -104), "ALIM İLANLARI", 13, Color("#7c2d12"), 200, false)
 	# çeşme
 	var f := sq.get_center() + Vector2(0, 30)
-	w.draw_circle(f, 42, Color("#a8a29e"))
-	w.draw_circle(f, 34, Color("#38bdf8"))
+	FD.circle(w, f, 42, Color("#a8a29e"))
+	FD.circle(w, f, 34, Color("#38bdf8"))
 	for k in 3:
 		var u := fmod(float(w._t) * 1.2 + k / 3.0, 1.0)
-		w.draw_circle(f + Vector2(0, -u * 24.0), 4.0 - u * 2.0, Color(1, 1, 1, 0.7 * (1.0 - u)))
+		FD.circle(w, f + Vector2(0, -u * 24.0), 4.0 - u * 2.0, Color(1, 1, 1, 0.7 * (1.0 - u)))
 
 
 func _draw_stall(i: int) -> void:
@@ -484,7 +492,7 @@ func _draw_stall(i: int) -> void:
 		var sx := r.position.x + k * r.size.x / 6.0
 		w.draw_rect(Rect2(sx, r.position.y, r.size.x / 6.0, 36), col if k % 2 == 0 else Color.WHITE)
 	for k in 6:
-		w.draw_circle(Vector2(r.position.x + (k + 0.5) * r.size.x / 6.0, r.position.y + 36), r.size.x / 12.0, col if k % 2 == 0 else Color.WHITE)
+		FD.circle(w, Vector2(r.position.x + (k + 0.5) * r.size.x / 6.0, r.position.y + 36), r.size.x / 12.0, col if k % 2 == 0 else Color.WHITE)
 	w.draw_line(r.position + Vector2(4, 36), r.position + Vector2(4, 110), Color("#57534e"), 3)
 	w.draw_line(r.position + Vector2(r.size.x - 4, 36), r.position + Vector2(r.size.x - 4, 110), Color("#57534e"), 3)
 	if open:
@@ -493,7 +501,7 @@ func _draw_stall(i: int) -> void:
 			var ip := r.position + Vector2(18 + (k % 4) * 42, 66 + (k / 4) * 18)
 			var kc: Color = {"fish": Color("#60a5fa"), "food": Color("#f59e0b"), "crop": Color("#84cc16")}.get(str(items[k].kind), Color.WHITE)
 			w.draw_rect(Rect2(ip - Vector2(12, 6), Vector2(24, 12)), Color("#fef3c7"))
-			w.draw_circle(ip, 5, kc)
+			FD.circle(w, ip, 5, kc)
 		w._text(Vector2(r.position.x - 20, r.end.y + 8), str(v.name), 13, Color.WHITE, r.size.x + 40)
 	else:
 		w.draw_rect(Rect2(r.get_center().x - 46, r.position.y + 66, 92, 26), Color("#fef3c7"))
@@ -542,8 +550,8 @@ func _draw_pet_park(items: Array) -> void:
 	var pts: Array = Map.PET_TRACK
 	for i in pts.size() - 1:
 		w.draw_line(pts[i], pts[i + 1], Color("#d6b98c"), 54)
-		w.draw_circle(pts[i + 1], 27, Color("#d6b98c"))
-	w.draw_circle(pts[0], 27, Color("#d6b98c"))
+		FD.circle(w, pts[i + 1], 27, Color("#d6b98c"))
+	FD.circle(w, pts[0], 27, Color("#d6b98c"))
 	for k in 6:
 		w.draw_rect(Rect2(pts[0].x - 30 + k * 10, pts[0].y - 27, 10, 54), Color.WHITE if k % 2 == 0 else Color.BLACK)
 	var fin: Vector2 = pts[-1]
@@ -569,7 +577,7 @@ func _draw_pet_park(items: Array) -> void:
 				w.draw_rect(Rect2(op + Vector2(-40, -20), Vector2(80, 34)), Color("#2563eb"))
 				for k in 4:
 					w.draw_line(op + Vector2(-40 + k * 26, -20), op + Vector2(-40 + k * 26, 14), Color("#1d4ed8"), 2)
-				w.draw_circle(op + Vector2(-40, -3), 14, Color("#1e3a8a"))
+				FD.circle(w, op + Vector2(-40, -3), 14, Color("#1e3a8a"))
 	# gişe
 	var b: Vector2 = Map.PET_BOOTH
 	w.draw_rect(Rect2(b.x - 36, b.y - 54, 72, 50), Color("#f59e0b"))
@@ -590,7 +598,7 @@ func _draw_pet_park(items: Array) -> void:
 	w.draw_rect(Rect2(bk.x - 40, bk.y - 24, 80, 26), Color("#e5e7eb"))
 	w.draw_rect(Rect2(bk.x - 34, bk.y + 2, 6, 18), Color("#9ca3af"))
 	w.draw_rect(Rect2(bk.x + 28, bk.y + 2, 6, 18), Color("#9ca3af"))
-	w.draw_circle(bk + Vector2(26, -30), 8, Color("#f472b6"))
+	FD.circle(w, bk + Vector2(26, -30), 8, Color("#f472b6"))
 	w._text(bk + Vector2(-70, -60), "BAKIM MASASI", 12, Color.WHITE, 140)
 	# sahne
 	var s: Rect2 = Map.PET_STAGE
@@ -608,7 +616,7 @@ func _draw_pet_park(items: Array) -> void:
 	var kp: Vector2 = Map.PET_KIOSK
 	w.draw_rect(Rect2(kp.x - 60, kp.y - 80, 120, 80), Color("#f9a8d4"))
 	w.draw_rect(Rect2(kp.x - 66, kp.y - 96, 132, 20), Color("#db2777"))
-	w.draw_circle(kp + Vector2(-30, -40), 10, Color("#facc15"))
+	FD.circle(w, kp + Vector2(-30, -40), 10, Color("#facc15"))
 	w.draw_rect(Rect2(kp.x + 10, kp.y - 50, 30, 10), Color("#ef4444"))
 	w._text(kp + Vector2(-90, -130), "AKSESUAR · KUPALAR", 13, Color("#fdf2f8"), 180)
 	# yarışan hayvanlar
@@ -649,8 +657,8 @@ func draw_ground() -> void:
 			if not view.grow(r).has_point(c):
 				continue
 			w.draw_set_transform(c, 0, Vector2(1, 0.6))
-			w.draw_circle(Vector2.ZERO, r, Color(0.35, 0.5, 0.6, 0.75))
-			w.draw_circle(Vector2.ZERO, r * 0.8, Color(0.3, 0.45, 0.58, 0.6))
+			FD.circle(w, Vector2.ZERO, r, Color(0.35, 0.5, 0.6, 0.75))
+			FD.circle(w, Vector2.ZERO, r * 0.8, Color(0.3, 0.45, 0.58, 0.6))
 			w.draw_set_transform(Vector2.ZERO)
 			for k in int(pl[3]):
 				var bp := c + Vector2(-r * 0.6 + k * 26, r * 0.55)
@@ -733,13 +741,13 @@ func _draw_pile(d: Array) -> void:
 	var s := 0.55 + 0.12 * hp
 	if snow:
 		w.draw_set_transform(p, 0, Vector2(1, 0.55))
-		w.draw_circle(Vector2.ZERO, 44 * s, Color("#e2e8f0"))
-		w.draw_circle(Vector2(-14, -10) * s, 30 * s, Color("#f8fafc"))
+		FD.circle(w, Vector2.ZERO, 44 * s, Color("#e2e8f0"))
+		FD.circle(w, Vector2(-14, -10) * s, 30 * s, Color("#f8fafc"))
 		w.draw_set_transform(Vector2.ZERO)
 		return
 	var rocks := [[-22, -4, 16, "#78716c"], [8, -10, 18, "#a8a29e"], [20, 4, 12, "#57534e"], [-6, 8, 14, "#d6d3d1"], [-30, 10, 10, "#a8a29e"]]
 	for rk in rocks.slice(0, 2 + hp):
-		w.draw_circle(p + Vector2(rk[0], rk[1]) * s, float(rk[2]) * s, Color(rk[3]))
+		FD.circle(w, p + Vector2(rk[0], rk[1]) * s, float(rk[2]) * s, Color(rk[3]))
 	w.draw_line(p + Vector2(-34, -16) * s, p + Vector2(30, -26) * s, Color("#6b4423"), 5)
 	w.draw_line(p + Vector2(-12, -30) * s, p + Vector2(10, 4) * s, Color("#9ca3af"), 3)
 
@@ -764,9 +772,9 @@ func _draw_person(d: Array) -> void:
 		"donuk":
 			Avatar.draw(w, p, {"skin": 0, "hair": 2, "hair_color": 4, "shirt": 6, "pants": 1}, "down", 0)
 			for k in 3:
-				w.draw_circle(p + Vector2(-14 + k * 14, -70 - fmod(t * 20.0 + k * 10.0, 20.0)), 3, Color(0.85, 0.95, 1.0, 0.8))
+				FD.circle(w, p + Vector2(-14 + k * 14, -70 - fmod(t * 20.0 + k * 10.0, 20.0)), 3, Color(0.85, 0.95, 1.0, 0.8))
 	var bp := p + Vector2(0, -100 + sin(t * 3.0) * 3.0)
-	w.draw_circle(bp, 13, Color.WHITE)
+	FD.circle(w, bp, 13, Color.WHITE)
 	w._text(bp + Vector2(-10, -12), "!", 20, Color("#dc2626"), 20, false)
 
 
@@ -786,7 +794,7 @@ func _draw_damage(r: Rect2, prog: float) -> void:
 
 
 func _draw_aid_tent(p: Vector2, kind: String) -> void:
-	w.draw_circle(p + Vector2(0, -20), 130, Color(1.0, 0.9, 0.6, 0.12))
+	FD.circle(w, p + Vector2(0, -20), 130, Color(1.0, 0.9, 0.6, 0.12))
 	w.draw_rect(Rect2(p.x - 70, p.y - 60, 140, 60), Color("#f8fafc"))
 	w.draw_colored_polygon(PackedVector2Array([p + Vector2(-80, -60), p + Vector2(80, -60), p + Vector2(0, -110)]), Color("#e2e8f0"))
 	w.draw_rect(Rect2(p.x - 10, p.y - 92, 20, 6), Color("#dc2626"))
@@ -816,8 +824,8 @@ func draw_overlay() -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	for s in skids:
 		var a := clampf(1.0 - (now - float(s[1])) / 6.0, 0.0, 1.0) * 0.5
-		w.draw_circle(s[0] + Vector2(-20, 14), 4, Color(0.1, 0.1, 0.1, a))
-		w.draw_circle(s[0] + Vector2(20, 14), 4, Color(0.1, 0.1, 0.1, a))
+		FD.circle(w, s[0] + Vector2(-20, 14), 4, Color(0.1, 0.1, 0.1, a))
+		FD.circle(w, s[0] + Vector2(20, 14), 4, Color(0.1, 0.1, 0.1, a))
 
 
 ## Arabanın altına neon, arkasına spoyler (world._draw_vehicle çağırır).
@@ -827,8 +835,8 @@ func draw_car_under(vstyle: Dictionary) -> void:
 		var c: Color = Tuning.NEONS[n]
 		var pulse := 0.16 + 0.06 * sin(float(w._t) * 5.0)
 		for x in [-30.0, -10.0, 10.0, 30.0]:
-			w.draw_circle(Vector2(x, 0), 40, Color(c, pulse * 0.6))
-			w.draw_circle(Vector2(x, 0), 30, Color(c, pulse))
+			FD.circle(w, Vector2(x, 0), 40, Color(c, pulse * 0.6))
+			FD.circle(w, Vector2(x, 0), 30, Color(c, pulse))
 
 
 func draw_car_over(vstyle: Dictionary) -> void:
@@ -865,11 +873,11 @@ func draw_pet_wear(kind: String, wear: Dictionary) -> void:
 				w.draw_colored_polygon(PackedVector2Array([head + Vector2(6, -4), head + Vector2(0, 0), head + Vector2(6, 4)]), c)
 			"parti":
 				w.draw_colored_polygon(PackedVector2Array([head + Vector2(-6, 0), head + Vector2(6, 0), head + Vector2(0, -16)]), c)
-				w.draw_circle(head + Vector2(0, -16), 2.5, Color("#facc15"))
+				FD.circle(w, head + Vector2(0, -16), 2.5, Color("#facc15"))
 			"tac":
 				w.draw_colored_polygon(PackedVector2Array([head + Vector2(-8, 0), head + Vector2(8, 0), head + Vector2(8, -9), head + Vector2(4, -4),
 					head + Vector2(0, -11), head + Vector2(-4, -4), head + Vector2(-8, -9)]), c)
-				w.draw_circle(head + Vector2(0, -5), 1.6, Color("#ef4444"))
+				FD.circle(w, head + Vector2(0, -5), 1.6, Color("#ef4444"))
 			"papyon", "fular", "altin":
 				var n := head + Vector2(-4, 12)
 				if k == "papyon":
@@ -878,12 +886,12 @@ func draw_pet_wear(kind: String, wear: Dictionary) -> void:
 				else:
 					w.draw_line(n + Vector2(-8, 0), n + Vector2(8, 0), c, 4 if k == "fular" else 3)
 					if k == "altin":
-						w.draw_circle(n + Vector2(0, 4), 2.5, c)
+						FD.circle(w, n + Vector2(0, 4), 2.5, c)
 			"gozluk", "kalp":
 				var e := head + Vector2(2, 6)
 				if k == "gozluk":
 					w.draw_rect(Rect2(e + Vector2(-8, -3), Vector2(7, 5)), c)
 					w.draw_rect(Rect2(e + Vector2(1, -3), Vector2(7, 5)), c)
 				else:
-					w.draw_circle(e + Vector2(-4, 0), 3.5, c)
-					w.draw_circle(e + Vector2(4, 0), 3.5, c)
+					FD.circle(w, e + Vector2(-4, 0), 3.5, c)
+					FD.circle(w, e + Vector2(4, 0), 3.5, c)

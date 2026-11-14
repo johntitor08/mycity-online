@@ -2,6 +2,7 @@ extends RefCounted
 ## 1.8 istemci: mağara zindanı, zombi gecesi, uzay üssü ve Ay, mini golf ve bowling.
 ## world.gd'nin çizim/bölge/etkileşim kancaları buraya gelir; çizimler world'ün _draw'ı içinde yapılır.
 
+const FD = preload("res://scripts/fastdraw.gd")
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
@@ -459,19 +460,19 @@ class RocketArt extends Control:
 		for k in 90:
 			var sx := fmod(k * 137.5, sw)
 			var sy := fmod(k * 71.3 + t * (60.0 + k % 5 * 40.0), sh)
-			draw_circle(Vector2(sx, sy), 1.0 + k % 3 * 0.6, Color(1, 1, 1, up * (0.4 + 0.5 * sin(k + t * 3.0))))
+			FD.circle(self, Vector2(sx, sy), 1.0 + k % 3 * 0.6, Color(1, 1, 1, up * (0.4 + 0.5 * sin(k + t * 3.0))))
 		# hedef gezegen büyüyerek yaklaşır
 		var grow := clampf((t - 2.5) / 3.5, 0.0, 1.0)
 		var pc := Vector2(sw * 0.5, -sh * 0.2 + grow * sh * 0.35)
 		var pr := 40.0 + grow * sh * 0.45
 		if to == "ay":
-			draw_circle(pc, pr, Color("#d1d5db"))
+			FD.circle(self, pc, pr, Color("#d1d5db"))
 			for k in 7:
-				draw_circle(pc + Vector2(cos(k * 2.1), sin(k * 1.7)) * pr * 0.55, pr * (0.08 + k % 3 * 0.04), Color("#9ca3af"))
+				FD.circle(self, pc + Vector2(cos(k * 2.1), sin(k * 1.7)) * pr * 0.55, pr * (0.08 + k % 3 * 0.04), Color("#9ca3af"))
 		else:
-			draw_circle(pc, pr, Color("#2563eb"))
+			FD.circle(self, pc, pr, Color("#2563eb"))
 			for k in 5:
-				draw_circle(pc + Vector2(cos(k * 1.9), sin(k * 2.3)) * pr * 0.5, pr * 0.22, Color("#16a34a"))
+				FD.circle(self, pc + Vector2(cos(k * 1.9), sin(k * 2.3)) * pr * 0.5, pr * 0.22, Color("#16a34a"))
 			draw_arc(pc, pr, 0, TAU, 64, Color(0.6, 0.85, 1.0, 0.6), 6)
 		# roket
 		var rc := Vector2(sw * 0.5 + sin(t * 9.0) * 2.0, sh * 0.62)
@@ -482,7 +483,7 @@ class RocketArt extends Control:
 		draw_colored_polygon(PackedVector2Array([rc + Vector2(-22, -50), rc + Vector2(22, -50), rc + Vector2(0, -105)]), Color("#dc2626"))
 		draw_colored_polygon(PackedVector2Array([rc + Vector2(-22, 20), rc + Vector2(-46, 64), rc + Vector2(-22, 60)]), Color("#dc2626"))
 		draw_colored_polygon(PackedVector2Array([rc + Vector2(22, 20), rc + Vector2(46, 64), rc + Vector2(22, 60)]), Color("#dc2626"))
-		draw_circle(rc + Vector2(0, -16), 11, Color("#38bdf8"))
+		FD.circle(self, rc + Vector2(0, -16), 11, Color("#38bdf8"))
 		draw_arc(rc + Vector2(0, -16), 11, 0, TAU, 24, Color("#475569"), 3)
 		var msg := "Ay'a yolculuk..." if to == "ay" else "Dünya'ya dönüş..."
 		draw_string(ThemeDB.fallback_font, Vector2(0, sh - 60), msg, HORIZONTAL_ALIGNMENT_CENTER, sw, 30, Color("#fde68a"))
@@ -564,7 +565,7 @@ func _draw_fx() -> void:
 		match str(f.k):
 			"hit":
 				w._text(p + Vector2(-30, -u * 40.0), str(f.dmg), 20, Color(1, 0.9, 0.3, 1.0 - u), 60)
-				w.draw_circle(p, 6.0 + u * 18.0, Color(1, 1, 1, 0.35 * (1.0 - u)))
+				FD.circle(w, p, 6.0 + u * 18.0, Color(1, 1, 1, 0.35 * (1.0 - u)))
 			"ouch":
 				w._text(p + Vector2(-30, -u * 40.0), str(f.dmg), 18, Color(1, 0.35, 0.35, 1.0 - u), 60)
 			"swing":
@@ -655,11 +656,11 @@ func _draw_dungeon(view: Rect2, items: Array) -> void:
 				w.draw_rect(cell.grow(-3), Color(0.27, 0.23, 0.2, 0.6))
 			if h % 7 == 0:
 				var pp := Vector2(gx + h % 60 + 10, gy + h % 50 + 15)
-				w.draw_circle(pp, 4 + h % 5, Color("#57534e"))
+				FD.circle(w, pp, 4 + h % 5, Color("#57534e"))
 			if h % 11 == 0:
 				var bp := Vector2(gx + h % 70, gy + h % 40 + 20)
 				w.draw_line(bp, bp + Vector2(14, 4), Color("#d6d3d1", 0.5), 3)       # kemik
-				w.draw_circle(bp, 3, Color("#d6d3d1", 0.5))
+				FD.circle(w, bp, 3, Color("#d6d3d1", 0.5))
 	# duvarlar: arenanın dışı kaba kaya
 	var wall := Color("#1c1917")
 	var sr := Dungeon.slot_rect(slot)
@@ -677,15 +678,15 @@ func _draw_dungeon(view: Rect2, items: Array) -> void:
 	for k in int(a.size.x / 320.0) + 1:
 		var tp := Vector2(a.position.x + 100 + k * 320.0, a.position.y + 4)
 		var fl := 0.8 + 0.2 * sin(float(w._t) * 9.0 + k * 1.7)
-		w.draw_circle(tp + Vector2(0, 20), 120.0 * fl, Color(1.0, 0.6, 0.2, 0.07 * dk))
+		FD.circle(w, tp + Vector2(0, 20), 120.0 * fl, Color(1.0, 0.6, 0.2, 0.07 * dk))
 		w.draw_rect(Rect2(tp.x - 3, tp.y, 6, 22), Color("#78350f"))
-		w.draw_circle(tp + Vector2(0, -2), 7 * fl, Color("#f97316"))
-		w.draw_circle(tp + Vector2(0, -4), 4 * fl, Color("#fde047"))
+		FD.circle(w, tp + Vector2(0, -2), 7 * fl, Color("#f97316"))
+		FD.circle(w, tp + Vector2(0, -4), 4 * fl, Color("#fde047"))
 	# çıkış kapısı (mavi ışık)
 	var ex: Vector2 = r.exit
 	for k in 3:
 		w.draw_arc(ex + Vector2(0, -26), 30.0 + k * 8.0 + sin(float(w._t) * 3.0) * 3.0, 0, TAU, 32, Color(0.4, 0.75, 1.0, 0.5 - k * 0.14), 4)
-	w.draw_circle(ex + Vector2(0, -26), 22, Color(0.5, 0.8, 1.0, 0.45))
+	FD.circle(w, ex + Vector2(0, -26), 22, Color(0.5, 0.8, 1.0, 0.45))
 	w._text(ex + Vector2(-80, -86), "ÇIKIŞ", 16, Color("#bae6fd"), 160)
 	if str(r.state) == "clear":
 		var st: Vector2 = r.stairs
@@ -719,14 +720,14 @@ func _draw_monster(m: Array) -> void:
 	var col := Color(str(cfg.col))
 	var t: float = w._t + float(int(p.x) % 7)
 	w.draw_set_transform(p + Vector2(0, 2), 0, Vector2(1, 0.4))
-	w.draw_circle(Vector2.ZERO, r, Color(0, 0, 0, 0.3))
+	FD.circle(w, Vector2.ZERO, r, Color(0, 0, 0, 0.3))
 	w.draw_set_transform(Vector2.ZERO)
 	match kind:
 		"slime":
 			var sq := 1.0 + 0.12 * sin(t * 6.0)
 			w.draw_set_transform(p + Vector2(0, -r * 0.6), 0, Vector2(sq, 1.0 / sq))
-			w.draw_circle(Vector2.ZERO, r, col)
-			w.draw_circle(Vector2(-r * 0.35, -r * 0.4), r * 0.25, Color(1, 1, 1, 0.4))
+			FD.circle(w, Vector2.ZERO, r, col)
+			FD.circle(w, Vector2(-r * 0.35, -r * 0.4), r * 0.25, Color(1, 1, 1, 0.4))
 			w.draw_set_transform(Vector2.ZERO)
 			_eyes(p + Vector2(0, -r * 0.7), 5.0, f, Color.BLACK)
 		"bat":
@@ -734,7 +735,7 @@ func _draw_monster(m: Array) -> void:
 			var flap := sin(t * 18.0) * 10.0
 			for s in [-1.0, 1.0]:
 				w.draw_colored_polygon(PackedVector2Array([by, by + Vector2(s * 26, -10 - flap), by + Vector2(s * 18, 6), by + Vector2(s * 8, 2)]), col)
-			w.draw_circle(by, 9, col.darkened(0.3))
+			FD.circle(w, by, 9, col.darkened(0.3))
 			_eyes(by + Vector2(0, -2), 3.0, f, Color("#f87171"))
 		"spider":
 			for s in [-1.0, 1.0]:
@@ -743,8 +744,8 @@ func _draw_monster(m: Array) -> void:
 					var kn := p + Vector2(s * 14, -10) + Vector2(s * cos(la), sin(la)) * 14.0
 					w.draw_line(p + Vector2(s * 6, -10), kn, col, 3)
 					w.draw_line(kn, kn + Vector2(s * 8, 12), col, 2.5)
-			w.draw_circle(p + Vector2(0, -12), r * 0.75, col)
-			w.draw_circle(p + Vector2(f * 9, -16), 7, col.lightened(0.15))
+			FD.circle(w, p + Vector2(0, -12), r * 0.75, col)
+			FD.circle(w, p + Vector2(f * 9, -16), 7, col.lightened(0.15))
 			_eyes(p + Vector2(f * 11, -18), 2.5, f, Color("#ef4444"))
 		"skeleton":
 			var wob := sin(t * 8.0) * 2.0
@@ -757,20 +758,20 @@ func _draw_monster(m: Array) -> void:
 			w.draw_line(p + Vector2(-10, -38), p + Vector2(-18 + wob, -24), col, 3)
 			w.draw_line(p + Vector2(10, -38), p + Vector2(18 * f, -30 + wob), col, 3)
 			w.draw_line(p + Vector2(18 * f, -30 + wob), p + Vector2(30 * f, -46 + wob), Color("#a8a29e"), 3)     # kemik kılıç
-			w.draw_circle(p + Vector2(0, -52), 11, col)
-			w.draw_circle(p + Vector2(-4 + f * 2, -54), 3, Color.BLACK)
-			w.draw_circle(p + Vector2(4 + f * 2, -54), 3, Color.BLACK)
+			FD.circle(w, p + Vector2(0, -52), 11, col)
+			FD.circle(w, p + Vector2(-4 + f * 2, -54), 3, Color.BLACK)
+			FD.circle(w, p + Vector2(4 + f * 2, -54), 3, Color.BLACK)
 		"golem":
 			var bob := sin(t * 2.0) * 2.0
 			var c := p + Vector2(0, -r - bob)
-			w.draw_circle(c + Vector2(-r * 0.95, r * 0.2), r * 0.4, col.darkened(0.2))
-			w.draw_circle(c + Vector2(r * 0.95, r * 0.2), r * 0.4, col.darkened(0.2))
+			FD.circle(w, c + Vector2(-r * 0.95, r * 0.2), r * 0.4, col.darkened(0.2))
+			FD.circle(w, c + Vector2(r * 0.95, r * 0.2), r * 0.4, col.darkened(0.2))
 			w.draw_rect(Rect2(c + Vector2(-r * 0.75, -r * 0.8), Vector2(r * 1.5, r * 1.6)), col)
 			w.draw_rect(Rect2(c + Vector2(-r * 0.45, -r * 1.3), Vector2(r * 0.9, r * 0.6)), col.lightened(0.1))
 			w.draw_line(c + Vector2(-r * 0.4, -r * 0.2), c + Vector2(r * 0.1, r * 0.5), Color("#44403c"), 3)
-			w.draw_circle(c + Vector2(-r * 0.2, -r * 1.05), 5, Color("#fb923c"))
-			w.draw_circle(c + Vector2(r * 0.2, -r * 1.05), 5, Color("#fb923c"))
-			w.draw_circle(c + Vector2(0, -r * 0.1), 9, Color(1.0, 0.5, 0.1, 0.5 + 0.4 * sin(t * 4.0)))
+			FD.circle(w, c + Vector2(-r * 0.2, -r * 1.05), 5, Color("#fb923c"))
+			FD.circle(w, c + Vector2(r * 0.2, -r * 1.05), 5, Color("#fb923c"))
+			FD.circle(w, c + Vector2(0, -r * 0.1), 9, Color(1.0, 0.5, 0.1, 0.5 + 0.4 * sin(t * 4.0)))
 		"dragon":
 			var c2 := p + Vector2(0, -r * 0.9)
 			var flap2 := sin(t * 5.0) * 16.0
@@ -778,16 +779,16 @@ func _draw_monster(m: Array) -> void:
 				w.draw_colored_polygon(PackedVector2Array([c2 + Vector2(s * 10, -10), c2 + Vector2(s * r * 2.0, -r * 0.9 - flap2), c2 + Vector2(s * r * 1.6, r * 0.1), c2 + Vector2(s * r * 0.9, r * 0.3)]), col.darkened(0.35))
 			w.draw_line(c2 + Vector2(-f * r * 0.6, r * 0.3), c2 + Vector2(-f * r * 1.6, r * 0.8 + sin(t * 3.0) * 8.0), col, 10)
 			w.draw_set_transform(c2, 0, Vector2(1.25, 0.9))
-			w.draw_circle(Vector2.ZERO, r * 0.7, col)
+			FD.circle(w, Vector2.ZERO, r * 0.7, col)
 			w.draw_set_transform(Vector2.ZERO)
 			var head := c2 + Vector2(f * r * 0.9, -r * 0.55)
-			w.draw_circle(head, r * 0.38, col)
+			FD.circle(w, head, r * 0.38, col)
 			w.draw_colored_polygon(PackedVector2Array([head + Vector2(-8, -14), head + Vector2(-4, -30), head + Vector2(2, -14)]), Color("#fde68a"))
 			w.draw_colored_polygon(PackedVector2Array([head + Vector2(6, -14), head + Vector2(12, -28), head + Vector2(14, -10)]), Color("#fde68a"))
-			w.draw_circle(head + Vector2(f * 6, -4), 4, Color("#facc15"))
+			FD.circle(w, head + Vector2(f * 6, -4), 4, Color("#facc15"))
 			if fmod(t, 3.0) < 0.6:
 				for k in 5:
-					w.draw_circle(head + Vector2(f * (24 + k * 14), 6 + sin(t * 20 + k) * 4), 8 - k, Color(1.0, 0.5 - k * 0.08, 0.1, 0.8))
+					FD.circle(w, head + Vector2(f * (24 + k * 14), 6 + sin(t * 20 + k) * 4), 8 - k, Color(1.0, 0.5 - k * 0.08, 0.1, 0.8))
 		"zombie", "brute":
 			var s2 := 1.0 if kind == "zombie" else 1.45
 			var lurch := sin(t * 4.0) * 3.0
@@ -798,9 +799,9 @@ func _draw_monster(m: Array) -> void:
 			w.draw_rect(Rect2(p + Vector2(-10, -40) * s2, Vector2(20, 26) * s2), shirt)
 			w.draw_line(p + Vector2(-8, -36) * s2, p + Vector2(f * 26 - 8, -34 + lurch) * s2, skin, 5 * s2)
 			w.draw_line(p + Vector2(8, -36) * s2, p + Vector2(f * 26 + 8, -32 - lurch) * s2, skin, 5 * s2)
-			w.draw_circle(p + Vector2(f * 2, -50) * s2, 11 * s2, skin)
-			w.draw_circle(p + Vector2(f * 6 - 3, -52) * s2, 2.2 * s2, Color("#fef08a"))
-			w.draw_circle(p + Vector2(f * 6 + 3, -52) * s2, 2.2 * s2, Color("#fef08a"))
+			FD.circle(w, p + Vector2(f * 2, -50) * s2, 11 * s2, skin)
+			FD.circle(w, p + Vector2(f * 6 - 3, -52) * s2, 2.2 * s2, Color("#fef08a"))
+			FD.circle(w, p + Vector2(f * 6 + 3, -52) * s2, 2.2 * s2, Color("#fef08a"))
 			w.draw_line(p + Vector2(f * 2 - 4, -44) * s2, p + Vector2(f * 2 + 5, -45) * s2, Color("#1c1917"), 2)
 	# can çubuğu
 	var top := p + Vector2(-r - 6, -r * 2.0 - 34)
@@ -815,18 +816,18 @@ func _draw_monster(m: Array) -> void:
 
 
 func _eyes(c: Vector2, r: float, f: float, col: Color) -> void:
-	w.draw_circle(c + Vector2(-r * 1.3 + f * r * 0.4, 0), r, Color.WHITE if col == Color.BLACK else col)
-	w.draw_circle(c + Vector2(r * 1.3 + f * r * 0.4, 0), r, Color.WHITE if col == Color.BLACK else col)
+	FD.circle(w, c + Vector2(-r * 1.3 + f * r * 0.4, 0), r, Color.WHITE if col == Color.BLACK else col)
+	FD.circle(w, c + Vector2(r * 1.3 + f * r * 0.4, 0), r, Color.WHITE if col == Color.BLACK else col)
 	if col == Color.BLACK:
-		w.draw_circle(c + Vector2(-r * 1.3 + f * r * 0.8, 0), r * 0.5, col)
-		w.draw_circle(c + Vector2(r * 1.3 + f * r * 0.8, 0), r * 0.5, col)
+		FD.circle(w, c + Vector2(-r * 1.3 + f * r * 0.8, 0), r * 0.5, col)
+		FD.circle(w, c + Vector2(r * 1.3 + f * r * 0.8, 0), r * 0.5, col)
 
 
 func _draw_moon(view: Rect2, items: Array) -> void:
 	w.draw_rect(view, Color("#020617"))
 	for k in 60:
 		var sp := view.position + Vector2(fmod(k * 211.7, view.size.x), fmod(k * 97.3, view.size.y))
-		w.draw_circle(sp, 1.4, Color(1, 1, 1, 0.6))
+		FD.circle(w, sp, 1.4, Color(1, 1, 1, 0.6))
 	var m: Rect2 = Map.MOON
 	w.draw_rect(m, Color("#a1a1aa"))
 	var g := 90
@@ -834,42 +835,42 @@ func _draw_moon(view: Rect2, items: Array) -> void:
 		for gy in range(int(maxf(m.position.y, view.position.y) / g) * g, int(minf(m.end.y, view.end.y)), g):
 			var h := _hash(gx, gy)
 			if h % 3 == 0:
-				w.draw_circle(Vector2(gx + h % 80, gy + h % 70), 3 + h % 4, Color("#8b8b93"))
+				FD.circle(w, Vector2(gx + h % 80, gy + h % 70), 3 + h % 4, Color("#8b8b93"))
 			if h % 5 == 0:
-				w.draw_circle(Vector2(gx + h % 50, gy + h % 90), 2, Color("#d4d4d8"))
+				FD.circle(w, Vector2(gx + h % 50, gy + h % 90), 2, Color("#d4d4d8"))
 	for c in Space.craters():
 		var cp: Vector2 = c[0]
 		var cr: float = c[1]
 		if not view.grow(cr).has_point(cp):
 			continue
 		w.draw_set_transform(cp, 0, Vector2(1, 0.7))
-		w.draw_circle(Vector2.ZERO, cr, Color("#71717a"))
-		w.draw_circle(Vector2(cr * 0.08, cr * 0.1), cr * 0.85, Color("#8b8b93"))
+		FD.circle(w, Vector2.ZERO, cr, Color("#71717a"))
+		FD.circle(w, Vector2(cr * 0.08, cr * 0.1), cr * 0.85, Color("#8b8b93"))
 		w.draw_arc(Vector2.ZERO, cr, PI * 0.9, PI * 1.9, 24, Color("#d4d4d8"), 4)
 		w.draw_set_transform(Vector2.ZERO)
 	# Dünya gökte (Ay ufkunda, sahanın üst kenarında)
 	var ep := m.position + Vector2(m.size.x * 0.7, 120)
 	if view.has_point(ep):
-		w.draw_circle(ep, 70, Color("#1d4ed8"))
-		w.draw_circle(ep + Vector2(-20, -10), 26, Color("#16a34a"))
-		w.draw_circle(ep + Vector2(24, 18), 18, Color("#15803d"))
+		FD.circle(w, ep, 70, Color("#1d4ed8"))
+		FD.circle(w, ep + Vector2(-20, -10), 26, Color("#16a34a"))
+		FD.circle(w, ep + Vector2(24, 18), 18, Color("#15803d"))
 		w.draw_arc(ep, 70, 0, TAU, 48, Color(0.6, 0.85, 1.0, 0.6), 5)
 		w._text(ep + Vector2(-80, 80), "DÜNYA", 14, Color("#bfdbfe"), 160)
 	# Helyum bacaları
 	for v in Space.vent_positions():
 		w.draw_set_transform(v, 0, Vector2(1, 0.6))
-		w.draw_circle(Vector2.ZERO, 30, Color("#3f3f46"))
-		w.draw_circle(Vector2.ZERO, 16, Color("#18181b"))
+		FD.circle(w, Vector2.ZERO, 30, Color("#3f3f46"))
+		FD.circle(w, Vector2.ZERO, 16, Color("#18181b"))
 		w.draw_set_transform(Vector2.ZERO)
 		for k in 4:
 			var u := fmod(float(w._t) * 0.5 + k * 0.25, 1.0)
-			w.draw_circle(v + Vector2(sin(k * 2.0 + float(w._t)) * 8.0, -u * 70.0), 6 + u * 10, Color(0.75, 0.95, 0.5, 0.35 * (1.0 - u)))
+			FD.circle(w, v + Vector2(sin(k * 2.0 + float(w._t)) * 8.0, -u * 70.0), 6 + u * 10, Color(0.75, 0.95, 0.5, 0.35 * (1.0 - u)))
 	# üs kubbesi
 	var b: Rect2 = Map.MOON_BASE
 	var bc := b.get_center()
 	w.draw_set_transform(bc, 0, Vector2(1, b.size.y / b.size.x))
-	w.draw_circle(Vector2.ZERO, b.size.x / 2.0 + 10, Color("#52525b"))
-	w.draw_circle(Vector2.ZERO, b.size.x / 2.0, Color("#e2e8f0"))
+	FD.circle(w, Vector2.ZERO, b.size.x / 2.0 + 10, Color("#52525b"))
+	FD.circle(w, Vector2.ZERO, b.size.x / 2.0, Color("#e2e8f0"))
 	w.draw_set_transform(Vector2.ZERO)
 	for k in 5:
 		w.draw_line(bc + Vector2(-b.size.x / 2.0 + 30, -80 + k * 40), bc + Vector2(b.size.x / 2.0 - 30, -80 + k * 40), Color("#cbd5e1"), 2)
@@ -887,14 +888,14 @@ func _draw_moon(view: Rect2, items: Array) -> void:
 func _draw_glass_dome() -> void:
 	var b: Rect2 = Map.MOON_BASE
 	w.draw_set_transform(b.get_center(), 0, Vector2(1, b.size.y / b.size.x))
-	w.draw_circle(Vector2.ZERO, b.size.x / 2.0, Color(0.6, 0.85, 1.0, 0.13))
+	FD.circle(w, Vector2.ZERO, b.size.x / 2.0, Color(0.6, 0.85, 1.0, 0.13))
 	w.draw_arc(Vector2.ZERO, b.size.x / 2.0, 0, TAU, 64, Color(0.8, 0.95, 1.0, 0.7), 4)
 	w.draw_arc(Vector2.ZERO, b.size.x / 2.0 - 30, PI * 1.1, PI * 1.5, 20, Color(1, 1, 1, 0.5), 6)
 	w.draw_set_transform(Vector2.ZERO)
 
 
 func _draw_helmet(p: Vector2) -> void:
-	w.draw_circle(p + Vector2(0, -56), 19, Color(0.75, 0.9, 1.0, 0.28))
+	FD.circle(w, p + Vector2(0, -56), 19, Color(0.75, 0.9, 1.0, 0.28))
 	w.draw_arc(p + Vector2(0, -56), 19, 0, TAU, 28, Color(0.9, 0.97, 1.0, 0.8), 2.5)
 	w.draw_arc(p + Vector2(0, -56), 14, PI * 1.15, PI * 1.45, 8, Color(1, 1, 1, 0.8), 2.5)
 
@@ -902,18 +903,18 @@ func _draw_helmet(p: Vector2) -> void:
 func _draw_moon_rock(p: Vector2, hp: int) -> void:
 	if hp <= 0:
 		for k in 4:
-			w.draw_circle(p + Vector2(-14 + k * 9, 4 - k % 2 * 4), 4, Color("#71717a"))
+			FD.circle(w, p + Vector2(-14 + k * 9, 4 - k % 2 * 4), 4, Color("#71717a"))
 		return
 	var s := 0.7 + 0.1 * hp
 	w.draw_set_transform(p + Vector2(4, 4), 0, Vector2(1, 0.45))
-	w.draw_circle(Vector2.ZERO, 30 * s, Color(0, 0, 0, 0.3))
+	FD.circle(w, Vector2.ZERO, 30 * s, Color(0, 0, 0, 0.3))
 	w.draw_set_transform(Vector2.ZERO)
 	w.draw_colored_polygon(PackedVector2Array([p + Vector2(-30, 0) * s, p + Vector2(-22, -26) * s, p + Vector2(4, -36) * s, p + Vector2(28, -18) * s, p + Vector2(30, 0) * s]), Color("#6b7280"))
 	w.draw_colored_polygon(PackedVector2Array([p + Vector2(-22, -26) * s, p + Vector2(4, -36) * s, p + Vector2(10, -20) * s, p + Vector2(-12, -14) * s]), Color("#9ca3af"))
 	for k in 3:
 		var cp := p + Vector2(-12 + k * 12, -14 - k % 2 * 8) * s
 		w.draw_colored_polygon(PackedVector2Array([cp + Vector2(0, -9), cp + Vector2(4, 0), cp + Vector2(0, 5), cp + Vector2(-4, 0)]), Color("#c084fc"))
-	w.draw_circle(p + Vector2(8, -28) * s, 2.5 * (0.5 + 0.5 * sin(float(w._t) * 4.0 + p.x)), Color.WHITE)
+	FD.circle(w, p + Vector2(8, -28) * s, 2.5 * (0.5 + 0.5 * sin(float(w._t) * 4.0 + p.x)), Color.WHITE)
 
 
 func _draw_module(p: Vector2, k: String, done: bool) -> void:
@@ -934,26 +935,26 @@ func _draw_module(p: Vector2, k: String, done: bool) -> void:
 		"sera":
 			w.draw_rect(Rect2(p + Vector2(-56, -50), Vector2(112, 60)), Color(0.55, 0.9, 0.6, 0.35))
 			for i in 5:
-				w.draw_circle(p + Vector2(-44 + i * 22, -10), 8, Color("#16a34a"))
-				w.draw_circle(p + Vector2(-44 + i * 22, -14), 3, Color("#ef4444"))
+				FD.circle(w, p + Vector2(-44 + i * 22, -10), 8, Color("#16a34a"))
+				FD.circle(w, p + Vector2(-44 + i * 22, -14), 3, Color("#ef4444"))
 			w.draw_rect(Rect2(p + Vector2(-56, -50), Vector2(112, 60)), Color("#e2e8f0"), false, 3)
 			w._text(p + Vector2(-60, -74), "SERA", 13, Color("#bbf7d0"), 120)
 		"rasathane":
 			w.draw_rect(Rect2(p + Vector2(-34, -30), Vector2(68, 40)), Color("#e5e7eb"))
-			w.draw_circle(p + Vector2(0, -30), 34, Color("#cbd5e1"))
+			FD.circle(w, p + Vector2(0, -30), 34, Color("#cbd5e1"))
 			w.draw_line(p + Vector2(0, -40), p + Vector2(40, -76), Color("#334155"), 8)
 			w._text(p + Vector2(-60, -90), "RASATHANE", 13, Color("#e0e7ff"), 120)
 		"anten":
 			w.draw_line(p, p + Vector2(0, -60), Color("#9ca3af"), 5)
 			w.draw_arc(p + Vector2(0, -70), 30, PI * 0.15 + sin(float(w._t) * 0.5) * 0.3, PI * 0.85 + sin(float(w._t) * 0.5) * 0.3, 16, Color("#e5e7eb"), 6)
-			w.draw_circle(p + Vector2(0, -70), 4, Color("#ef4444") if fmod(float(w._t), 1.0) < 0.5 else Color("#7f1d1d"))
+			FD.circle(w, p + Vector2(0, -70), 4, Color("#ef4444") if fmod(float(w._t), 1.0) < 0.5 else Color("#7f1d1d"))
 			w._text(p + Vector2(-60, -110), "UYDU ANTENİ", 13, Color("#e0e7ff"), 120)
 
 
 func _draw_pad(p: Vector2) -> void:
 	w.draw_set_transform(p, 0, Vector2(1, 0.55))
-	w.draw_circle(Vector2.ZERO, 110, Color("#52525b"))
-	w.draw_circle(Vector2.ZERO, 96, Color("#71717a"))
+	FD.circle(w, Vector2.ZERO, 110, Color("#52525b"))
+	FD.circle(w, Vector2.ZERO, 96, Color("#71717a"))
 	w.draw_arc(Vector2.ZERO, 80, 0, TAU, 40, Color("#facc15"), 5)
 	w.draw_set_transform(Vector2.ZERO)
 	w._text(p + Vector2(-20, -18), "H", 36, Color("#facc15"), 40)
@@ -961,7 +962,7 @@ func _draw_pad(p: Vector2) -> void:
 
 func _draw_rocket(p: Vector2, s: float) -> void:
 	w.draw_set_transform(p + Vector2(8, 4), 0, Vector2(1, 0.4))
-	w.draw_circle(Vector2.ZERO, 40 * s, Color(0, 0, 0, 0.3))
+	FD.circle(w, Vector2.ZERO, 40 * s, Color(0, 0, 0, 0.3))
 	w.draw_set_transform(Vector2.ZERO)
 	var c := p + Vector2(0, -90 * s)
 	w.draw_colored_polygon(PackedVector2Array([c + Vector2(-22, 50) * s, c + Vector2(-48, 92) * s, c + Vector2(-22, 88) * s]), Color("#dc2626"))
@@ -969,7 +970,7 @@ func _draw_rocket(p: Vector2, s: float) -> void:
 	w.draw_rect(Rect2(c + Vector2(-22, -60) * s, Vector2(44, 150) * s), Color("#f8fafc"))
 	w.draw_rect(Rect2(c + Vector2(-22, -60) * s, Vector2(12, 150) * s), Color("#e2e8f0"))
 	w.draw_colored_polygon(PackedVector2Array([c + Vector2(-22, -60) * s, c + Vector2(22, -60) * s, c + Vector2(0, -120) * s]), Color("#dc2626"))
-	w.draw_circle(c + Vector2(0, -24) * s, 11 * s, Color("#38bdf8"))
+	FD.circle(w, c + Vector2(0, -24) * s, 11 * s, Color("#38bdf8"))
 	w.draw_arc(c + Vector2(0, -24) * s, 11 * s, 0, TAU, 24, Color("#475569"), 3)
 	w.draw_rect(Rect2(c + Vector2(-14, 88) * s, Vector2(28, 10) * s), Color("#334155"))
 	w._text(c + Vector2(-40, 30) * s, "MYC-1", 12, Color("#1e293b"), 80, false)
@@ -1024,7 +1025,7 @@ func _draw_plane(p: Vector2) -> void:
 	w.draw_colored_polygon(PackedVector2Array([p + Vector2(-10, -8), p + Vector2(20, -8), p + Vector2(-6, -60), p + Vector2(-22, -60)]), Color("#e2e8f0"))
 	w.draw_colored_polygon(PackedVector2Array([p + Vector2(-10, 8), p + Vector2(20, 8), p + Vector2(-6, 60), p + Vector2(-22, 60)]), Color("#e2e8f0"))
 	w.draw_colored_polygon(PackedVector2Array([p + Vector2(-60, -8), p + Vector2(-44, -8), p + Vector2(-56, -26)]), Color("#2563eb"))
-	w.draw_circle(p + Vector2(60, 0), 9, Color("#f8fafc"))
+	FD.circle(w, p + Vector2(60, 0), 9, Color("#f8fafc"))
 
 
 func _draw_golf(view: Rect2, items: Array) -> void:
@@ -1037,7 +1038,7 @@ func _draw_golf(view: Rect2, items: Array) -> void:
 			continue
 		var cell := Rect2(Golf.hole_origin(i), Golf.CELL)
 		for k in 6:
-			w.draw_circle(cell.position + Vector2(20 + k * 113, 18 + (k % 2) * 360), 14, Color("#166534"))
+			FD.circle(w, cell.position + Vector2(20 + k * 113, 18 + (k % 2) * 360), 14, Color("#166534"))
 		w.draw_rect(f.grow(10), Color("#78350f"))
 		w.draw_rect(f, Color("#65a30d"))
 		for k in int(f.size.x / 40.0):
@@ -1058,8 +1059,8 @@ func _draw_golf(view: Rect2, items: Array) -> void:
 		var tee := Golf.tee(i)
 		w.draw_rect(Rect2(tee - Vector2(18, 12), Vector2(36, 24)), Color("#15803d"))
 		var cp := Golf.cup(i)
-		w.draw_circle(cp, Golf.CUP_R + 3, Color("#4d7c0f"))
-		w.draw_circle(cp, Golf.CUP_R, Color("#111827"))
+		FD.circle(w, cp, Golf.CUP_R + 3, Color("#4d7c0f"))
+		FD.circle(w, cp, Golf.CUP_R, Color("#111827"))
 		w.draw_line(cp, cp + Vector2(0, -52), Color("#e5e7eb"), 2)
 		var wave := sin(float(w._t) * 3.0 + i) * 3.0
 		w.draw_colored_polygon(PackedVector2Array([cp + Vector2(1, -52), cp + Vector2(26, -46 + wave), cp + Vector2(1, -38)]), Color("#ef4444"))
@@ -1078,7 +1079,7 @@ func _draw_windmill(c: Vector2, blades: Array) -> void:
 	for b in blades:
 		w.draw_line(b[0], b[1], Color("#f8fafc"), 9)
 		w.draw_line(b[0], b[1], Color("#78350f"), 3)
-	w.draw_circle(c, 8, Color("#44403c"))
+	FD.circle(w, c, 8, Color("#44403c"))
 
 
 func _draw_golf_balls() -> void:
@@ -1088,8 +1089,8 @@ func _draw_golf_balls() -> void:
 		var p := Golf.ball_pos(str(who))
 		k += 1
 		var col: Color = Color.WHITE if who == Net.my_name else cols[k % cols.size()]
-		w.draw_circle(p + Vector2(2, 3), Golf.BALL_R, Color(0, 0, 0, 0.3))
-		w.draw_circle(p, Golf.BALL_R, col)
+		FD.circle(w, p + Vector2(2, 3), Golf.BALL_R, Color(0, 0, 0, 0.3))
+		FD.circle(w, p, Golf.BALL_R, col)
 		w.draw_arc(p, Golf.BALL_R, 0, TAU, 16, Color(0, 0, 0, 0.35), 1)
 		if who != Net.my_name:
 			w._text(p + Vector2(-50, -26), str(who), 11, Color(1, 1, 1, 0.8), 100)
@@ -1104,7 +1105,7 @@ func _draw_golf_balls() -> void:
 			w.draw_line(mb, _drag_to, Color(1, 1, 1, 0.4), 2)
 			var dir := pull.normalized()
 			for d in 8:
-				w.draw_circle(mb + dir * (18.0 + d * 14.0 * (0.4 + pw)), 3.0, Color(col2, 1.0 - d * 0.1))
+				FD.circle(w, mb + dir * (18.0 + d * 14.0 * (0.4 + pw)), 3.0, Color(col2, 1.0 - d * 0.1))
 			w._text(mb + Vector2(-40, 18), "%%%d" % int(pw * 100), 14, col2, 80)
 
 
@@ -1162,11 +1163,11 @@ func _draw_cave(p: Vector2) -> void:
 		var tp := p + Vector2(s * 100, -10)
 		w.draw_rect(Rect2(tp.x - 3, tp.y - 30, 6, 40), Color("#78350f"))
 		var fl := 0.8 + 0.2 * sin(float(w._t) * 9.0 + s)
-		w.draw_circle(tp + Vector2(0, -36), 9 * fl, Color("#f97316"))
-		w.draw_circle(tp + Vector2(0, -38), 5 * fl, Color("#fde047"))
+		FD.circle(w, tp + Vector2(0, -36), 9 * fl, Color("#f97316"))
+		FD.circle(w, tp + Vector2(0, -38), 5 * fl, Color("#fde047"))
 	for k in 3:
 		var u := fmod(float(w._t) * 0.3 + k / 3.0, 1.0)
-		w.draw_circle(p + Vector2(0, -20 - u * 30), 4 + u * 6, Color(0.6, 0.6, 0.6, 0.15 * (1.0 - u)))
+		FD.circle(w, p + Vector2(0, -20 - u * 30), 4 + u * 6, Color(0.6, 0.6, 0.6, 0.15 * (1.0 - u)))
 	w._text(p + Vector2(-150, -196), "MAĞARA ZİNDANI", 20, Color("#fca5a5"), 300)
 
 
@@ -1195,9 +1196,9 @@ func _draw_bowling_hall(r: Rect2) -> void:
 	# neon lobut ve top
 	var nc := Color(1.0, 0.3, 0.7, 0.75 + 0.25 * sin(float(w._t) * 3.0))
 	var lp := r.position + Vector2(r.size.x - 70, 64)
-	w.draw_circle(lp + Vector2(0, -26), 9, nc)
-	w.draw_circle(lp, 15, nc)
-	w.draw_circle(lp + Vector2(-34, 6), 14, Color(0.3, 0.8, 1.0, nc.a))
+	FD.circle(w, lp + Vector2(0, -26), 9, nc)
+	FD.circle(w, lp, 15, nc)
+	FD.circle(w, lp + Vector2(-34, 6), 14, Color(0.3, 0.8, 1.0, nc.a))
 	w._text(r.position + Vector2(0, 58), "BOWLING", 26, Color("#f0abfc"), r.size.x - 80)
 
 
@@ -1207,7 +1208,7 @@ func _draw_golf_booth(p: Vector2) -> void:
 	w.draw_rect(Rect2(p.x - 36, p.y - 54, 72, 28), Color("#bbf7d0"))
 	w.draw_line(p + Vector2(70, 10), p + Vector2(70, -80), Color("#e5e7eb"), 3)
 	w.draw_colored_polygon(PackedVector2Array([p + Vector2(71, -80), p + Vector2(100, -72), p + Vector2(71, -62)]), Color("#ef4444"))
-	w.draw_circle(p + Vector2(40, 18), 5, Color.WHITE)
+	FD.circle(w, p + Vector2(40, 18), 5, Color.WHITE)
 	w._text(p + Vector2(-80, -112), "MİNİ GOLF", 16, Color("#bbf7d0"), 160)
 
 
@@ -1230,14 +1231,14 @@ func _draw_civilian(c: Array) -> void:
 	var wave := sin(float(w._t) * 8.0) * 6.0
 	w.draw_line(p + Vector2(10, -40), p + Vector2(22, -62 + wave), Color("#e8b48a"), 4)
 	var bp := p + Vector2(0, -96 + sin(float(w._t) * 3.0) * 3.0)
-	w.draw_circle(bp, 13, Color.WHITE)
+	FD.circle(w, bp, 13, Color.WHITE)
 	w._text(bp + Vector2(-10, -12), "!", 20, Color("#dc2626"), 20, false)
 	w._text(p + Vector2(-60, 8), "İMDAT!", 12, Color("#fde68a"), 120)
 
 
 func _draw_defense(p: Vector2) -> void:
-	w.draw_circle(p + Vector2(0, -20), 150, Color(1.0, 0.75, 0.4, 0.10))
-	w.draw_circle(p + Vector2(0, -20), 80, Color(1.0, 0.75, 0.4, 0.10))
+	FD.circle(w, p + Vector2(0, -20), 150, Color(1.0, 0.75, 0.4, 0.10))
+	FD.circle(w, p + Vector2(0, -20), 80, Color(1.0, 0.75, 0.4, 0.10))
 	for k in 8:
 		var a := PI + k * PI / 7.0
 		var sp := p + Vector2(cos(a), sin(a) * 0.5) * 80.0 + Vector2(0, 30)
@@ -1249,6 +1250,6 @@ func _draw_defense(p: Vector2) -> void:
 	w.draw_line(p + Vector2(0, -72), p + Vector2(0, -56), Color("#dc2626"), 5)
 	w.draw_rect(Rect2(p.x - 12, p.y - 30, 24, 30), Color("#1a2e05"))
 	var bl := 0.5 + 0.5 * sin(float(w._t) * 6.0)
-	w.draw_circle(p + Vector2(-56, -60), 6, Color(1, 0.1, 0.1, bl))
-	w.draw_circle(p + Vector2(56, -60), 6, Color(0.2, 0.4, 1, 1.0 - bl))
+	FD.circle(w, p + Vector2(-56, -60), 6, Color(1, 0.1, 0.1, bl))
+	FD.circle(w, p + Vector2(56, -60), 6, Color(0.2, 0.4, 1, 1.0 - bl))
 	w._text(p + Vector2(-120, -120), "SAVUNMA MERKEZİ", 16, Color("#fca5a5"), 240)

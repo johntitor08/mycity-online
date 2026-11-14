@@ -4,6 +4,7 @@ extends RefCounted
 ## Aksesuarlar (şapka, gözlük, kolye) ve özel saç renkleri (indeks ≥ FREE_HAIR_COLORS) Çarşı'dan alınır;
 ## sahip olunmayanları sunucu sıfırlar (bkz. Shops.enforce).
 
+const FD = preload("res://scripts/fastdraw.gd")
 const CELL := Vector2(48, 64)          # oyun birimi; dokular 2x çözünürlükte
 const SKIN_TONES := [Color("#fbe0c9"), Color("#f2c39b"), Color("#d9a273"), Color("#a86b45"), Color("#6e4429")]
 const HAIR_STYLES := ["short", "long", "bun", "spiky", "bald"]
@@ -117,7 +118,7 @@ static func _draw_accessories(ci: CanvasItem, a: Dictionary, row: int, o: Vector
 					var t := k / 8.0
 					pts.append(o + Vector2(lerpf(18.5, 29.5, t) + (2.0 if side else 0.0), 29.5 + sin(t * PI) * 4.5))
 				ci.draw_polyline(pts, Color("#facc15"), 1.6)
-				ci.draw_circle(o + Vector2(24 + (2.0 if side else 0.0), 34.5), 1.8, Color("#fde047"))
+				FD.circle(ci, o + Vector2(24 + (2.0 if side else 0.0), 34.5), 1.8, Color("#fde047"))
 			2:   # atkı
 				ci.draw_rect(Rect2(o + Vector2(15.5 if not side else 18, 27.5), Vector2(17 if not side else 14, 4.5)), Color("#dc2626"))
 				ci.draw_rect(Rect2(o + Vector2(27 if not side else 19, 30), Vector2(4, 9)), Color("#b91c1c"))
@@ -125,7 +126,7 @@ static func _draw_accessories(ci: CanvasItem, a: Dictionary, row: int, o: Vector
 				var c := o + Vector2(24 + (3.0 if side else 0.0), 30.5)
 				ci.draw_colored_polygon(PackedVector2Array([c, c + Vector2(-5, -3), c + Vector2(-5, 3)]), Color("#111827"))
 				ci.draw_colored_polygon(PackedVector2Array([c, c + Vector2(5, -3), c + Vector2(5, 3)]), Color("#111827"))
-				ci.draw_circle(c, 1.4, Color("#374151"))
+				FD.circle(ci, c, 1.4, Color("#374151"))
 	if int(a.glasses) > 0 and row != 1:
 		var col: Color = [Color.TRANSPARENT, Color("#111827"), Color(0.75, 0.9, 1.0, 0.35), Color("#ec4899")][int(a.glasses)]
 		var frame: Color = [Color.TRANSPARENT, Color("#111827"), Color("#374151"), Color("#be185d")][int(a.glasses)]
@@ -133,8 +134,8 @@ static func _draw_accessories(ci: CanvasItem, a: Dictionary, row: int, o: Vector
 		for l in lenses:
 			var c: Vector2 = o + l
 			if int(a.glasses) == 3:
-				ci.draw_circle(c + Vector2(-1.3, -0.8), 2.0, col)
-				ci.draw_circle(c + Vector2(1.3, -0.8), 2.0, col)
+				FD.circle(ci, c + Vector2(-1.3, -0.8), 2.0, col)
+				FD.circle(ci, c + Vector2(1.3, -0.8), 2.0, col)
 				ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-3.2, -0.3), c + Vector2(3.2, -0.3), c + Vector2(0, 3.2)]), col)
 			else:
 				ci.draw_rect(Rect2(c - Vector2(3.4, 2.6), Vector2(6.8, 5.2)), col)
@@ -163,11 +164,11 @@ static func _draw_accessories(ci: CanvasItem, a: Dictionary, row: int, o: Vector
 					ci.draw_rect(Rect2(top + Vector2(8, 3), Vector2(10, 3)), Color("#1d4ed8"))
 				elif row == 0:
 					ci.draw_colored_polygon(PackedVector2Array([top + Vector2(-9, 4), top + Vector2(9, 4), top + Vector2(7, 8), top + Vector2(-7, 8)]), Color("#1d4ed8"))
-				ci.draw_circle(top + Vector2(0, -2.8), 1.5, Color("#ffffff"))
+				FD.circle(ci, top + Vector2(0, -2.8), 1.5, Color("#ffffff"))
 			4:   # bere
 				ci.draw_colored_polygon(_dome(top + Vector2(0, 6), 12.8, 9), Color("#16a34a"))
 				ci.draw_rect(Rect2(top + Vector2(-12.8, 3.5), Vector2(25.6, 3.5)), Color("#15803d"))
-				ci.draw_circle(top + Vector2(0, -3.5), 2.6, Color("#f0fdf4"))
+				FD.circle(ci, top + Vector2(0, -3.5), 2.6, Color("#f0fdf4"))
 			5:   # kovboy
 				ci.draw_colored_polygon(PackedVector2Array([top + Vector2(-18, 3), top + Vector2(18, 3), top + Vector2(14, 6.5), top + Vector2(-14, 6.5)]), Color("#92400e"))
 				ci.draw_colored_polygon(PackedVector2Array([top + Vector2(-9, 3.5), top + Vector2(-8, -6), top + Vector2(0, -3.5), top + Vector2(8, -6), top + Vector2(9, 3.5)]), Color("#a16207"))
@@ -178,7 +179,7 @@ static func _draw_accessories(ci: CanvasItem, a: Dictionary, row: int, o: Vector
 					top + Vector2(5, -1), top + Vector2(10, -5), top + Vector2(9, 4)]), g)
 				ci.draw_polyline(PackedVector2Array([top + Vector2(-9, 4), top + Vector2(-10, -5), top + Vector2(-5, -1), top + Vector2(0, -7),
 					top + Vector2(5, -1), top + Vector2(10, -5), top + Vector2(9, 4), top + Vector2(-9, 4)]), ol, 0.8)
-				ci.draw_circle(top + Vector2(0, 0.5), 1.6, Color("#ef4444"))
+				FD.circle(ci, top + Vector2(0, 0.5), 1.6, Color("#ef4444"))
 
 
 static func _dome(c: Vector2, rx: float, ry: float) -> PackedVector2Array:

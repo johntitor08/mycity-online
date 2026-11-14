@@ -2,6 +2,7 @@ extends RefCounted
 ## 2.1 istemci: otoyol (şeritler, trafik, tabelalar, dinlenme tesisi), Yalıkent ve Çamlıbel kasabaları,
 ## şehirdeki otoyol rampası ve otogar, şehirler arası otobüs yolculuğu. world.gd'nin kancaları buraya gelir.
 
+const FD = preload("res://scripts/fastdraw.gd")
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
@@ -210,7 +211,7 @@ class BusArt extends Control:
 			if to == "camlibel":
 				draw_colored_polygon(PackedVector2Array([Vector2(tx, sh * 0.66), Vector2(tx - 26, sh * 0.68), Vector2(tx, sh * 0.5), Vector2(tx + 26, sh * 0.68)]), Color("#14532d"))
 			else:
-				draw_circle(Vector2(tx, sh * 0.6), 26, Color("#15803d"))
+				FD.circle(self, Vector2(tx, sh * 0.6), 26, Color("#15803d"))
 				draw_rect(Rect2(tx - 4, sh * 0.6, 8, 30), Color("#78350f"))
 		# otobüs penceresi çerçevesi
 		var fr := Color("#1e3a8a")
@@ -243,7 +244,7 @@ func draw_highway(view: Rect2, items: Array) -> void:
 			w.draw_colored_polygon(PackedVector2Array([Vector2(gx - 120, road.position.y - 10), Vector2(gx + 10, road.position.y - 10 - mh), Vector2(gx + 140, road.position.y - 10)]), Color("#64748b"))
 			w.draw_colored_polygon(PackedVector2Array([Vector2(gx - 18, road.position.y - mh * 0.8), Vector2(gx + 10, road.position.y - 10 - mh), Vector2(gx + 38, road.position.y - mh * 0.8)]), Color("#f1f5f9"))
 		elif h % 3 == 0:
-			w.draw_circle(Vector2(gx + h % 100, top + 60 + h % 80), 26, Color("#166534"))
+			FD.circle(w, Vector2(gx + h % 100, top + 60 + h % 80), 26, Color("#166534"))
 			w.draw_rect(Rect2(gx + h % 100 - 4, top + 80 + h % 80, 8, 26), Color("#78350f"))
 		var below := road.end.y + 20.0
 		if gx > 55500 and gx < 61500:
@@ -399,8 +400,8 @@ func _otogar(p: Vector2) -> void:
 	w.draw_rect(Rect2(bp.x - 70, bp.y - 26, 140, 8), Color("#f97316"))
 	for k in 5:
 		w.draw_rect(Rect2(bp.x - 62 + k * 26, bp.y - 14, 20, 12), Color("#38bdf8"))
-	w.draw_circle(bp + Vector2(-44, 20), 8, Color("#111827"))
-	w.draw_circle(bp + Vector2(44, 20), 8, Color("#111827"))
+	FD.circle(w, bp + Vector2(-44, 20), 8, Color("#111827"))
+	FD.circle(w, bp + Vector2(44, 20), 8, Color("#111827"))
 
 
 ## Yazıyı bir tabela kutusunun tam ortasına yaz (yatay ve dikey).
@@ -431,11 +432,11 @@ func _draw_yalikent(view: Rect2, items: Array) -> void:
 		w.draw_colored_polygon(PackedVector2Array([bp + Vector2(2, -48), bp + Vector2(30, -10), bp + Vector2(2, -10)]), Color("#f1f5f9"))
 	var lh: Vector2 = Map.YK_LIGHTHOUSE
 	if view.grow(200).has_point(lh):
-		w.draw_circle(lh + Vector2(0, 10), 50, Color("#78716c"))
+		FD.circle(w, lh + Vector2(0, 10), 50, Color("#78716c"))
 		w.draw_rect(Rect2(lh.x - 16, lh.y - 120, 32, 120), Color("#f8fafc"))
 		for k in 3:
 			w.draw_rect(Rect2(lh.x - 16, lh.y - 110 + k * 36, 32, 14), Color("#dc2626"))
-		w.draw_circle(lh + Vector2(0, -130), 12, Color("#fde047"))
+		FD.circle(w, lh + Vector2(0, -130), 12, Color("#fde047"))
 	# palmiyeler (sahil ve cadde boyu)
 	for k in 8:
 		var pp := Vector2(50200 + k * 440, Map.YK_SEA_Y - 40)
@@ -445,20 +446,20 @@ func _draw_yalikent(view: Rect2, items: Array) -> void:
 		items.append([1760.0 + k * 190.0, "palm", Vector2(51850, 1760 + k * 190)])
 	# meydan: çeşme ve çiçekler (cadde ile liman arasında)
 	var sq := Vector2(51450, 2290)
-	w.draw_circle(sq, 120, Color("#e7e5e4"))
-	w.draw_circle(sq, 60, Color("#a8a29e"))
-	w.draw_circle(sq, 50, Color("#38bdf8"))
+	FD.circle(w, sq, 120, Color("#e7e5e4"))
+	FD.circle(w, sq, 60, Color("#a8a29e"))
+	FD.circle(w, sq, 50, Color("#38bdf8"))
 	for k in 3:
 		var u := fmod(tt * 1.1 + k / 3.0, 1.0)
-		w.draw_circle(sq + Vector2(0, -u * 30.0), 5.0 - u * 3.0, Color(1, 1, 1, 0.7 * (1.0 - u)))
+		FD.circle(w, sq + Vector2(0, -u * 30.0), 5.0 - u * 3.0, Color(1, 1, 1, 0.7 * (1.0 - u)))
 	for k in 12:
 		var fp := sq + Vector2.from_angle(k * TAU / 12.0) * 92.0
-		w.draw_circle(fp, 7, [Color("#f472b6"), Color("#facc15"), Color("#f87171")][k % 3])
+		FD.circle(w, fp, 7, [Color("#f472b6"), Color("#facc15"), Color("#f87171")][k % 3])
 	# çim adacıkları
 	for k in 14:
 		var gp := Vector2(50150 + (k * 263) % 3300, 1800 + (k * 157) % 900)
 		if not Map.on_road(gp, 80.0) and gp.distance_to(sq) > 200.0:
-			w.draw_circle(gp, 46, Color("#a3c95a"))
+			FD.circle(w, gp, 46, Color("#a3c95a"))
 	w._text(r.position + Vector2(0, 40), "YALIKENT", 40, Color("#0c4a6e"), r.size.x, false)
 
 
@@ -473,13 +474,13 @@ func _draw_camlibel(view: Rect2, items: Array) -> void:
 	# gölet
 	var pond := Rect2(54700, 2300, 700, 400)
 	w.draw_set_transform(pond.get_center(), 0, Vector2(1, pond.size.y / pond.size.x))
-	w.draw_circle(Vector2.ZERO, pond.size.x / 2.0, Color("#0ea5e9"))
+	FD.circle(w, Vector2.ZERO, pond.size.x / 2.0, Color("#0ea5e9"))
 	w.draw_set_transform(Vector2.ZERO)
 	# kaplıca buharı
 	var kp: Rect2 = Map.CB_BUILDINGS[0].rect
 	for k in 5:
 		var u := fmod(float(w._t) * 0.4 + k * 0.2, 1.0)
-		w.draw_circle(Vector2(kp.get_center().x - 120 + k * 60, kp.position.y - u * 80.0), 14 + u * 16, Color(1, 1, 1, 0.35 * (1.0 - u)))
+		FD.circle(w, Vector2(kp.get_center().x - 120 + k * 60, kp.position.y - u * 80.0), 14 + u * 16, Color(1, 1, 1, 0.35 * (1.0 - u)))
 	# çam ağaçları
 	var rng_seed := 4242
 	for k in 90:
@@ -519,7 +520,7 @@ func draw_item(kind: String, d) -> bool:
 		"pine":
 			var p2: Vector2 = d
 			w.draw_set_transform(p2 + Vector2(4, 4), 0, Vector2(1, 0.4))
-			w.draw_circle(Vector2.ZERO, 24, Color(0, 0, 0, 0.25))
+			FD.circle(w, Vector2.ZERO, 24, Color(0, 0, 0, 0.25))
 			w.draw_set_transform(Vector2.ZERO)
 			w.draw_rect(Rect2(p2.x - 5, p2.y - 20, 10, 22), Color("#78350f"))
 			for k in 3:
@@ -565,7 +566,7 @@ func _draw_town_building(b: Dictionary) -> void:
 		for k in 3:
 			var fp := r.position + Vector2(60 + k * 60, r.size.y - 30)
 			w.draw_set_transform(fp, 0, Vector2(1, 0.5))
-			w.draw_circle(Vector2.ZERO, 16, Color("#94a3b8"))
+			FD.circle(w, Vector2.ZERO, 16, Color("#94a3b8"))
 			w.draw_set_transform(Vector2.ZERO)
 	_sign_text(Rect2(r.position.x, r.position.y, r.size.x, 44), U.upper_tr(str(b.label)), 18, Color.WHITE)
 

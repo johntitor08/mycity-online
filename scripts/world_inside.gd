@@ -2,6 +2,7 @@ extends RefCounted
 ## 2.3: kurum iç mekanları (istemci): odayı, eşyaları ve görevliyi çizer; kapı ve tezgâh E alanlarını kurar.
 ## Sunucu tarafı: scripts/inside.gd. Odalar Map.INST_AREA'da, ölçüler Map.INST_SIZE (1056 x 624).
 
+const FD = preload("res://scripts/fastdraw.gd")
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
@@ -277,32 +278,32 @@ func _deco(kind: String, r: Rect2) -> void:
 				w.draw_rect(Rect2(r.position + Vector2(4 + k * 22, 26), Vector2(16, 14)), Color.from_hsv(fmod(k * 0.29 + 0.5, 1.0), 0.6, 0.9))
 		"cart":
 			w.draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y - 12)), Color("#94a3b8"), false, 3)
-			w.draw_circle(Vector2(r.position.x + 12, r.end.y - 6), 6, Color("#334155"))
-			w.draw_circle(Vector2(r.end.x - 12, r.end.y - 6), 6, Color("#334155"))
+			FD.circle(w, Vector2(r.position.x + 12, r.end.y - 6), 6, Color("#334155"))
+			FD.circle(w, Vector2(r.end.x - 12, r.end.y - 6), 6, Color("#334155"))
 		"slot":
 			w.draw_rect(r, Color("#facc15"))
 			w.draw_rect(Rect2(r.position + Vector2(8, 12), Vector2(r.size.x - 16, 30)), Color("#111827"))
 			for k in 3:
-				w.draw_circle(r.position + Vector2(16 + k * 14, 27), 5, [Color("#ef4444"), Color("#22c55e"), Color("#3b82f6")][(k + int(w._t * 4.0)) % 3])
+				FD.circle(w, r.position + Vector2(16 + k * 14, 27), 5, [Color("#ef4444"), Color("#22c55e"), Color("#3b82f6")][(k + int(w._t * 4.0)) % 3])
 			w.draw_line(Vector2(r.end.x, r.position.y + 20), Vector2(r.end.x + 10, r.position.y + 6), Color("#9ca3af"), 3)
 		"roulette":
 			w.draw_rect(r, Color("#15803d"))
 			w.draw_rect(r, Color("#78350f"), false, 6)
 			var rc := Vector2(r.position.x + 60, c.y)
-			w.draw_circle(rc, 44, Color("#78350f"))
+			FD.circle(w, rc, 44, Color("#78350f"))
 			for k in 12:
 				w.draw_arc(rc, 34, w._t * 2.0 + k * TAU / 12.0, w._t * 2.0 + (k + 1) * TAU / 12.0, 4, Color("#dc2626") if k % 2 == 0 else Color("#111827"), 16)
-			w.draw_circle(rc, 10, Color("#facc15"))
+			FD.circle(w, rc, 10, Color("#facc15"))
 			for k in 6:
 				w.draw_rect(Rect2(r.position + Vector2(120 + (k % 2) * 30, 20 + int(k / 2.0) * 36), Vector2(26, 30)), Color("#dc2626") if k % 3 == 0 else Color("#111827"))
 		"cards", "pokertable":
-			w.draw_circle(c, minf(r.size.x, r.size.y) * 0.52, Color("#78350f"))
-			w.draw_circle(c, minf(r.size.x, r.size.y) * 0.46, Color("#15803d"))
+			FD.circle(w, c, minf(r.size.x, r.size.y) * 0.52, Color("#78350f"))
+			FD.circle(w, c, minf(r.size.x, r.size.y) * 0.46, Color("#15803d"))
 			for k in 5:
 				w.draw_rect(Rect2(c + Vector2(-60 + k * 25, -14), Vector2(20, 28)), Color.WHITE)
 			for k in 6:
 				var cp := c + Vector2.RIGHT.rotated(TAU * k / 6.0) * minf(r.size.x, r.size.y) * 0.62
-				w.draw_circle(cp, 13, Color("#7f1d1d"))
+				FD.circle(w, cp, 13, Color("#7f1d1d"))
 		"citymap":
 			w.draw_rect(r, Color("#fef3c7"))
 			w.draw_rect(r, Color("#78350f"), false, 3)
@@ -328,19 +329,19 @@ func _deco(kind: String, r: Rect2) -> void:
 		"cage":
 			w.draw_rect(r, Color("#fef3c7"))
 			var hue := fmod(r.position.x * 0.0013 + r.position.y * 0.0007, 1.0)
-			w.draw_circle(c + Vector2(0, 10), 18, Color.from_hsv(hue, 0.45, 0.85))
-			w.draw_circle(c + Vector2(0, -12), 12, Color.from_hsv(hue, 0.45, 0.85))
+			FD.circle(w, c + Vector2(0, 10), 18, Color.from_hsv(hue, 0.45, 0.85))
+			FD.circle(w, c + Vector2(0, -12), 12, Color.from_hsv(hue, 0.45, 0.85))
 			for k in int(r.size.x / 14.0) + 1:
 				w.draw_line(Vector2(r.position.x + k * 14, r.position.y), Vector2(r.position.x + k * 14, r.end.y), Color("#64748b"), 2)
 			w.draw_rect(r, Color("#475569"), false, 3)
 		"petbed":
-			w.draw_circle(c, r.size.y * 0.5, Color("#f9a8d4"))
-			w.draw_circle(c, r.size.y * 0.32, Color("#fce7f3"))
+			FD.circle(w, c, r.size.y * 0.5, Color("#f9a8d4"))
+			FD.circle(w, c, r.size.y * 0.32, Color("#fce7f3"))
 		"flag":
 			w.draw_line(Vector2(r.position.x + 4, r.end.y), Vector2(r.position.x + 4, r.position.y), Color("#d1d5db"), 4)
 			w.draw_rect(Rect2(r.position + Vector2(8, 2), Vector2(r.size.x - 10, r.size.y * 0.6)), Color("#e30a17"))
-			w.draw_circle(r.position + Vector2(r.size.x * 0.42, r.size.y * 0.3), 11, Color.WHITE)
-			w.draw_circle(r.position + Vector2(r.size.x * 0.46, r.size.y * 0.3), 9, Color("#e30a17"))
+			FD.circle(w, r.position + Vector2(r.size.x * 0.42, r.size.y * 0.3), 11, Color.WHITE)
+			FD.circle(w, r.position + Vector2(r.size.x * 0.46, r.size.y * 0.3), 9, Color("#e30a17"))
 		"board", "wanted", "stocks", "blackboard", "painting", "seaview":
 			var bg: Color = {"board": Color("#fef3c7"), "wanted": Color("#fef3c7"), "stocks": Color("#0f172a"), "blackboard": Color("#14532d"),
 				"painting": Color("#1e3a8a"), "seaview": Color("#38bdf8")}.get(kind, Color.WHITE)
@@ -350,7 +351,7 @@ func _deco(kind: String, r: Rect2) -> void:
 				"wanted":
 					for k in 3:
 						w.draw_rect(Rect2(r.position + Vector2(12 + k * 64, 8), Vector2(52, 54)), Color("#fde68a"))
-						w.draw_circle(r.position + Vector2(38 + k * 64, 30), 12, Color("#78350f"))
+						FD.circle(w, r.position + Vector2(38 + k * 64, 30), 12, Color("#78350f"))
 				"stocks":
 					var pts := PackedVector2Array()
 					for k in 12:
@@ -359,7 +360,7 @@ func _deco(kind: String, r: Rect2) -> void:
 				"blackboard":
 					w._text(r.position + Vector2(0, 28), "2 + 2 = 4", 20, Color(1, 1, 1, 0.85), r.size.x, false)
 				"painting":
-					w.draw_circle(r.position + Vector2(40, 30), 14, Color("#facc15"))
+					FD.circle(w, r.position + Vector2(40, 30), 14, Color("#facc15"))
 					w.draw_colored_polygon(PackedVector2Array([r.position + Vector2(0, r.size.y), r.position + Vector2(r.size.x * 0.5, 20), r.end]), Color("#15803d"))
 				"seaview":
 					w.draw_rect(Rect2(r.position.x, r.position.y + r.size.y * 0.55, r.size.x, r.size.y * 0.45), Color("#0369a1"))
@@ -375,14 +376,14 @@ func _deco(kind: String, r: Rect2) -> void:
 			w.draw_rect(r, Color("#1f2937"), false, 5)
 		"vault":
 			w.draw_rect(r, Color("#6b7280"))
-			w.draw_circle(c, r.size.x * 0.42, Color("#9ca3af"))
+			FD.circle(w, c, r.size.x * 0.42, Color("#9ca3af"))
 			w.draw_circle(c, r.size.x * 0.42, Color("#4b5563"), false, 6)
 			for k in 6:
 				w.draw_line(c, c + Vector2.RIGHT.rotated(k * TAU / 6.0 + w._t * 0.2) * r.size.x * 0.32, Color("#374151"), 6)
-			w.draw_circle(c, 14, Color("#facc15"))
+			FD.circle(w, c, 14, Color("#facc15"))
 		"rope":
-			w.draw_circle(Vector2(c.x, r.position.y + 8), 8, Color("#facc15"))
-			w.draw_circle(Vector2(c.x, r.end.y - 8), 8, Color("#facc15"))
+			FD.circle(w, Vector2(c.x, r.position.y + 8), 8, Color("#facc15"))
+			FD.circle(w, Vector2(c.x, r.end.y - 8), 8, Color("#facc15"))
 			w.draw_line(Vector2(c.x, r.position.y + 8), Vector2(c.x, r.end.y - 8), Color("#b91c1c"), 6)
 		"rack":
 			w.draw_line(r.position + Vector2(0, 8), Vector2(r.end.x, r.position.y + 8), Color("#9ca3af"), 4)
@@ -401,7 +402,7 @@ func _deco(kind: String, r: Rect2) -> void:
 			w.draw_rect(Rect2(r.position + Vector2(10, r.size.y * 0.45), Vector2(r.size.x - 20, r.size.y * 0.55)), Color("#e7e5e4"))
 			w.draw_rect(Rect2(r.position + Vector2(10, r.size.y * 0.45), Vector2(r.size.x - 20, r.size.y * 0.55)), Color("#a8a29e"), false, 2)
 			var hue2 := fmod(r.position.x * 0.0019 + r.position.y * 0.0031, 1.0)
-			w.draw_circle(Vector2(c.x, r.position.y + r.size.y * 0.3), 18, Color.from_hsv(hue2, 0.55, 0.9))
+			FD.circle(w, Vector2(c.x, r.position.y + r.size.y * 0.3), 18, Color.from_hsv(hue2, 0.55, 0.9))
 			w.draw_rect(r.grow(4), Color(1, 1, 1, 0.15), false, 2)
 		"schooldesk":
 			w.draw_rect(Rect2(r.position, Vector2(r.size.x, 34)), Color("#a16207"))
@@ -413,15 +414,15 @@ func _deco(kind: String, r: Rect2) -> void:
 		"weights":
 			w.draw_rect(r, Color("#374151"), false, 4)
 			for k in 4:
-				w.draw_circle(r.position + Vector2(18 + k * 25, r.size.y * 0.5), 10, Color("#111827"))
+				FD.circle(w, r.position + Vector2(18 + k * 25, r.size.y * 0.5), 10, Color("#111827"))
 		"mat":
 			w.draw_rect(r, Color("#2563eb"))
 			w.draw_rect(r, Color("#1e40af"), false, 4)
 		"bench_press":
 			w.draw_rect(Rect2(r.position + Vector2(40, 20), Vector2(60, 34)), Color("#991b1b"))
 			w.draw_line(r.position + Vector2(0, 12), Vector2(r.end.x, r.position.y + 12), Color("#9ca3af"), 5)
-			w.draw_circle(r.position + Vector2(8, 12), 14, Color("#111827"))
-			w.draw_circle(Vector2(r.end.x - 8, r.position.y + 12), 14, Color("#111827"))
+			FD.circle(w, r.position + Vector2(8, 12), 14, Color("#111827"))
+			FD.circle(w, Vector2(r.end.x - 8, r.position.y + 12), 14, Color("#111827"))
 		"bag":
 			w.draw_rect(r, Color("#b91c1c"))
 			w.draw_line(Vector2(c.x, r.position.y - 30), Vector2(c.x, r.position.y), Color("#9ca3af"), 3)
@@ -434,16 +435,16 @@ func _deco(kind: String, r: Rect2) -> void:
 			for k in 4:
 				var sx := r.position.x + 40 + k * (r.size.x - 80) / 3.0
 				var u := fposmod(w._t * 0.35 + k * 0.27, 1.0)
-				w.draw_circle(Vector2(sx + sin(w._t + k) * 10.0, r.position.y + r.size.y * 0.5 - u * 120.0), 18 + u * 20.0, Color(1, 1, 1, 0.22 * (1.0 - u)))
+				FD.circle(w, Vector2(sx + sin(w._t + k) * 10.0, r.position.y + r.size.y * 0.5 - u * 120.0), 18 + u * 20.0, Color(1, 1, 1, 0.22 * (1.0 - u)))
 		"towels":
 			for k in 4:
 				w.draw_rect(Rect2(r.position + Vector2(k * 38, 0), Vector2(32, r.size.y)), Color.from_hsv(k * 0.2 + 0.5, 0.35, 0.95))
 		"cafetable":
-			w.draw_circle(c, r.size.x * 0.32, Color("#f5f5f4"))
+			FD.circle(w, c, r.size.x * 0.32, Color("#f5f5f4"))
 			w.draw_circle(c, r.size.x * 0.32, Color("#a8a29e"), false, 3)
-			w.draw_circle(c + Vector2(-8, -4), 7, Color("#dc2626"))         # çay bardağı
+			FD.circle(w, c + Vector2(-8, -4), 7, Color("#dc2626"))         # çay bardağı
 			for o in [Vector2(-r.size.x * 0.48, 0), Vector2(r.size.x * 0.48, 0)]:
-				w.draw_circle(c + o, 12, Color("#0369a1"))
+				FD.circle(w, c + o, 12, Color("#0369a1"))
 		"fishstand":
 			w.draw_rect(r, Color("#94a3b8"))
 			w.draw_rect(r.grow(-6), Color("#e0f2fe"))

@@ -45,6 +45,13 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.5.1: Performans — oyun 3–5 kat daha akıcı
+
+- **Kasma giderildi:** 2.5'te arsa sayısı 150'ye çıkınca her karede bütün arsalar, binalar, ağaçlar ve ~500 yazı ekranda olmasa da çiziliyordu. Artık yalnızca ekranda görünenler çiziliyor; lunaparkta ya da dağdayken şehir hiç çizilmiyor.
+- **Daha hafif çizim:** yüzlerce daire (gölgeler, çiçekler, süsler) ayrı ayrı GPU çizimi yerine tek dokuyla toplu çiziliyor; çim lekeleri ve çiçekler açılışta bir kez hazırlanıyor.
+- **Gece ışıkları:** her bölgenin sokak lambaları tek bir ışık haritasında toplandı — gece görünüm aynı, ekran kartı yükü yarıya indi.
+- Ölçüm (1280×720, kare başına CPU): şehir 80–97 ms → ~10 ms, lunapark ~79 ms → ~10 ms, dağ ~58 ms → ~13 ms, gece şehir ~31 ms → ~15 ms.
+
 ## 2.5: 150 arsa, yeni yapılar, kişi başı sınırlar
 
 ![Yeni yapılar](docs/ekran/yapilar.png)

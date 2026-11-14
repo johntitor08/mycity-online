@@ -1,6 +1,7 @@
 extends Control
 ## Ekran üstü hava efektleri: yağmur çizgileri (kışın kar taneleri), fırtınada şimşek çakması + gök gürültüsü,
 ## festival gecesi havai fişekler. Ev içindeyken gösterilmez. Şimşekler her oyuncuda ayrı (rastgele) çakar.
+const FD = preload("res://scripts/fastdraw.gd")
 
 var inside := false
 var _drops: Array = []
@@ -54,7 +55,7 @@ func _draw() -> void:
 		for i in 14:
 			var d: Vector3 = _drops[i]
 			var c := Vector2(fposmod(d.x * sz.x + _t * 14.0 * d.z, sz.x + 400) - 200, d.y * sz.y)
-			draw_circle(c, 120 + 80 * d.z, Color(0.9, 0.92, 0.95, 0.16))
+			FD.circle(self, c, 120 + 80 * d.z, Color(0.9, 0.92, 0.95, 0.16))
 	if Env.weather == "rainbow" and not inside:
 		var cols := [Color("#ef4444"), Color("#f97316"), Color("#facc15"), Color("#22c55e"), Color("#3b82f6"), Color("#8b5cf6")]
 		var c := Vector2(sz.x * 0.62, sz.y * 0.75)
@@ -64,21 +65,21 @@ func _draw() -> void:
 			draw_arc(c, sz.y * 0.85 - k * 15.0, PI * 1.08, PI * 1.92, 64, col, 15.0)
 	for r in _rockets:
 		if r.t < r.burst:
-			draw_circle(r.pos, 3, Color(1, 0.9, 0.6))
+			FD.circle(self, r.pos, 3, Color(1, 0.9, 0.6))
 		else:
 			var k: float = (r.t - r.burst) / 1.4
 			var col: Color = r.col
 			col.a = 1.0 - k
 			for j in 18:
 				var a := TAU * j / 18.0
-				draw_circle(r.pos + Vector2(cos(a), sin(a)) * (20.0 + 110.0 * k) + Vector2(0, 40.0 * k * k), 3.0 * (1.0 - k) + 1.0, col)
+				FD.circle(self, r.pos + Vector2(cos(a), sin(a)) * (20.0 + 110.0 * k) + Vector2(0, 40.0 * k * k), 3.0 * (1.0 - k) + 1.0, col)
 	if Env.is_snowy() and not inside:
 		var count := 200 if Env.weather == "storm" else 120
 		for i in count:
 			var d: Vector3 = _drops[i]
 			var y := fmod(d.y + _t * d.z * (0.25 if Env.weather == "rain" else 0.5), 1.0) * (sz.y + 40) - 20
 			var x := fposmod(d.x + sin(_t * 0.8 + i) * 0.01 - (_t * 0.06 if Env.weather == "storm" else 0.0), 1.0) * (sz.x + 60) - 30
-			draw_circle(Vector2(x, y), 1.5 + d.z * 1.5, Color(1, 1, 1, 0.8))
+			FD.circle(self, Vector2(x, y), 1.5 + d.z * 1.5, Color(1, 1, 1, 0.8))
 	elif Env.is_rainy() and not inside:
 		var count := 220 if Env.weather == "storm" else 130
 		var slant := Vector2(-6, 18) if Env.weather == "storm" else Vector2(-3, 16)

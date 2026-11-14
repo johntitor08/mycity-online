@@ -50,6 +50,10 @@ func _ready() -> void:
 			await _shot(part[1])
 		get_tree().quit()
 		return
+	if "--perf" in OS.get_cmdline_user_args():
+		await _perf(w)
+		get_tree().quit()
+		return
 	if "--kapak" in OS.get_cmdline_user_args():
 		await _shots_cover(w)
 		get_tree().quit()
@@ -3406,6 +3410,55 @@ func Players_on_highway(Map) -> void:
 	for k in [9981, 9982, 9983]:
 		Net.players[k]["ride"] = "car"
 	Net._broadcast_roster()
+
+
+## 2.5.1 performans ölçümü: --foto --perf  (her bölgede 300 karede harcanan CPU süresi; --perf-foto: aynı noktaların görüntüsü)
+func _perf(w) -> void:
+	Tutorial.finish()
+	Env.hour = 12.0
+	Env.force_weather("clear")
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = 0
+	await _wait(1.5)
+	var Map = preload("res://scripts/map.gd")
+	var spots := [["şehir merkezi", Net.spawn_pos], ["şehir arsaları", Map.plot_rect(5).get_center() + Vector2(0, 160)],
+		["plaj", Vector2(1400, Map.BEACH.position.y + 100)], ["mahalle çarşı", Map.MARKET_SQ.get_center()],
+		["konut bölgesi", Map.plot_rect(60).get_center() + Vector2(0, 150)], ["Yalıkent", Map.plot_rect(13).get_center() + Vector2(0, 160)],
+		["lunapark", Map.FAIR.get_center()], ["dağ", Map.MOUNTAIN.get_center()], ["şehir (gece)", Net.spawn_pos], ["konut (gece)", Map.plot_rect(60).get_center() + Vector2(0, 150)]]
+	var out := []
+	for sp in spots:
+		if str(sp[0]).ends_with("(gece)"):
+			Env.hour = 23.0
+		if "--perf-foto" in OS.get_cmdline_user_args():
+			w.my_pos = sp[1]
+			w.npc.cars.clear()
+			await _wait(1.5)
+			w.camera.reset_smoothing()
+			await _wait(0.3)
+			await _shot("perf_%d" % spots.find(sp))
+			continue
+		w.my_pos = sp[1]
+		await _wait(1.0)
+		var frames := 300
+		var c0 := _cpu_ms()
+		var t0 := Time.get_ticks_usec()
+		for f in frames:
+			await get_tree().process_frame
+		var cpu := (_cpu_ms() - c0) / frames
+		var ms := (Time.get_ticks_usec() - t0) / 1000.0 / frames
+		out.append("%-16s CPU %5.2f ms/kare   duvar %5.2f ms   çizim komutu %4d   yazı %d" % [sp[0], cpu, ms,
+			int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)), w.labels.items.size()])
+	for l in out:
+		print("[perf] ", l)
+
+
+## Bu sürecin harcadığı toplam CPU süresi (ms), /proc/self/stat'tan (utime + stime).
+func _cpu_ms() -> float:
+	var f := FileAccess.open("/proc/self/stat", FileAccess.READ)
+	if f == null:
+		return 0.0
+	var parts := f.get_line().split(") ")[1].split(" ")
+	return (float(parts[11]) + float(parts[12])) * 10.0
 
 
 func _shot(n: String) -> void:

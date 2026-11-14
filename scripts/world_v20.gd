@@ -2,6 +2,7 @@ extends RefCounted
 ## 2.0 istemci: Batık Şehir ve denizaltı, belediye projeleri (şehirde yapılar), plaj festivali (sahne, DJ, dans,
 ## havai fişek, müzik), Aşçılık Akademisi ve mahalle muhtarlığı. world.gd'nin kancaları buraya gelir.
 
+const FD = preload("res://scripts/fastdraw.gd")
 const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
@@ -259,14 +260,14 @@ func draw_deep(view: Rect2, items: Array) -> void:
 		for gy in range(int(maxf(d.position.y, view.position.y) / g) * g, int(minf(d.end.y, view.end.y)), g):
 			var h := absi((gx * 73856093) ^ (gy * 19349663))
 			if h % 3 == 0:
-				w.draw_circle(Vector2(gx + h % 90, gy + h % 70), 6 + h % 10, Color("#0e4a63"))
+				FD.circle(w, Vector2(gx + h % 90, gy + h % 70), 6 + h % 10, Color("#0e4a63"))
 			if h % 7 == 0:
 				var sp := Vector2(gx + h % 60, gy + h % 80)
 				for k in 3:
 					w.draw_line(sp + Vector2(k * 6 - 6, 0), sp + Vector2(k * 6 - 6 + sin(float(w._t) + k + h) * 6.0, -30 - k * 8), Color("#15803d"), 3)
 			if h % 11 == 0:
-				w.draw_circle(Vector2(gx + h % 40, gy + h % 90), 9, Color("#f472b6"))
-				w.draw_circle(Vector2(gx + h % 40 + 10, gy + h % 90 - 6), 7, Color("#fb7185"))
+				FD.circle(w, Vector2(gx + h % 40, gy + h % 90), 9, Color("#f472b6"))
+				FD.circle(w, Vector2(gx + h % 40 + 10, gy + h % 90 - 6), 7, Color("#fb7185"))
 	# harabeler: sütunlar ve yıkık duvarlar
 	var ps := Deep.ruin_positions()
 	for i in ps.size():
@@ -287,8 +288,8 @@ func draw_deep(view: Rect2, items: Array) -> void:
 		var r: float = dm.r
 		if not view.grow(r).has_point(c):
 			continue
-		w.draw_circle(c, r, Color(0.55, 0.8, 0.95, 0.25))
-		w.draw_circle(c, r - 20, Color("#c9d6c3"))
+		FD.circle(w, c, r, Color(0.55, 0.8, 0.95, 0.25))
+		FD.circle(w, c, r - 20, Color("#c9d6c3"))
 		for k in 6:
 			w.draw_line(c + Vector2.from_angle(k * PI / 3.0) * 30.0, c + Vector2.from_angle(k * PI / 3.0) * (r - 24), Color("#a3b18a"), 3)
 		match str(dm.kind):
@@ -317,8 +318,8 @@ func draw_deep(view: Rect2, items: Array) -> void:
 			items.append([jp.y, "jelly", jp])
 	# iniş kapısı
 	var gp: Vector2 = Map.DEEP_GATE
-	w.draw_circle(gp, 80, Color("#475569"))
-	w.draw_circle(gp, 60, Color("#0f172a"))
+	FD.circle(w, gp, 80, Color("#475569"))
+	FD.circle(w, gp, 60, Color("#0f172a"))
 	for k in 3:
 		w.draw_arc(gp, 70.0 + k * 10 + sin(float(w._t) * 2.0) * 4.0, 0, TAU, 32, Color(0.6, 0.85, 1.0, 0.4 - k * 0.1), 3)
 	w._text(gp + Vector2(-100, -110), "YÜZEYE ÇIKIŞ", 16, Color("#bae6fd"), 200)
@@ -333,7 +334,7 @@ func draw_deep(view: Rect2, items: Array) -> void:
 	for k in 30:
 		var bx := fposmod(k * 191.0, view.size.x)
 		var by := fposmod(-float(w._t) * (30.0 + k % 5 * 10.0) + k * 97.0, view.size.y)
-		w.draw_circle(view.position + Vector2(bx, by), 2.0 + k % 3, Color(0.8, 0.95, 1.0, 0.35))
+		FD.circle(w, view.position + Vector2(bx, by), 2.0 + k % 3, Color(0.8, 0.95, 1.0, 0.35))
 
 
 func draw_item(kind: String, d) -> bool:
@@ -352,7 +353,7 @@ func draw_item(kind: String, d) -> bool:
 func _draw_jelly(p: Vector2) -> void:
 	var t: float = w._t + p.x * 0.01
 	w.draw_arc(p, 16, PI, TAU, 16, Color(0.85, 0.55, 1.0, 0.8), 6)
-	w.draw_circle(p, 12, Color(0.85, 0.55, 1.0, 0.35))
+	FD.circle(w, p, 12, Color(0.85, 0.55, 1.0, 0.35))
 	for k in 4:
 		var x := -9.0 + k * 6.0
 		w.draw_line(p + Vector2(x, 0), p + Vector2(x + sin(t * 3.0 + k) * 4.0, 22), Color(0.85, 0.6, 1.0, 0.6), 2)
@@ -367,21 +368,21 @@ func _draw_creature(k: String, p: Vector2, right: bool) -> void:
 	match k:
 		"kalamar", "ahtapot", "murekkep":
 			w.draw_set_transform(p, 0, Vector2(1, 1.2))
-			w.draw_circle(Vector2(0, -s * 0.5), s * 0.6, col)
+			FD.circle(w, Vector2(0, -s * 0.5), s * 0.6, col)
 			w.draw_set_transform(Vector2.ZERO)
 			for j in 6:
 				var x := -s * 0.5 + j * s * 0.2
 				w.draw_line(p + Vector2(x, 0), p + Vector2(x + sin(t * 3.0 + j) * s * 0.2, s * 0.9), col, 3 if k != "kalamar" else 6)
-			w.draw_circle(p + Vector2(-s * 0.2, -s * 0.5), s * 0.1, Color.WHITE)
-			w.draw_circle(p + Vector2(s * 0.2, -s * 0.5), s * 0.1, Color.WHITE)
+			FD.circle(w, p + Vector2(-s * 0.2, -s * 0.5), s * 0.1, Color.WHITE)
+			FD.circle(w, p + Vector2(s * 0.2, -s * 0.5), s * 0.1, Color.WHITE)
 		"denizanasi":
 			_draw_jelly(p)
 		"kaplumbaga":
 			w.draw_set_transform(p, 0, Vector2(1.2, 0.8))
-			w.draw_circle(Vector2.ZERO, s * 0.6, col)
-			w.draw_circle(Vector2.ZERO, s * 0.45, col.darkened(0.2))
+			FD.circle(w, Vector2.ZERO, s * 0.6, col)
+			FD.circle(w, Vector2.ZERO, s * 0.45, col.darkened(0.2))
 			w.draw_set_transform(Vector2.ZERO)
-			w.draw_circle(p + Vector2(f * s * 0.8, 0), s * 0.22, Color("#86efac"))
+			FD.circle(w, p + Vector2(f * s * 0.8, 0), s * 0.22, Color("#86efac"))
 			for sgn in [-1.0, 1.0]:
 				w.draw_line(p + Vector2(f * s * 0.3, sgn * s * 0.4), p + Vector2(f * s * 0.5, sgn * s * (0.8 + 0.1 * sin(t * 2.0))), Color("#86efac"), 6)
 		"vatoz":
@@ -389,15 +390,15 @@ func _draw_creature(k: String, p: Vector2, right: bool) -> void:
 				p + Vector2(0, s * (0.7 + 0.15 * sin(t * 2.0)))]), col)
 			w.draw_line(p + Vector2(-f * s * 0.6, 0), p + Vector2(-f * s * 1.4, 0), col, 2)
 		"denizati", "nautilus":
-			w.draw_circle(p, s * 0.6, col)
+			FD.circle(w, p, s * 0.6, col)
 			w.draw_arc(p, s * 0.4, 0, TAU * 0.8, 12, col.darkened(0.3), 2)
-			w.draw_circle(p + Vector2(f * s * 0.4, -s * 0.5), s * 0.3, col)
+			FD.circle(w, p + Vector2(f * s * 0.4, -s * 0.5), s * 0.3, col)
 		"yengec":
 			w.draw_set_transform(p, 0, Vector2(1.3, 0.8))
-			w.draw_circle(Vector2.ZERO, s * 0.5, col)
+			FD.circle(w, Vector2.ZERO, s * 0.5, col)
 			w.draw_set_transform(Vector2.ZERO)
 			for sgn in [-1.0, 1.0]:
-				w.draw_circle(p + Vector2(sgn * s * 0.8, -s * 0.4), s * 0.22, col)
+				FD.circle(w, p + Vector2(sgn * s * 0.8, -s * 0.4), s * 0.22, col)
 				for j in 3:
 					w.draw_line(p + Vector2(sgn * s * 0.4, j * 4.0), p + Vector2(sgn * s * 0.9, s * 0.4 + j * 4.0), col, 2)
 		"yilan":
@@ -405,24 +406,24 @@ func _draw_creature(k: String, p: Vector2, right: bool) -> void:
 			for j in 10:
 				pts.append(p + Vector2(-f * j * s * 0.25, sin(t * 4.0 + j * 0.7) * s * 0.2))
 			w.draw_polyline(pts, col, 6)
-			w.draw_circle(p, 6, col)
+			FD.circle(w, p, 6, col)
 		_:
 			# balık biçimi: gövde + kuyruk
 			w.draw_set_transform(p, 0, Vector2(1.0, 0.55))
-			w.draw_circle(Vector2.ZERO, s * 0.6, col)
+			FD.circle(w, Vector2.ZERO, s * 0.6, col)
 			w.draw_set_transform(Vector2.ZERO)
 			var tail := sin(t * 6.0) * s * 0.15
 			w.draw_colored_polygon(PackedVector2Array([p + Vector2(-f * s * 0.5, 0), p + Vector2(-f * s * 1.0, -s * 0.35 + tail), p + Vector2(-f * s * 1.0, s * 0.35 + tail)]), col)
-			w.draw_circle(p + Vector2(f * s * 0.35, -s * 0.08), maxf(2.0, s * 0.07), Color.WHITE)
+			FD.circle(w, p + Vector2(f * s * 0.35, -s * 0.08), maxf(2.0, s * 0.07), Color.WHITE)
 			if k == "fener":
 				w.draw_line(p + Vector2(f * s * 0.3, -s * 0.3), p + Vector2(f * s * 0.8, -s * 0.8), col, 2)
-				w.draw_circle(p + Vector2(f * s * 0.8, -s * 0.8), 5, Color(1.0, 1.0, 0.6, 0.6 + 0.4 * sin(t * 5.0)))
+				FD.circle(w, p + Vector2(f * s * 0.8, -s * 0.8), 5, Color(1.0, 1.0, 0.6, 0.6 + 0.4 * sin(t * 5.0)))
 			elif k == "cekic":
 				w.draw_line(p + Vector2(f * s * 0.55, -s * 0.3), p + Vector2(f * s * 0.55, s * 0.3), col, 8)
 			elif k == "kilic":
 				w.draw_line(p + Vector2(f * s * 0.55, 0), p + Vector2(f * s * 1.4, 0), col.lightened(0.3), 3)
 			elif k == "hayalet":
-				w.draw_circle(p, s * 0.7, Color(0.9, 0.97, 1.0, 0.15))
+				FD.circle(w, p, s * 0.7, Color(0.9, 0.97, 1.0, 0.15))
 	var found: Array = Deep.my.get("found", [])
 	if w.my_pos.distance_to(p) < Deep.SCAN_RANGE + 40.0:
 		w._text(p + Vector2(-90, -s - 26), str(info[0]) + ("" if k in found else " (?)"), 12, Color("#bae6fd") if k in found else Color("#fde68a"), 180)
@@ -460,9 +461,9 @@ func draw_town(view: Rect2) -> void:
 		if akademi:
 			# aşçı şapkası tabelası
 			var c := r.position + Vector2(r.size.x - 60, 26)
-			w.draw_circle(c + Vector2(-10, -6), 12, Color.WHITE)
-			w.draw_circle(c + Vector2(10, -6), 12, Color.WHITE)
-			w.draw_circle(c + Vector2(0, -14), 13, Color.WHITE)
+			FD.circle(w, c + Vector2(-10, -6), 12, Color.WHITE)
+			FD.circle(w, c + Vector2(10, -6), 12, Color.WHITE)
+			FD.circle(w, c + Vector2(0, -14), 13, Color.WHITE)
 			w.draw_rect(Rect2(c + Vector2(-14, 0), Vector2(28, 12)), Color.WHITE)
 		w._text(Vector2(r.position.x, r.position.y + 23.0 + 20 * 0.36), U.upper_tr(b.label), 20, Color.WHITE, r.size.x)
 
@@ -475,12 +476,12 @@ func _draw_sub_dock(p: Vector2) -> void:
 	# iskeleye bağlı denizaltı
 	var sp := p + Vector2(170, -60)
 	w.draw_set_transform(sp, 0, Vector2(1, 0.6))
-	w.draw_circle(Vector2.ZERO, 50, Color("#f59e0b"))
+	FD.circle(w, Vector2.ZERO, 50, Color("#f59e0b"))
 	w.draw_set_transform(Vector2.ZERO)
 	w.draw_rect(Rect2(sp + Vector2(-14, -48), Vector2(28, 24)), Color("#d97706"))
 	w.draw_line(sp + Vector2(0, -48), sp + Vector2(0, -66), Color("#475569"), 3)
 	for k in 3:
-		w.draw_circle(sp + Vector2(-26 + k * 26, 0), 7, Color("#7dd3fc"))
+		FD.circle(w, sp + Vector2(-26 + k * 26, 0), 7, Color("#7dd3fc"))
 
 
 func _draw_board(p: Vector2) -> void:
@@ -525,18 +526,18 @@ func _draw_projects(view: Rect2) -> void:
 				for j in 18:
 					var fp := p + Vector2(-380 + j * 44, sin(j) * 6.0)
 					if view.has_point(fp):
-						w.draw_circle(fp, 9, Color("#16a34a"))
-						w.draw_circle(fp + Vector2(0, -4), 5, [Color("#f472b6"), Color("#facc15"), Color("#f87171"), Color("#c084fc")][j % 4])
+						FD.circle(w, fp, 9, Color("#16a34a"))
+						FD.circle(w, fp + Vector2(0, -4), 5, [Color("#f472b6"), Color("#facc15"), Color("#f87171"), Color("#c084fc")][j % 4])
 			"fiskiye":
 				if view.has_point(p):
 					for j in 12:
 						var a := j * TAU / 12.0
 						var u := fmod(t * 0.8 + j * 0.08, 1.0)
 						var sp := p + Vector2(cos(a), sin(a) * 0.5) * 70.0 * u + Vector2(0, -sin(u * PI) * 90.0)
-						w.draw_circle(sp, 4, Color(0.8, 0.95, 1.0, 0.8 - u * 0.5))
-					w.draw_circle(p, 16, Color("#e2e8f0"))
+						FD.circle(w, sp, 4, Color(0.8, 0.95, 1.0, 0.8 - u * 0.5))
+					FD.circle(w, p, 16, Color("#e2e8f0"))
 					if Env.darkness() > 0.3:
-						w.draw_circle(p + Vector2(0, -40), 60, Color(Color.from_hsv(fmod(t * 0.1, 1.0), 0.6, 1.0), 0.18))
+						FD.circle(w, p + Vector2(0, -40), 60, Color(Color.from_hsv(fmod(t * 0.1, 1.0), 0.6, 1.0), 0.18))
 			"led":
 				pass                      # ışıklandırma (lighting.gd) güçlenir
 			"bisiklet":
@@ -549,8 +550,8 @@ func _draw_projects(view: Rect2) -> void:
 					var n := int(a.distance_to(b) / 300.0)
 					for j in n:
 						var bp := a.lerp(b, (j + 0.5) / float(n))
-						w.draw_circle(bp, 7, Color.WHITE)
-						w.draw_circle(bp + Vector2(10, 0), 7, Color.WHITE)
+						FD.circle(w, bp, 7, Color.WHITE)
+						FD.circle(w, bp + Vector2(10, 0), 7, Color.WHITE)
 			"plaj":
 				if view.has_point(p):
 					w.draw_line(p + Vector2(-80, 0), p + Vector2(80, 0), Color("#e5e7eb"), 2)
@@ -560,7 +561,7 @@ func _draw_projects(view: Rect2) -> void:
 					for j in 2:
 						var sh := p + Vector2(-220 + j * 440, -40)
 						w.draw_line(sh, sh + Vector2(0, -70), Color("#94a3b8"), 4)
-						w.draw_circle(sh + Vector2(10, -70), 8, Color("#cbd5e1"))
+						FD.circle(w, sh + Vector2(10, -70), 8, Color("#cbd5e1"))
 						for q in 4:
 							w.draw_line(sh + Vector2(10 + q * 3 - 4, -62), sh + Vector2(10 + q * 4 - 6, -20 - fmod(t * 60.0 + q * 9.0, 30.0)), Color(0.6, 0.85, 1.0, 0.6), 1)
 			"kule":
@@ -589,20 +590,20 @@ func _draw_festival() -> void:
 	for k in 6:
 		var lc := Color.from_hsv(fmod(k * 0.17 + t * 0.2, 1.0), 0.8, 1.0)
 		var lp := Vector2(s.position.x + 20 + k * (s.size.x - 40) / 5.0, s.position.y - 74)
-		w.draw_circle(lp, 7, lc if on else Color("#4b5563"))
+		FD.circle(w, lp, 7, lc if on else Color("#4b5563"))
 		if on:
 			var tgt := Map.DANCE_FLOOR.get_center() + Vector2(sin(t * 1.3 + k) * 150.0, cos(t * 1.1 + k) * 30.0)
 			w.draw_colored_polygon(PackedVector2Array([lp, tgt + Vector2(-40, 0), tgt + Vector2(40, 0)]), Color(lc, 0.12))
 	for sgn in [0, 1]:
 		var sx: float = s.position.x - 34 + sgn * (s.size.x + 50)
 		for k in 3:
-			w.draw_circle(Vector2(sx + 9, s.position.y - 40 + k * 34), 10 + pulse * 3.0, Color("#020617"))
-			w.draw_circle(Vector2(sx + 9, s.position.y - 40 + k * 34), 4, Color("#475569"))
+			FD.circle(w, Vector2(sx + 9, s.position.y - 40 + k * 34), 10 + pulse * 3.0, Color("#020617"))
+			FD.circle(w, Vector2(sx + 9, s.position.y - 40 + k * 34), 4, Color("#475569"))
 	# DJ masası
 	var db: Vector2 = Map.DJ_BOOTH
 	w.draw_rect(Rect2(db.x - 60, db.y - 30, 120, 30), Color("#4c1d95"))
-	w.draw_circle(db + Vector2(-30, -16), 10, Color("#0f172a"))
-	w.draw_circle(db + Vector2(30, -16), 10, Color("#0f172a"))
+	FD.circle(w, db + Vector2(-30, -16), 10, Color("#0f172a"))
+	FD.circle(w, db + Vector2(30, -16), 10, Color("#0f172a"))
 	w.draw_rect(Rect2(db.x - 6, db.y - 24, 12, 16), Color("#a78bfa"))
 	w._text(s.position + Vector2(0, 8), "PLAJ FESTİVALİ" if on else "FESTİVAL SAHNESİ", 18, Color("#f0abfc") if on else Color("#9ca3af"), s.size.x)
 	if on:
@@ -661,9 +662,9 @@ func draw_overlay() -> void:
 			# yükselen fişek
 			var up: Vector2 = s.p + Vector2(0, 300.0 * (-dt))
 			if dt > -0.35:
-				w.draw_circle(up, 2.5, Color(1, 0.9, 0.6, 0.8))
+				FD.circle(w, up, 2.5, Color(1, 0.9, 0.6, 0.8))
 			continue
 		var p: Vector2 = s.p + (s.v as Vector2) * dt + Vector2(0, 60.0 * dt * dt)
 		var a := clampf(1.0 - dt / 1.6, 0.0, 1.0)
-		w.draw_circle(p, 3.0, Color(s.c, a))
+		FD.circle(w, p, 3.0, Color(s.c, a))
 		w.draw_line(p, p - (s.v as Vector2) * 0.05, Color(s.c, a * 0.5), 2)
