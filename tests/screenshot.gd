@@ -289,6 +289,71 @@ func _ready() -> void:
 		await _shot("kar_dugme")
 		get_tree().quit()
 		return
+	if "--konut" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(3.0)
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		Land.plots[21].owner = "Eren"
+		Land.plots[21].level = 2
+		Land.plots[23].owner = "Ayşe"
+		Land.plots[23].level = 1
+		Land._broadcast()
+		Homes._teleport(1, Map.plot_front(22) + Vector2(0, 60))
+		w.hud.visible = false
+		w.touch.visible = false
+		w.camera.zoom = Vector2(0.7, 0.7)
+		await _wait(1.5)
+		await _shot("konut_1")
+		Homes._teleport(1, Vector2(Map.TOWN_AVE.get_center().x, Map.KONUT.position.y + 120))
+		await _wait(1.2)
+		await _shot("konut_giris")
+		Disasters.start("deprem")
+		Homes._teleport(1, Map.AID_TENT + Vector2(0, 90))
+		w.camera.zoom = Vector2(1.2, 1.2)
+		await _wait(1.5)
+		await _shot("cadir")
+		get_tree().quit()
+		return
+	if "--yonetici" in OS.get_cmdline_user_args():
+		Tutorial.finish()
+		await _wait(3.0)
+		print("YONETICI: ", Net.i_am_admin(), " düğme görünür: ", w.hud.admin_btn.visible)
+		await _shot("yonetici_hud")
+		w.hud.admin_requested.emit()
+		await _wait(1.0)
+		await _shot("yonetici_panel")
+		get_tree().quit()
+		return
+	if "--yapilar" in OS.get_cmdline_user_args():
+		var Map = preload("res://scripts/map.gd")
+		Tutorial.finish()
+		await _wait(3.0)
+		Env.hour = 12.0
+		Env.force_weather("clear")
+		for spec in [[22, "shop", 1], [23, "shop", 2], [24, "hotel", 1], [25, "hotel", 2], [26, "park", 1]]:
+			var p: Dictionary = Land.plots[spec[0]]
+			p.owner = "Eren" if spec[0] != 25 else "Ayşe"
+			p["kind"] = spec[1]
+			p.level = spec[2]
+			p["yapi"] = {"stock": 120, "cash": 300, "last": 3}
+		Land.plots[27].owner = "Eren"
+		Land._broadcast()
+		Homes._teleport(1, Map.plot_front(24) + Vector2(0, 70))
+		w.hud.visible = false
+		w.touch.visible = false
+		w.camera.zoom = Vector2(0.8, 0.8)
+		await _wait(1.5)
+		await _shot("yapilar_1")
+		w.hud.visible = true
+		Homes._teleport(1, Map.plot_rect(27).get_center())
+		await _wait(0.8)
+		w._open_panel()
+		await _wait(0.8)
+		await _shot("yapilar_panel")
+		get_tree().quit()
+		return
 	if "--denizalti" in OS.get_cmdline_user_args():
 		var Map = preload("res://scripts/map.gd")
 		Tutorial.finish()

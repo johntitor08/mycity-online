@@ -83,7 +83,7 @@ func can_stand(p: Vector2) -> bool:
 	for r: Rect2 in blockers():
 		if r.has_point(p) and not r.has_point(me):
 			return false
-	return true
+	return not (w._blocked(p) and not w._blocked(me))      # 2.5: konut bölgesindeki ev ve dükkânlar
 
 
 func _panel(p: Control) -> void:
@@ -237,6 +237,11 @@ func update_zone() -> void:
 			z = {"type": "town", "do": "pet_train", "spot": k, "label": "Eğit: %s (%s)" % [{"kosu": "koşu bandı", "slalom": "slalom direkleri", "bakim": "bakım masası"}[k], PetShow.STATS[k][1]]}
 	if me.distance_to(Map.PET_KIOSK) < 110.0:
 		z = {"type": "town", "do": "pet_kiosk", "label": "Evcil hayvan aksesuarları ve kupalar"}
+	if Map.KONUT.has_point(me):
+		for i in range(Map.KONUT_FIRST, Map.PLOT_COUNT):
+			if Map.plot_rect(i).has_point(me):
+				z = {"type": "realestate", "label": "Arsa #%d (Yeni Mahalle)" % (i + 1), "plot": i}
+				break
 	z = w.v20.extra_zone(z)
 	z = w._rail_zone(z)
 	w.zone = z
@@ -387,6 +392,7 @@ func draw_region(view: Rect2, items: Array) -> void:
 			if h % 9 == 0:
 				w.draw_circle(Vector2(gx + h % 80, gy + h % 60), 3, Color("#fde047"))
 	_road(Map.TOWN_ROAD, true)
+	_draw_konut(view)
 	_road(Map.TOWN_AVE, false)
 	w._draw_rails()
 	_draw_market()
@@ -403,6 +409,22 @@ func draw_region(view: Rect2, items: Array) -> void:
 		var c := Map.MARKET_SQ.get_center() + Vector2(cos(a) * 360.0, sin(a * 1.3) * 120.0 + 20.0)
 		var facing := "left" if -sin(a) < 0.0 else "right"
 		items.append([c.y, "visitor", [c, k, facing]])
+
+
+## 2.5: konut bölgesi — sokaklar, arsalar ve giriş tabelası.
+func _draw_konut(view: Rect2) -> void:
+	if not view.intersects(Map.KONUT):
+		return
+	for st: Rect2 in Map.konut_streets():
+		if view.intersects(st.grow(10)):
+			_road(st, true)
+	for i in range(Map.KONUT_FIRST, Map.PLOT_COUNT):
+		if view.intersects(Map.plot_rect(i).grow(100)):
+			w._draw_plot(i)
+	var sp := Vector2(Map.TOWN_AVE.end.x + 20, Map.KONUT.position.y + 4)
+	if view.has_point(sp):
+		w.draw_rect(Rect2(sp, Vector2(250, 26)), Color("#14532d"))
+		w._text(sp + Vector2(0, 19), "KONUT BÖLGESİ ↓", 15, Color("#dcfce7"), 250, false)
 
 
 func _road(r: Rect2, horizontal: bool) -> void:
@@ -633,8 +655,6 @@ func draw_ground() -> void:
 			for k in int(pl[3]):
 				var bp := c + Vector2(-r * 0.6 + k * 26, r * 0.55)
 				w.draw_rect(Rect2(bp.x - 12, bp.y - 7, 24, 14), Color("#d6b98c"))
-		if view.has_point(Map.AID_TENT):
-			_draw_aid_tent(Map.AID_TENT, str(s.kind))
 	# pist hayaleti
 	if _ghost_t0 > 0.0 and not Events.ghost.is_empty():
 		var path: Array = Events.ghost.get("path", [])
@@ -691,6 +711,8 @@ func add_items(items: Array) -> void:
 		items.append([float(pl[1]), "town", ["pile", pl, str(s.kind)]])
 	for pp in s.get("people", []):
 		items.append([float(pp[1]), "town", ["person", pp]])
+	# yardım çadırı da derinlik sırasıyla çizilir (zeminde kalınca arsaların altında kalıyordu)
+	items.append([Map.AID_TENT.y, "town", ["tent", str(s.kind)]])
 
 
 func draw_city_item(d: Array) -> void:
@@ -699,6 +721,8 @@ func draw_city_item(d: Array) -> void:
 			_draw_pile([d[1], d[2]])
 		"person":
 			_draw_person([d[1]])
+		"tent":
+			_draw_aid_tent(Map.AID_TENT, str(d[1]))
 
 
 func _draw_pile(d: Array) -> void:

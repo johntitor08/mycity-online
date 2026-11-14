@@ -45,6 +45,20 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.5: 150 arsa, yeni yapılar, kişi başı sınırlar
+
+![Yeni yapılar](docs/ekran/yapilar.png)
+
+- **Yeni Mahalle konut bölgesi:** Mahallenin güneyinde sokaklarla bölünmüş **130 yeni arsa** (#21–150, 3.000–6.000 TL). Toplam arsa sayısı 20'den 150'ye çıktı. Emlak Ofisi'nde arsalar bölgeye göre filtrelenir (Benim arsalarım, Şehir, Yalıkent, Çamlıbel, Yeni Mahalle, Bütün satılıklar).
+- **Yeni yapılar:**
+  - **Dükkân** (Bakkal → Süpermarket): toptancıdan mal al (20 mal 100 TL), müşteriler her dakika alışveriş yapar, kasayı topla.
+  - **Pansiyon → Otel:** oyuncular oda tutar (80/180 TL, +50/+100 enerji), ücret senin kasana girer; NPC konuklar da gelir getirir. Kendi otelinde bedava dinlenirsin.
+  - **Park:** gelir getirmez ama yakınındaki arsaların kirası **%15** artar.
+- **Kişi başı sınırlar:** 1 ev, 3 tarla, 3 işletme (büfe/kafe/restoran), 1 ahır, 1 dükkân, 1 otel, 1 park — en fazla 11 arsa. Önceden sınırı aşmış oyuncuların yapıları kalır, yalnızca yenisi kurulamaz.
+- **Yönetici paneli:** yöneticilerde HUD'da sarı **Yönetici** düğmesi çıkar. Panelden duyuru, çevrimiçi oyuncuları susturma / atma / yönetici yapma, hava, etkinlik, özel gün, afet, zombi gecesi, festival, kaydet / yedek al ve arsa boşaltma yapılır.
+- **Arsa boşaltma:** yönetici başkasının arsasındaki yapıyı kaldırabilir — panelden, arsa penceresindeki "Yönetici: boşalt" düğmesinden ya da sohbette `/arsasil numara [iadesiz]` (varsayılan: sahibine satış değeri iade edilir).
+- Afetlerde yardım çadırı artık arsaların altında kalmıyor.
+
 ## 2.4.2: Tersanede F ile denizaltına bin
 
 - **Denizaltı:** Sanayi Limanı'ndaki tersanede **F**'ye basınca denizaltına binip doğrudan Batık Şehir'e dalarsın (önceden yalnızca tersane penceresindeki "Dal" düğmesiyle biniliyordu; F "Aracın yok" diyordu). Denizaltın yoksa nereden alınacağı söylenir.

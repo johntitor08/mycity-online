@@ -189,9 +189,16 @@ const SPACE_STRIP := Vector2(34900, 3560)          # uzay üssünün uçak pisti
 const GOLF := Rect2(37000, 0, 1800, 1200)
 const GOLF_BOOTH := Vector2(12880, 1120)           # fuarda mini golf gişesi
 # 1.9: Yeni Mahalle (trenle gidilir): pazar meydanı ve tezgâhlar, tuning garajı ve drift alanı, evcil hayvan parkı
-const TOWN := Rect2(39500, 0, 3900, 1800)           # 2.0: doğuya genişledi (akademi, mahalle muhtarlığı)
+const TOWN := Rect2(39500, 0, 3900, 5500)           # 2.0: doğuya genişledi (akademi, mahalle muhtarlığı); 2.5: güneyde konut bölgesi
 const TOWN_ROAD := Rect2(39500, 196, 3900, 74)
-const TOWN_AVE := Rect2(40556, 270, 74, 1530)
+const TOWN_AVE := Rect2(40556, 270, 74, 5140)       # 2.5: konut bölgesinin sonuna kadar iner
+# 2.5: Yeni Mahalle konut bölgesi — 130 arsa, 12 sıra; her sıranın altında bir sokak.
+#  Her sıra üç parçaya bölünür (caddeler arası): [başlangıç x, arsa sayısı]
+const KONUT := Rect2(39500, 1800, 3900, 3700)
+const KONUT_SEGMENTS := [[39620.0, 3], [40660.0, 5], [42244.0, 3]]
+const KONUT_PER_ROW := 11
+const KONUT_TOP := 1830.0
+const KONUT_ROW_H := 300.0
 const MARKET_SQ := Rect2(39620, 320, 880, 720)
 const STALL_COUNT := 8
 const WANTED_BOARD := Vector2(40060, 1000)          # alım ilanları panosu
@@ -206,7 +213,16 @@ const PET_KIOSK := Vector2(41880, 1330)              # aksesuar dükkânı
 # 2.0: Aşçılık Akademisi ve mahalle muhtarlığı (Yeni Mahalle'nin doğusu)
 const ACADEMY := {"type": "akademi", "label": "Aşçılık Akademisi", "rect": Rect2(42250, 360, 560, 300), "sign_y": 60}
 const MAHALLE_OFFICE := {"type": "mahalle_muhtar", "label": "Mahalle Muhtarlığı", "rect": Rect2(42320, 860, 400, 200), "sign_y": 50}
-const TOWN_AVE2 := Rect2(42140, 270, 74, 1530)
+const TOWN_AVE2 := Rect2(42140, 270, 74, 5140)      # 2.5: konut bölgesinin sonuna kadar iner
+
+
+## 2.5: konut bölgesinin sokakları (her arsa sırasının altında).
+static func konut_streets() -> Array:
+	var out: Array = []
+	var rows := int(ceil((PLOT_COUNT - KONUT_FIRST) / float(KONUT_PER_ROW)))
+	for r in rows:
+		out.append(Rect2(KONUT.position.x, KONUT_TOP + r * KONUT_ROW_H + PLOT_SIZE.y + 20.0, KONUT.size.x, 80))
+	return out
 # 2.0: denizaltı tersanesi (Sanayi Limanı) ve Batık Şehir (harita dışında)
 const SUB_DOCK := Vector2(900, 3640)
 const DEEP := Rect2(45000, 0, 3200, 2600)
@@ -374,8 +390,10 @@ const MOORED_BOATS := [Vector2(1712, 1920), Vector2(1712, 2010)]   # 1.5: iskele
 const PIER := Rect2(1560, 1700, 80, 400)        # denize uzanan iskele
 const PIER_END := Rect2(1550, 1960, 100, 140)   # deniz balıkçılığı alanı
 
-const PLOT_COUNT := 20               # 2.1: 12 şehirde, 4 Yalıkent'te (12–15), 4 Çamlıbel'de (16–19)
+const PLOT_COUNT := 150              # 2.1: 12 şehirde, 4 Yalıkent'te (12–15), 4 Çamlıbel'de (16–19); 2.5: 130 Yeni Mahalle konut bölgesinde (20–149)
 const CITY_PLOTS := 12
+const KASABA_END := 20               # kasaba arsaları CITY_PLOTS..KASABA_END-1
+const KONUT_FIRST := 20              # 2.5: konut bölgesi arsaları KONUT_FIRST..PLOT_COUNT-1
 const PLOT_ORIGIN := Vector2(1080, 890)
 const PLOT_SIZE := Vector2(260, 180)
 const PLOT_GAP := 30.0
@@ -383,7 +401,39 @@ const PLOT_PRICES := [2000, 2000, 2500, 2500, 3500, 3500, 5000, 5000, 8000, 8000
 	3000, 3000, 4500, 4500, 3000, 3000, 4500, 4500]
 
 
+## 2.5: arsanın bulunduğu bölge (emlak filtresi için).
+static func plot_region(i: int) -> String:
+	if i >= KONUT_FIRST:
+		return "mahalle"
+	if i >= CITY_PLOTS + 4:
+		return "camlibel"
+	if i >= CITY_PLOTS:
+		return "yalikent"
+	return "sehir"
+
+
+## 2.5: arsa fiyatı (ilk 20 sabit liste; konut bölgesinde sıraya ve caddeye göre).
+static func plot_price(i: int) -> int:
+	if i < KONUT_FIRST:
+		return PLOT_PRICES[i]
+	var k := i - KONUT_FIRST
+	var col := k % KONUT_PER_ROW
+	var mid := col >= KONUT_SEGMENTS[0][1] and col < KONUT_SEGMENTS[0][1] + KONUT_SEGMENTS[1][1]
+	return 3000 + 500 * (int(k / float(KONUT_PER_ROW)) % 4) + (1500 if mid else 0)
+
+
 static func plot_rect(i: int) -> Rect2:
+	if i >= KONUT_FIRST:
+		var k := i - KONUT_FIRST
+		var row := int(k / float(KONUT_PER_ROW))
+		var col := k % KONUT_PER_ROW
+		var x := 0.0
+		for seg in KONUT_SEGMENTS:
+			if col < int(seg[1]):
+				x = float(seg[0]) + col * (PLOT_SIZE.x + PLOT_GAP)
+				break
+			col -= int(seg[1])
+		return Rect2(Vector2(x, KONUT_TOP + row * KONUT_ROW_H), PLOT_SIZE)
 	if i >= CITY_PLOTS:
 		var k := (i - CITY_PLOTS) % 4
 		var o: Vector2 = YALIKENT.position + Vector2(250, 480) if i < CITY_PLOTS + 4 else CAMLIBEL.position + Vector2(1400, 770)
@@ -559,7 +609,7 @@ static func lamp_positions() -> Array:
 	for x in range(1160, 2800, 240):
 		out.append(Vector2(x, 868))
 	# 2.3.1: sonradan eklenen yollar da aydınlansın (liman, Yeni Mahalle, kasabalar, otoyol)
-	for r: Rect2 in [PORT_ROAD, TOWN_ROAD, TOWN_AVE, TOWN_AVE2] + YK_ROADS + CB_ROADS + [HWY_ROAD]:
+	for r: Rect2 in [PORT_ROAD, TOWN_ROAD, TOWN_AVE, TOWN_AVE2] + YK_ROADS + CB_ROADS + [HWY_ROAD] + konut_streets():
 		if r.size.x >= r.size.y:
 			var step := 400.0 if r == HWY_ROAD else 240.0
 			var x := r.position.x + 80.0
@@ -590,6 +640,14 @@ const INTERIOR_CELL := Vector2(1100, 800)
 const INTERIOR_AREA := Rect2(3000, 0, 4700, 2700)
 const INTERIOR2_ORIGIN := Vector2(90200, 200)
 const INTERIOR2_AREA := Rect2(90000, 0, 4700, 1800)
+# 2.5: konut bölgesi evlerinin içleri (11 sütun × 12 sıra hücre)
+const INTERIOR3_ORIGIN := Vector2(110200, 200)
+const INTERIOR3_AREA := Rect2(110000, 0, 12500, 10000)
+
+
+## Nokta herhangi bir ev içi alanında mı (oda dışında kalan boşluklar dahil)?
+static func in_home_area(p: Vector2) -> bool:
+	return INTERIOR_AREA.has_point(p) or INTERIOR2_AREA.has_point(p) or INTERIOR3_AREA.has_point(p)
 const TILE := 48.0
 const ROOM_TILES := {1: Vector2i(12, 8), 2: Vector2i(16, 10), 3: Vector2i(18, 12)}
 
@@ -601,7 +659,10 @@ static func room_tiles(level: int) -> Vector2i:
 ## Arsanın ev içi odası (dünya koordinatı).
 static func interior_rect(i: int, level: int) -> Rect2:
 	var cell := INTERIOR_ORIGIN + Vector2((i % 4) * INTERIOR_CELL.x, int(i / 4.0) * INTERIOR_CELL.y)
-	if i >= CITY_PLOTS:                  # 2.1: kasaba evleri ikinci ev içi alanında
+	if i >= KONUT_FIRST:                 # 2.5: konut bölgesi evleri üçüncü alanda
+		var k := i - KONUT_FIRST
+		cell = INTERIOR3_ORIGIN + Vector2((k % KONUT_PER_ROW) * INTERIOR_CELL.x, int(k / float(KONUT_PER_ROW)) * INTERIOR_CELL.y)
+	elif i >= CITY_PLOTS:                # 2.1: kasaba evleri ikinci ev içi alanında
 		var j := i - CITY_PLOTS
 		cell = INTERIOR2_ORIGIN + Vector2((j % 4) * INTERIOR_CELL.x, int(j / 4.0) * INTERIOR_CELL.y)
 	var t := room_tiles(level)
@@ -610,6 +671,14 @@ static func interior_rect(i: int, level: int) -> Rect2:
 
 ## Noktanın bulunduğu ev içi (arsa indeksi) ya da -1.
 static func interior_at(p: Vector2) -> int:
+	if INTERIOR3_AREA.has_point(p):
+		var rel3 := p - INTERIOR3_ORIGIN
+		var c3 := int(floor(rel3.x / INTERIOR_CELL.x))
+		var r3 := int(floor(rel3.y / INTERIOR_CELL.y))
+		var k3 := KONUT_FIRST + r3 * KONUT_PER_ROW + c3
+		if c3 < 0 or c3 >= KONUT_PER_ROW or r3 < 0 or k3 >= PLOT_COUNT:
+			return -1
+		return k3
 	if INTERIOR2_AREA.has_point(p):
 		var rel2 := p - INTERIOR2_ORIGIN
 		var c2 := int(floor(rel2.x / INTERIOR_CELL.x))
@@ -779,6 +848,7 @@ static func road_rects() -> Array:
 	var out: Array = ROADS.duplicate()
 	out.append(PORT_ROAD)
 	out.append_array([TOWN_ROAD, TOWN_AVE, TOWN_AVE2, DRIFT])
+	out.append_array(konut_streets())
 	out.append_array(YK_ROADS)
 	out.append_array(CB_ROADS)
 	out.append(HWY_ROAD)

@@ -345,8 +345,10 @@ func _on_ok() -> void:
 		await _test_21(get_parent().world)
 		await _test_23(get_parent().world)
 		await _test_25(get_parent().world)
+		await _test_26(get_parent().world)
 		_finish()
 		return
+	check(not Net.i_am_admin() and not get_parent().world.hud.admin_btn.visible, "yönetici olmayan oyuncuda Yönetici düğmesi yok")
 	await _client_kaplica(get_parent().world)          # şehirden başlar (kaya testi dağda bitiyor)
 	await _client_rock_hold(get_parent().world)
 	print("== Durum sayfası (adanmış sunucu)")
@@ -4136,7 +4138,7 @@ func _test_21(w) -> void:
 	await _wait(0.3)
 
 	print("== 2.1: Yollar ve araba kuralı")
-	check(Land.plots.size() == Map.PLOT_COUNT and Map.PLOT_COUNT == 20, "20 arsa (12 şehir + 4 Yalıkent + 4 Çamlıbel)")
+	check(Land.plots.size() == Map.PLOT_COUNT and Map.PLOT_COUNT == 150, "150 arsa (12 şehir + 4 Yalıkent + 4 Çamlıbel + 130 Yeni Mahalle)")
 	check(Map.interior_at(Map.interior_rect(12, 1).get_center()) == 12 and Map.interior_at(Map.interior_rect(19, 3).get_center()) == 19
 		and Map.interior_at(Map.interior_rect(5, 2).get_center()) == 5, "kasaba evlerinin iç mekânları ayrı alanda")
 	check(Map.on_road(Map.SPAWN) and not Map.on_road(Map.FOUNTAIN) and Map.on_road(Vector2(60000, Map.HWY_ROAD.get_center().y)), "yol ağı")
@@ -4626,3 +4628,144 @@ func _on_table() -> void:
 			Poker.act("call")
 		else:
 			Poker.act("check")
+
+
+func _test_26(w) -> void:
+	const Map = preload("res://scripts/map.gd")
+	var me := Net.my_id()
+	print("== 2.5: Konut bölgesi, yapı sınırları, yönetici")
+	var ok_rects := true
+	for i in range(Map.KONUT_FIRST, Map.PLOT_COUNT):
+		var r := Map.plot_rect(i)
+		if not Map.KONUT.encloses(r) or Map.TOWN_AVE.intersects(r) or Map.TOWN_AVE2.intersects(r):
+			ok_rects = false
+		for st: Rect2 in Map.konut_streets():
+			if st.intersects(r):
+				ok_rects = false
+		if i + 1 < Map.PLOT_COUNT and Map.plot_rect(i + 1).intersects(r):
+			ok_rects = false
+	check(ok_rects, "130 konut arsası bölgede, yollara ve birbirine taşmıyor")
+	var ok_in := true
+	for i in [20, 21, 30, 31, 75, 148, 149]:
+		for lvl in [1, 3]:
+			if Map.interior_at(Map.interior_rect(i, lvl).get_center()) != i:
+				ok_in = false
+	check(ok_in and Map.in_home_area(Map.interior_rect(149, 3).get_center()), "konut evlerinin iç mekânları doğru hücrede")
+	check(Map.plot_price(20) >= 3000 and Map.plot_price(149) <= 6500 and Map.plot_price(0) == Map.PLOT_PRICES[0], "konut arsası fiyatları")
+	# önce elimdeki arsaları sat (sınır testi temiz başlasın)
+	for i in Land.plots.size():
+		if Land.plots[i].owner == Net.my_name:
+			Land.sell(i)
+	await _wait(0.6)
+	Net.add_money(me, 200000)
+	await _wait(0.3)
+	Homes._teleport(me, Map.plot_front(20))
+	await _wait(0.6)
+	check(w.adv.ext == "mahalle" and w.zone.get("type", "") == "realestate" and int(w.zone.get("plot", -1)) == 20, "konut bölgesinde arsa #21'in önündeyim (%s)" % w.zone.get("label", "-"))
+	for i in [20, 21, 22, 23, 24, 25, 26]:
+		Land.buy(i)
+	await _wait(0.6)
+	Land.build_up(20, "home")
+	Land.build_up(21, "home")
+	await _wait(0.6)
+	check(int(Land.view[20].level) == 1 and int(Land.view[21].level) == 0, "ikinci ev kurulamadı (1 ev sınırı)")
+	for i in [21, 22, 23, 24]:
+		Land.build_up(i, "farm")
+	await _wait(0.8)
+	check(Land.count_kind(Land.view, Net.my_name, "farm") == 3 and Land.kind_of(Land.view[24]) == "", "en fazla 3 tarla")
+	for i in [24, 25, 26]:
+		Land.build_up(i, "biz")
+	await _wait(0.8)
+	check(Land.count_kind(Land.view, Net.my_name, "biz") == 3, "3 işletme kuruldu")
+	for i in [27, 28, 29, 30, 31]:            # 8 arsam var; 11'e kadar alınır, 12. alınamaz
+		Land.buy(i)
+		await _wait(0.3)
+	check(Land.view[30].owner == Net.my_name and Land.view[31].owner == "", "en fazla %d arsa" % Land.MAX_PER_PLAYER)
+	Land.build_up(27, "biz")
+	await _wait(0.4)
+	check(Land.kind_of(Land.view[27]) == "", "dördüncü işletme kurulamadı")
+	# yönetici: başkasının yapısını kaldırır
+	check(Net.i_am_admin() and w.hud.admin_btn.visible, "sunucuyu kuran yönetici (HUD'da Yönetici düğmesi)")
+	w.hud.admin_requested.emit()
+	await _wait(0.4)
+	check(w.panel != null and w.panel.get_script() == preload("res://scripts/ui/admin_panel.gd"), "yönetici paneli açıldı")
+	w.panel._cmd("hava sis")
+	await _wait(0.5)
+	check(Env.weather == "fog", "panelden hava değişti")
+	Env.force_weather("clear")
+	w._close_panel()
+	Land.plots[40].owner = "Yardimci"
+	Land.plots[40].level = 1
+	Land._broadcast()
+	await _wait(0.3)
+	var hid := Net.id_by_name("Yardimci")
+	var hm := Net.get_money(hid) if hid != 0 else 0
+	Land.admin_clear_ask(40, true)
+	await _wait(0.5)
+	check(Land.view[40].owner == "" and int(Land.view[40].level) == 0 and (hid == 0 or Net.get_money(hid) > hm), "yönetici arsayı boşalttı, sahibine iade")
+	Land.plots[41].owner = "Yardimci"
+	Land.plots[41].level = 1
+	Land._broadcast()
+	Net.send_chat("/arsasil 42 iadesiz")
+	await _wait(0.5)
+	check(Land.view[41].owner == "", "/arsasil komutu çalıştı")
+	for i in Land.plots.size():
+		if Land.plots[i].owner == Net.my_name:
+			Land.sell(i)
+	await _wait(0.6)
+	# yeni yapılar: dükkân, otel, park
+	Rpg.add_xp(me, "", 20000)
+	for i in [50, 51, 52, 53]:
+		Land.buy(i)
+	await _wait(0.5)
+	Land.build_up(50, "shop")
+	Land.build_up(51, "hotel")
+	Land.build_up(52, "park")
+	Land.build_up(53, "home")
+	await _wait(0.6)
+	check(Land.kind_of(Land.view[50]) == "shop" and Land.kind_of(Land.view[51]) == "hotel" and Land.kind_of(Land.view[52]) == "park", "dükkân, pansiyon ve park kuruldu")
+	Land.buy(54)
+	await _wait(0.3)
+	Land.build_up(54, "shop")
+	await _wait(0.4)
+	check(Land.kind_of(Land.view[54]) == "", "ikinci dükkân kurulamadı")
+	Land.build_up(50, "shop")
+	await _wait(0.4)
+	check(int(Land.view[50].level) == 2 and Yapilar.name_of(Land.view[50]) == "Süpermarket", "bakkal süpermarkete büyüdü")
+	Yapilar.restock(50, 5)
+	await _wait(0.4)
+	var st0 := int(Land.view[50].yapi.stock)
+	for k in 5:
+		Yapilar._tick()
+	await _wait(0.4)
+	check(st0 == 100 and int(Land.view[50].yapi.stock) < st0 and int(Land.view[50].yapi.cash) > 0, "dükkân mal sattı (depo %d → %d)" % [st0, int(Land.view[50].yapi.stock)])
+	var m0 := Net.my_money()
+	Yapilar.collect(50)
+	await _wait(0.4)
+	check(Net.my_money() > m0 and int(Land.view[50].yapi.cash) == 0, "dükkân kasası alındı")
+	# otel: başkasının otelinde ücretli oda (otelin sahibini geçici olarak Yardimci yap)
+	Land.plots[51].owner = "Yardimci"
+	Land._broadcast()
+	Homes._teleport(me, Map.plot_front(51))
+	await _wait(0.5)
+	Rpg.ensure(Net.save_data.players[Net.my_name])["energy"] = 10.0
+	var m1 := Net.my_money()
+	Yapilar.rent_room(51)
+	await _wait(0.5)
+	check(Net.my_money() == m1 - Yapilar.ROOM_PRICE[1] and float(Rpg.sheet.energy) >= 50.0 and int(Land.view[51].yapi.cash) > 0, "pansiyonda ücretli oda tutuldu, enerji doldu")
+	Yapilar.rent_room(51)
+	await _wait(0.4)
+	check(Net.my_money() == m1 - Yapilar.ROOM_PRICE[1], "oda süresi dolmadan ikinci oda tutulamaz")
+	Land.plots[51].owner = Net.my_name
+	Land._broadcast()
+	# park: yakındaki evin kirası artar
+	check(Yapilar.park_mult(51, Land.plots) > 1.0 and Yapilar.park_mult(149, Land.plots) == 1.0, "park yakındaki arsanın kirasını artırıyor")
+	Net.save_data["plots"] = JSON.parse_string(JSON.stringify(Land.plots))     # kayıt dosyasından okunmuş gibi
+	Land.server_init()
+	await _wait(0.3)
+	check(Land.kind_of(Land.plots[50]) == "shop" and int(Land.plots[50].level) == 2 and Land.kind_of(Land.plots[52]) == "park", "yeni yapılar kayıttan geri yüklendi")
+	for i in Land.plots.size():
+		if Land.plots[i].owner == Net.my_name:
+			Land.sell(i)
+	await _wait(0.6)
+

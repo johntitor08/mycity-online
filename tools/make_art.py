@@ -883,6 +883,67 @@ def businesses():
     save("plots/restoran.svg", svg(W, H, p, WARM))
 
 
+def yapilar():
+    # 2.5: dükkân (bakkal → süpermarket), pansiyon → otel, park
+    # Bakkal (140x120): yeşil tenteli küçük dükkân, önünde meyve kasaları
+    W, H = 140, 120
+    p = [rect(14, 48, 112, 66, "#fef3c7"), rect(24, 58, 58, 32, "url(#glass)", 3, 2.5),
+         rect(90, 62, 26, 52, "#166534", 3), circle(110, 90, 2, "#facc15", 0)]
+    for i, x in enumerate(range(8, 132, 20)):
+        p.append(rect(x, 32, 20, 18, "#16a34a" if i % 2 == 0 else "#ffffff", 0, 0))
+    p += [rect(8, 32, 124, 18, "none", 0, 2.5), rect(30, 12, 80, 20, "#14532d", 4, 2.5)]
+    for k, (col, fx) in enumerate((("#ef4444", 22), ("#f97316", 46), ("#facc15", 70))):
+        p += [rect(fx - 10, 96, 22, 14, "#a16207", 2, 2)]
+        p += [circle(fx - 4 + j * 6, 95, 4, col, 1) for j in range(3)]
+    save("plots/bakkal.svg", svg(W, H, p, GLASS))
+    # Süpermarket (220x140): geniş cam cephe, otomatik kapı, alışveriş arabası
+    W, H = 220, 140
+    p = [rect(8, 30, 204, 104, "#e2e8f0"), rect(8, 18, 204, 16, "#dc2626", 3), rect(8, 120, 204, 14, "#94a3b8", 0, 2.5),
+         rect(20, 46, 70, 56, "url(#glass)", 3, 2.5), rect(130, 46, 70, 56, "url(#glass)", 3, 2.5),
+         rect(96, 52, 28, 68, "url(#glass)", 2, 2.5), path("M110 52v68", "none", 2),
+         rect(60, 0, 100, 22, "#111827", 4, 2.5)]
+    p += [rect(168, 104, 26, 14, "none", 1, 2.5, "#475569"), path("M162 100l6 4M168 104l-2 -8", "none", 2.5, "#475569"),
+          circle(172, 122, 3, "#334155", 1), circle(190, 122, 3, "#334155", 1)]
+    save("plots/supermarket.svg", svg(W, H, p, GLASS))
+    # Pansiyon (150x130): iki katlı, mavi panjurlu, çiçekli balkon
+    W, H = 150, 130
+    p = [poly([(4, 44), (75, 6), (146, 44)], "#b45309"), rect(14, 42, 122, 82, "#fff7ed")]
+    for x in (26, 62, 98):
+        p += [rect(x, 52, 26, 22, "url(#glass)", 2, 2.5), rect(x - 7, 52, 6, 22, "#2563eb", 1, 1.5), rect(x + 27, 52, 6, 22, "#2563eb", 1, 1.5)]
+    p += [rect(14, 76, 122, 5, "#78350f", 0, 1.5)]
+    for fx in range(22, 130, 12):
+        p.append(circle(fx, 79, 3, "#f472b6" if fx % 24 else "#ef4444", 0.8))
+    p += [rect(26, 88, 26, 22, "url(#glass)", 2, 2.5), rect(98, 88, 26, 22, "url(#glass)", 2, 2.5),
+          rect(62, 86, 26, 38, "#7c2d12", 2), circle(82, 106, 2, "#facc15", 0)]
+    save("plots/pansiyon.svg", svg(W, H, p, GLASS))
+    # Otel (150x180): yüksek, çok pencereli, girişte tente
+    W, H = 150, 180
+    p = [rect(14, 10, 122, 20, "#334155", 3), rect(14, 28, 122, 146, "#f1f5f9"),
+         rect(110, 28, 26, 146, "#000000", 0, 0, OL, 'opacity="0.12"'), rect(36, 12, 78, 16, "#facc15", 3, 2)]
+    for y in range(38, 128, 18):
+        for x in (24, 50, 76, 102):
+            p.append(rect(x, y, 16, 12, "url(#glass)", 1, 2))
+    p += [rect(46, 138, 58, 10, "#b91c1c", 2, 2.5), rect(56, 148, 38, 26, "url(#glass)", 2, 2.5), path("M75 148v26", "none", 2),
+          rect(14, 166, 122, 8, "#cbd5e1", 0, 2)]
+    p += blob([(8, 168, 8)], "#22a34a") + blob([(142, 168, 8)], "#22a34a")
+    save("plots/otel.svg", svg(W, H, p, GLASS))
+    # Park (240x150): çimen, yürüyüş yolu, fıskiye, banklar, ağaçlar ve çiçekler
+    W, H = 240, 150
+    p = [rect(4, 30, 232, 116, "#4ade80", 16, 3), path("M120 146V96M40 96H200", "none", 16, "#e7d7b0"),
+         ellipse(120, 92, 36, 16, "#94a3b8", 3), ellipse(120, 88, 26, 10, "#38bdf8", 2), rect(116, 64, 8, 24, "#cbd5e1", 2, 2),
+         path("M120 64q-10 -10 -18 4M120 64q10 -10 18 4", "none", 2.5, "#7dd3fc")]
+    for bx in (40, 172):
+        p += [rect(bx, 108, 28, 6, "#92400e", 1.5, 2), rect(bx + 2, 114, 3, 7, "#475569", 0, 1.5), rect(bx + 23, 114, 3, 7, "#475569", 0, 1.5)]
+    for tx, ty in ((24, 54), (216, 54), (60, 40), (180, 40)):
+        p += [rect(tx - 3, ty + 8, 6, 16, "#7c4a1e", 1, 2)] + blob([(tx, ty, 16), (tx - 9, ty + 5, 10), (tx + 9, ty + 5, 10)], "#2f7d32", ow=4)
+        p += [circle(tx - 3, ty - 4, 6, "#45a049", 0)]
+    for k, fx in enumerate(range(16, 230, 14)):
+        if 96 < fx < 144:
+            continue
+        p.append(circle(fx, 136, 3.2, ("#f472b6", "#facc15", "#ef4444", "#ffffff")[k % 4], 0.8))
+    save("plots/park.svg", svg(W, H, p))
+
+
 def pets():
     # Sağa bakan yan görünüm; 2 kare (adım). Kare: 40x32.
     def sheet(name, frames):
@@ -1204,6 +1265,7 @@ if __name__ == "__main__":
     petshop()
     muhtarlik()
     businesses()
+    yapilar()
     pets()
     karakol()
     banka()

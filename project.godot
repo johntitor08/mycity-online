@@ -90,6 +90,7 @@ Festival="*res://scripts/festival.gd"
 Roads="*res://scripts/roads.gd"
 Inside="*res://scripts/inside.gd"
 PetRole="*res://scripts/petrole.gd"
+Yapilar="*res://scripts/structures.gd"
 Sfx="*res://scripts/sfx.gd"
 
 [display]

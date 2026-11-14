@@ -18,9 +18,13 @@ const DATA := {
 	"res://assets/buildings/spor.svg": [Vector2(168.0, 156.0), [Rect2(14, 62, 44, 30), Rect2(110, 62, 44, 30)]],
 	"res://assets/buildings/teleferik.svg": [Vector2(180.0, 116.0), [Rect2(22, 58, 36, 26), Rect2(122, 58, 36, 26)]],
 	"res://assets/buildings/terminal.svg": [Vector2(420.0, 230.0), [Rect2(20, 100, 380, 70)]],
+	"res://assets/plots/bakkal.svg": [Vector2(140.0, 120.0), [Rect2(24, 58, 58, 32)]],
 	"res://assets/plots/bufe.svg": [Vector2(130.0, 120.0), [Rect2(22, 60, 86, 30)]],
 	"res://assets/plots/house.svg": [Vector2(130.0, 120.0), [Rect2(24, 68, 22, 20), Rect2(86, 68, 22, 20)]],
 	"res://assets/plots/kafe.svg": [Vector2(200.0, 130.0), [Rect2(22, 40, 96, 40)]],
+	"res://assets/plots/otel.svg": [Vector2(150.0, 180.0), [Rect2(24, 38, 16, 12), Rect2(50, 38, 16, 12), Rect2(76, 38, 16, 12), Rect2(102, 38, 16, 12), Rect2(24, 56, 16, 12), Rect2(50, 56, 16, 12), Rect2(76, 56, 16, 12), Rect2(102, 56, 16, 12), Rect2(24, 74, 16, 12), Rect2(50, 74, 16, 12), Rect2(76, 74, 16, 12), Rect2(102, 74, 16, 12), Rect2(24, 92, 16, 12), Rect2(50, 92, 16, 12), Rect2(76, 92, 16, 12), Rect2(102, 92, 16, 12), Rect2(24, 110, 16, 12), Rect2(50, 110, 16, 12), Rect2(76, 110, 16, 12), Rect2(102, 110, 16, 12), Rect2(56, 148, 38, 26)]],
+	"res://assets/plots/pansiyon.svg": [Vector2(150.0, 130.0), [Rect2(26, 52, 26, 22), Rect2(62, 52, 26, 22), Rect2(98, 52, 26, 22), Rect2(26, 88, 26, 22), Rect2(98, 88, 26, 22)]],
+	"res://assets/plots/supermarket.svg": [Vector2(220.0, 140.0), [Rect2(20, 46, 70, 56), Rect2(130, 46, 70, 56), Rect2(96, 52, 28, 68)]],
 	"res://assets/plots/tower.svg": [Vector2(110.0, 170.0), [Rect2(40, 146, 30, 20)]],
 	"res://assets/plots/villa.svg": [Vector2(220.0, 130.0), [Rect2(16, 48, 132, 26), Rect2(16, 86, 50, 38), Rect2(98, 86, 50, 38)]],
 }

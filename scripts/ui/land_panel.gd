@@ -1,6 +1,8 @@
 extends "res://scripts/ui/game_panel.gd"
 ## Emlak ofisi / arsa penceresi: satın al, ev, işletme ya da tarla kur, büyüt, sat; işletmeyi ve tarlayı yönet.
 
+const Map = preload("res://scripts/map.gd")
+
 var focus_plot := -1
 var list: VBoxContainer
 var manage: VBoxContainer
@@ -16,13 +18,30 @@ var farm_info: Label
 var _crop_keys: Array = []
 var _bed_widgets: Array = []      # [{name, bar, state}]
 var _tick := 0.0
+var _filter := ""                 # 2.5: "" = benim arsalarım + seçili bölge; bölge anahtarı
+const FILTERS := [["mine", "Benim arsalarım"], ["sehir", "Şehir (#1–12)"], ["yalikent", "Yalıkent (#13–16)"],
+	["camlibel", "Çamlıbel (#17–20)"], ["mahalle", "Yeni Mahalle konut bölgesi (#21–150)"], ["satilik", "Bütün satılık arsalar"]]
 
 
 func _ready() -> void:
 	var title := "Emlak Ofisi — Arsalar" if focus_plot < 0 else "Arsa #%d" % (focus_plot + 1)
 	build(title, Vector2(880, 0 if focus_plot >= 0 else 560))
-	add_label(body, "Ev kurarsan dakikalık kira alırsın; büfe açarsan müşterilerden kazanırsın (malzeme koyman gerekir). Kişi başı en fazla %d arsa." % Land.MAX_PER_PLAYER, 14, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_label(body, "Ev kurarsan dakikalık kira alırsın; büfe açarsan müşterilerden kazanırsın (malzeme koyman gerekir). Kişi başı en fazla %d arsa: %d ev, %d tarla, %d işletme, %d ahır, %d dükkân, %d otel, %d park." % [Land.MAX_PER_PLAYER, Land.LIMITS.home, Land.LIMITS.farm, Land.LIMITS.biz, Land.LIMITS.ranch, Land.LIMITS.shop, Land.LIMITS.hotel, Land.LIMITS.park], 14, Color("#94a3b8")).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	money_hint(body)
+	if focus_plot < 0:
+		var fr := HBoxContainer.new()
+		body.add_child(fr)
+		add_label(fr, "Göster:", 15)
+		var opt := OptionButton.new()
+		for f in FILTERS:
+			opt.add_item(f[1])
+		var owns := false
+		for p in Land.view:
+			owns = owns or str(p.owner) == Net.my_name
+		_filter = "mine" if owns else "sehir"
+		opt.select(0 if owns else 1)
+		opt.item_selected.connect(func(k: int): _filter = FILTERS[k][0]; _refresh())
+		fr.add_child(opt)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -33,6 +52,8 @@ func _ready() -> void:
 			h = 330
 		else:
 			h = 360 if Farm.is_ranch(fp) and fp.owner == Net.my_name else (150 if fp.owner == Net.my_name else 96)
+			if fp.owner == Net.my_name and int(fp.level) == 0:
+				h = 220                       # 2.5: kurma seçenekleri iki-üç satır
 	scroll.custom_minimum_size = Vector2(0, h)
 	body.add_child(scroll)
 	list = VBoxContainer.new()
@@ -54,10 +75,33 @@ func _refresh() -> void:
 	for i in Land.view.size():
 		if focus_plot >= 0 and i != focus_plot:
 			continue
+		if focus_plot < 0 and not _shown(i, Land.view[i]):
+			continue
 		_row(i, Land.view[i])
 	_refresh_manage()
 	if farm != null:
 		_refresh_farm()
+
+
+func _shown(i: int, p: Dictionary) -> bool:
+	match _filter:
+		"mine":
+			return str(p.owner) == Net.my_name
+		"satilik":
+			return str(p.owner) == ""
+		"":
+			return true
+	return Map.plot_region(i) == _filter
+
+
+## 2.5: boş arsada kurma düğmesi; sınır doluysa ya da seviye yetmiyorsa pasif ve nedeni yazılı (yapının adıyla).
+func _build_button(parent: Node, i: int, kind: String, cost: int, gate: int, label: String) -> void:
+	var b := buy_button(parent, cost, Land.build_up.bind(i, kind), gate, label)
+	if Land.count_kind(Land.view, Net.my_name, kind) >= int(Land.LIMITS[kind]):
+		b.disabled = true
+		b.text = "%s: sınır dolu (%d)" % [label, int(Land.LIMITS[kind])]
+	elif gate > 0 and int(Rpg.sheet.get("level", 1)) < gate:
+		b.text = "%s: Sv.%d gerekli" % [label, gate]
 
 
 func _row(i: int, p: Dictionary) -> void:
@@ -85,6 +129,15 @@ func _row(i: int, p: Dictionary) -> void:
 		add_label(info, "Arsa değeri %s  •  6 tarh  •  %s" % [U.money(int(p.price)), _farm_summary(p)], 14, Color("#94a3b8"))
 	elif Farm.is_ranch(p):
 		add_label(info, "Arsa değeri %s  •  %d hayvan" % [U.money(int(p.price)), p.get("ranch", {}).get("animals", []).size()], 14, Color("#94a3b8"))
+	elif Yapilar.is_yapi(p):
+		var y: Dictionary = p.get("yapi", {})
+		match str(p.kind):
+			"shop":
+				add_label(info, "Depo %d/%d mal  •  Son dakika %d satış  •  Kasa %s" % [int(y.get("stock", 0)), Yapilar.SHOP_MAX_STOCK[int(p.level)], int(y.get("last", 0)), U.money(int(y.get("cash", 0)))], 14, Color("#94a3b8"))
+			"hotel":
+				add_label(info, "Oda %s (+%d enerji)  •  Kasa %s" % [U.money(Yapilar.ROOM_PRICE[int(p.level)]), int(Yapilar.ROOM_ENERGY[int(p.level)]), U.money(int(y.get("cash", 0)))], 14, Color("#94a3b8"))
+			"park":
+				add_label(info, "Çevresindeki arsaların kirası +%%%d" % int(Yapilar.PARK_BONUS * 100), 14, Color("#94a3b8"))
 	elif is_biz:
 		var b: Dictionary = p.biz
 		add_label(info, "Puan %.1f/5  •  Son dakika %d müşteri  •  Depo %d" % [float(b.rating), int(b.last_customers), int(b.stock)], 14, Color("#94a3b8"))
@@ -95,16 +148,40 @@ func _row(i: int, p: Dictionary) -> void:
 		return
 	var lvl := int(p.level)
 	if not mine:
+		if focus_plot >= 0 and Net.i_am_admin():          # 2.5: yönetici başkasının arsasını boşaltabilir
+			var ab := add_button(h, "Yönetici: boşalt (iadeli)", func(): Land.admin_clear_ask(i, true))
+			ab.tooltip_text = "Yapıyı kaldırır, arsa sahipsiz kalır; sahibine satış değeri ödenir."
+			add_button(h, "İadesiz", func(): Land.admin_clear_ask(i, false)).tooltip_text = "Yapıyı kaldırır, sahibine para ödenmez."
+		if focus_plot >= 0 and str(p.get("kind", "")) == "hotel":      # 2.5: otelde oda tut
+			add_button(h, "Oda tut (%s, +%d enerji)" % [U.money(Yapilar.ROOM_PRICE[lvl]), int(Yapilar.ROOM_ENERGY[lvl])], Yapilar.rent_room.bind(i))
 		if focus_plot >= 0 and not is_biz and lvl >= 1 and p.get("door_open", false):
 			add_button(h, "Eve Gir", func(): Homes.enter(i); close())
 		if focus_plot >= 0 and is_biz and lvl >= 2:
 			_menu_box(i, p, false)
 		return
 	if lvl == 0:
-		buy_button(h, Land.BUILD_COST[1], Land.build_up.bind(i, "home"), 0, "Ev kur")
-		buy_button(h, Biz.BUILD_COST[1], Land.build_up.bind(i, "biz"), Biz.LEVEL_GATE[1], "Büfe aç")
-		buy_button(h, Farm.BUILD_COST, Land.build_up.bind(i, "farm"), Farm.LEVEL_GATE, "Tarla kur")
-		buy_button(h, Farm.RANCH_COST, Land.build_up.bind(i, "ranch"), Farm.RANCH_LEVEL, "Ahır kur")
+		var fl := HFlowContainer.new()            # 2.5: yedi seçenek: satır dolunca alta geçer
+		fl.add_theme_constant_override("h_separation", 6)
+		fl.add_theme_constant_override("v_separation", 6)
+		info.add_child(fl)
+		_build_button(fl, i, "home", Land.BUILD_COST[1], 0, "Ev kur")
+		_build_button(fl, i, "biz", Biz.BUILD_COST[1], Biz.LEVEL_GATE[1], "Büfe aç")
+		_build_button(fl, i, "farm", Farm.BUILD_COST, Farm.LEVEL_GATE, "Tarla kur")
+		_build_button(fl, i, "ranch", Farm.RANCH_COST, Farm.RANCH_LEVEL, "Ahır kur")
+		for k in Yapilar.KINDS:                  # 2.5: dükkân, pansiyon, park
+			_build_button(fl, i, k, Yapilar.COST[k][1], Yapilar.GATE[k][1], "%s aç" % Yapilar.NAMES[k][1] if k != "park" else "Park yap")
+	elif Yapilar.is_yapi(p):
+		var k: String = p.kind
+		if lvl < int(Yapilar.MAX_LEVEL[k]):
+			buy_button(h, Yapilar.COST[k][lvl + 1], Land.build_up.bind(i, k), Yapilar.GATE[k][lvl + 1], "%s'e büyüt" % Yapilar.NAMES[k][lvl + 1])
+		if k == "shop":
+			add_button(h, "Mal al (%d, %s)" % [Yapilar.WHOLESALE[0], U.money(Yapilar.WHOLESALE[1])], Yapilar.restock.bind(i, 1))
+			add_button(h, "×5", Yapilar.restock.bind(i, 5))
+		if k != "park":
+			var cash := int(p.get("yapi", {}).get("cash", 0))
+			add_button(h, "Kasayı al (%s)" % U.money(cash), Yapilar.collect.bind(i)).disabled = cash <= 0
+		if k == "hotel" and focus_plot >= 0:
+			add_button(h, "Dinlen (bedava)", Yapilar.rent_room.bind(i))
 	elif lvl < 3 and not Farm.is_farm(p) and not Farm.is_ranch(p):
 		if is_biz:
 			buy_button(h, Biz.BUILD_COST[lvl + 1], Land.build_up.bind(i, "biz"), Biz.LEVEL_GATE[lvl + 1], "%s'ye büyüt" % Biz.NAMES[lvl + 1])

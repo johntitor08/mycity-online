@@ -20,10 +20,12 @@ const TOPICS := [
 
 [i]Not: Kira ve dükkân geliri sadece sen oyundayken işler.[/i]"""],
 	["Ev, arsa ve işletme", """• [b]Emlak Ofisi[/b] ya da arsanın içinde {interact}: boş arsayı satın al.
-• Arsaya [b]ev[/b] (küçük ev → villa → gökdelen), [b]işletme[/b] (büfe → kafe → restoran), [b]tarla[/b] ya da [b]ahır[/b] kurabilirsin. Kişi başı en fazla 6 arsa.
+• Arsaya [b]ev[/b] (küçük ev → villa → gökdelen), [b]işletme[/b] (büfe → kafe → restoran), [b]tarla[/b], [b]ahır[/b], [b]dükkân[/b] (bakkal → süpermarket), [b]pansiyon[/b] (→ otel) ya da [b]park[/b] kurabilirsin.
+• Kişi başı sınır: 1 ev, 3 tarla, 3 işletme, 1 ahır, 1 dükkân, 1 otel, 1 park (en fazla 11 arsa).
+• [b]Dükkân[/b]: toptancıdan mal al, müşteriler alsın, kasayı topla. [b]Otel[/b]: oyuncular oda tutar (enerji dolar), ücret kasana girer. [b]Park[/b]: yakınındaki evlerin kirası %15 artar.
 • [b]Mobilyacı[/b]'dan eşya al, evine yerleştir; arkadaşlarını ev partisine çağır.
 • Kafe/restoranında [b]mutfağa gir[/b]: siparişleri zamanında hazırla, bahşiş topla.
-• Yalıkent ve Çamlıbel'de de satılık arsalar var."""],
+• Yalıkent ve Çamlıbel'de de satılık arsalar var; [b]Yeni Mahalle'nin güneyindeki konut bölgesinde 130 arsa[/b] daha var (Emlak Ofisi'nde bölgeye göre filtrele)."""],
 	["Ulaşım", """• [b]{vehicle}:[/b] aracına bin/in. Galeri'den bisiklet, araba ve tekne alınır. [b]Araba sadece yolda[/b] gider; yol dışına inip yürü.
 • [b]Otobüs durakları:[/b] şehir içinde duraktan durağa.
 • [b]Otoyol:[/b] arabayla şehrin batı ucundaki rampadan çık; [b]Yalıkent[/b] (sahil) ve [b]Çamlıbel[/b] (dağ) kasabalarına git.

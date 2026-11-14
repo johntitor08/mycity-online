@@ -13,6 +13,7 @@ signal family_requested
 signal achievements_requested
 signal map_requested
 signal settings_requested
+signal admin_requested
 signal league_requested
 signal phone_requested
 signal guide_requested
@@ -41,6 +42,7 @@ var job_label: Label
 var job_quit: Button
 var job_row: HBoxContainer
 var bail_btn: Button
+var admin_btn: Button
 var event_banner: PanelContainer
 var event_label: Label
 var race_label: Label
@@ -114,6 +116,9 @@ func _ready() -> void:
 	sound_btn = _small_button(btns3, "", Sfx.toggle_mute)
 	music_btn = _small_button(btns3, "", Sfx.toggle_music)
 	_small_button(btns3, "Şehirden Çık", Net.leave)
+	admin_btn = _small_button(btns, "Yönetici", func(): admin_requested.emit())     # 2.5: sadece yöneticilere görünür (kısa satırda, kutu genişlemesin)
+	admin_btn.add_theme_color_override("font_color", Color("#facc15"))
+	admin_btn.visible = false
 	Sfx.settings_changed.connect(_refresh_sound)
 	_refresh_sound()
 	_collapsible(top, "bilgi", "", name_label)
@@ -521,6 +526,7 @@ func _label(parent: Node, text: String, font_size: int, color: Color) -> Label:
 
 func _refresh() -> void:
 	name_label.text = Net.my_name
+	admin_btn.visible = Net.i_am_admin()
 	var m := Net.my_money()
 	money_label.text = U.money(m)
 	if not Net.roster.has(Net.my_id()):

@@ -1,6 +1,6 @@
 # Google Play — Mağaza kaydı (MyCity Online)
 
-Paket adı: `com.johntitor.mycityonline` · Sürüm: 2.3 (sürüm kodu 3)
+Paket adı: `com.johntitor.mycityonline` · Sürüm: 2.4.2 (sürüm kodu 7)
 
 ## Uygulama adı (en fazla 30 karakter)
 
@@ -32,10 +32,12 @@ MyCity Online, arkadaşlarınla aynı şehirde yaşadığın Türkçe, ücretsiz
 • Klan kur, ligde yarış, belediye başkanı seç ve şehre park, heykel, fıskiye kazandır
 • Sokak yarışları, paintball, futbol, mini golf, bowling, plaj festivali ve DJ kabini
 • Zombi geceleri ve afetlerde şehri birlikte kurtar
+• Bir arkadaşının kedisi, köpeği ya da papağanı ol: evcil hayvan rolü
 
 ★ DAHA FAZLASI
 • Evcil hayvanını eğit, güzellik şovunda kupa kazan
 • Araba tuning, drift ve nitro
+• Aranırken polisten kaç: binaya saklan ya da yakalanıp hapse gir
 • Mevsimler, gece-gündüz, özel günler (Cadılar Bayramı, yılbaşı, bayramlar)
 • Başarımlar, unvanlar, şehir müzesi
 

@@ -18,7 +18,7 @@ const Map = preload("res://scripts/map.gd")
 const U = preload("res://scripts/util.gd")
 const Avatar = preload("res://scripts/avatar.gd")
 
-const VERSION := "2.4.2"
+const VERSION := "2.5"
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 32
 const START_MONEY := 2500
@@ -398,6 +398,7 @@ func _reset_peer() -> void:
 	Festival.reset()
 	Roads.reset()
 	PetRole.reset()
+	Yapilar.reset()
 
 
 func _on_connected() -> void:
@@ -436,7 +437,7 @@ func is_admin(id: int) -> bool:
 	return players.has(id) and admins().has(players[id].name)
 
 
-const HELP := "Komutlar: /duyuru metin · /kick isim · /sustur isim dakika · /hava açık|bulutlu|yağmur|fırtına|sis|gökkuşağı · /etkinlik tür · /kaydet · /yedekle · /oyuncular · /yonetici isim · /ozelgun cadilar|yilbasi|ramazan|kurban|sevgililer|yok|takvim · /zombi başlat|bitir · /afet deprem|sel|kar|bitir · /festival [bitir]"
+const HELP := "Komutlar: /duyuru metin · /kick isim · /sustur isim dakika · /hava açık|bulutlu|yağmur|fırtına|sis|gökkuşağı · /etkinlik tür · /kaydet · /yedekle · /oyuncular · /yonetici isim · /ozelgun cadilar|yilbasi|ramazan|kurban|sevgililer|yok|takvim · /zombi başlat|bitir · /afet deprem|sel|kar|bitir · /festival [bitir] · /arsasil numara [iadesiz]"
 
 
 ## Yönetici komutları (sohbetten "/" ile).
@@ -529,7 +530,17 @@ func _command(id: int, text: String) -> void:
 			if not admins().has(who):
 				admins().append(who)
 				mark_dirty()
+			if wid != 0:
+				players[wid]["admin"] = true
+				_broadcast_roster()
 			notify(id, "%s artık yönetici." % who)
+		"arsasil":
+			# 2.5: /arsasil numara [iadesiz] — arsayı boşaltır; varsayılan olarak sahibine satış değeri iade edilir
+			var n := int(parts[1]) if parts.size() > 1 and parts[1].is_valid_int() else 0
+			if n < 1 or n > Land.plots.size():
+				notify(id, "Kullanım: /arsasil numara [iadesiz]  (1–%d)" % Land.plots.size(), false)
+				return
+			notify(id, Land.admin_clear(n - 1, not (parts.size() > 2 and parts[2] == "iadesiz"), players[id].name), true)
 		_:
 			notify(id, HELP, false)
 	log_line("Yönetici komutu (%s): %s" % [players[id].name, text.left(120)])
@@ -861,7 +872,8 @@ func _register(id: int, raw_name: String, pass_hash: String, appearance) -> Stri
 	rec["appearance"] = app
 	players[id] = {"name": pname, "money": int(rec.get("money", START_MONEY)),
 		"color": Avatar.shirt_color(app), "appearance": app, "level": Rpg.level_of_rec(rec), "ride": "", "pet": {},
-		"clan": "", "clan_color": "", "wanted": 0, "police": false, "spouse": "", "mayor": false, "fishing": "", "title": "", "team": ""}
+		"clan": "", "clan_color": "", "wanted": 0, "police": false, "spouse": "", "mayor": false, "fishing": "", "title": "", "team": "",
+		"admin": admins().has(pname)}     # 2.5: istemci yönetici düğmelerini göstersin
 	positions[id] = Map.SPAWN + Vector2(randf_range(-120, 120), randf_range(-30, 30))
 	if Police.jailed_rec(rec):
 		positions[id] = Map.jail_spawn()
@@ -1020,6 +1032,10 @@ func on_roster(d: Dictionary) -> void:
 	roster_changed.emit()
 
 
+func i_am_admin() -> bool:
+	return bool(roster.get(my_id(), {}).get("admin", false))
+
+
 func my_money() -> int:
 	var me = roster.get(my_id())
 	return int(me.money) if me else 0
@@ -1084,7 +1100,7 @@ func send_pos(p: Vector2) -> void:
 			positions[id] = p.clamp(ir.position, ir.end)
 		return
 	var room := Map.interior_at(p)
-	if Map.INTERIOR_AREA.has_point(p) or Map.INTERIOR2_AREA.has_point(p):
+	if Map.in_home_area(p):
 		# Ev içleri harita dışında: sadece izinli olunan odada bulunulabilir.
 		if room >= 0 and Homes.may_be_in(id, room):
 			positions[id] = p

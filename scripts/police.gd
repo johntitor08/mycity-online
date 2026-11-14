@@ -336,7 +336,7 @@ func _rob(id: int, i: int) -> void:
 	var p: Dictionary = Land.plots[i]
 	var me: String = Net.players[id].name
 	var owner: String = p.owner
-	if owner == "" or owner == me or int(p.level) < 1:
+	if owner == "" or owner == me or int(p.level) < 1 or str(p.get("kind", "")) == "park":
 		return
 	if not Map.plot_rect(i).grow(40 + NET_SLACK).has_point(Net.positions.get(id, Vector2(-9999, -9999))):
 		Net.notify(id, "Arsaya yaklaşman gerek.", false)
@@ -378,6 +378,16 @@ func _rob(id: int, i: int) -> void:
 		Net.add_money(id, take)
 		Land._broadcast()
 		what = "%s kasasından %s" % [Biz.NAMES[int(p.level)], U.money(take)]
+	elif Yapilar.is_yapi(p) and p.get("yapi") is Dictionary:
+		var take2 := int(mini(int(int(p.yapi.cash) * SHOP_PCT), SHOP_MAX) * mult)
+		if take2 <= 0:
+			Net.notify(id, "Kasa boştu!", false)
+			_add_wanted(id, 1)
+			return
+		p.yapi["cash"] = int(p.yapi.cash) - take2
+		Net.add_money(id, take2)
+		Land._broadcast()
+		what = "%s kasasından %s" % [Yapilar.name_of(p), U.money(take2)]
 	elif Farm.is_farm(p):
 		var got := Farm.steal_bed(i, _rec(id))
 		if got.is_empty():

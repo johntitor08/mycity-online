@@ -11,7 +11,11 @@ const BUILD_COST := [0, 1500, 5000, 15000]   # o seviyeye çıkma maliyeti
 const LEVEL_INCOME := [0, 25, 80, 250]       # dakikalık ek kira
 const INCOME_INTERVAL := 60.0
 const SELL_RATIO := 0.7
-const MAX_PER_PLAYER := 6
+## 2.5: kişi başı yapı sınırları (ev/villa/gökdelen tek ev sayılır; büfe/kafe/restoran işletme sayılır).
+const LIMITS := {"home": 1, "farm": 3, "biz": 3, "ranch": 1, "shop": 1, "hotel": 1, "park": 1}
+const KIND_NAMES := {"home": "ev", "farm": "tarla", "biz": "işletme (büfe/kafe/restoran)", "ranch": "ahır",
+	"shop": "dükkân", "hotel": "pansiyon/otel", "park": "park"}
+const MAX_PER_PLAYER := 11             # boş arsalar dahil toplam arsa (sınırların toplamı)
 
 var plots: Array = []   # sunucu: [{owner, level, price}]
 var view: Array = []    # herkes: sunucudan gelen kopya
@@ -19,9 +23,26 @@ var _clock_offset := 0.0  # sunucu saati - yerel saat (tarla süreleri için)
 var _timer: Timer
 
 
+## Arsadaki yapının türü ("" = boş arsa).
+static func kind_of(p: Dictionary) -> String:
+	var k := str(p.get("kind", "home"))
+	if k == "home" and int(p.get("level", 0)) < 1:
+		return ""
+	return k
+
+
+## Bu sahibin o türden kaç yapısı var (plots: sunucuda plots, istemcide view).
+static func count_kind(list: Array, owner: String, kind: String) -> int:
+	var n := 0
+	for p in list:
+		if str(p.get("owner", "")) == owner and kind_of(p) == kind:
+			n += 1
+	return n
+
+
 static func income_of(p: Dictionary) -> int:
-	if Biz.is_biz(p) or Farm.is_farm(p) or Farm.is_ranch(p):
-		return 0          # işletme, tarla ve ahır kira değil satış/hasat geliri getirir
+	if Biz.is_biz(p) or Farm.is_farm(p) or Farm.is_ranch(p) or Yapilar.is_yapi(p):
+		return 0          # işletme, tarla, ahır, dükkân, otel ve park kira getirmez
 	return int(int(p.price) * 0.006) + LEVEL_INCOME[int(p.level)]
 
 
@@ -31,11 +52,15 @@ static func building_name(p: Dictionary) -> String:
 		return "Tarla"
 	if Farm.is_ranch(p):
 		return "Ahır"
+	if Yapilar.is_yapi(p):
+		return Yapilar.name_of(p)
 	return Biz.NAMES[int(p.level)] if Biz.is_biz(p) else LEVEL_NAMES[int(p.level)]
 
 
 static func sell_value(p: Dictionary) -> int:
 	var total := int(p.price)
+	if Yapilar.is_yapi(p):
+		return int((total + Yapilar.cost_total(p)) * SELL_RATIO)
 	if Farm.is_farm(p):
 		return int((total + Farm.BUILD_COST) * SELL_RATIO)
 	if Farm.is_ranch(p):
@@ -61,7 +86,7 @@ func server_init() -> void:
 	plots.clear()
 	var saved = Net.save_data.get("plots", [])
 	for i in Map.PLOT_COUNT:
-		var p := {"owner": "", "level": 0, "price": Map.PLOT_PRICES[i]}
+		var p := {"owner": "", "level": 0, "price": Map.plot_price(i)}
 		if saved is Array and i < saved.size() and saved[i] is Dictionary:
 			p.owner = str(saved[i].get("owner", ""))
 			p.level = clampi(int(saved[i].get("level", 0)), 0, 3)
@@ -85,6 +110,14 @@ func server_init() -> void:
 								b[key] = old[k][key]
 					beds.append(b)
 				p["farm"] = {"beds": beds}
+			if str(saved[i].get("kind", "home")) in Yapilar.KINDS and saved[i].get("yapi") is Dictionary:
+				p["kind"] = str(saved[i].kind)
+				var y: Dictionary = Yapilar.default_data()
+				for k in y:
+					if saved[i].yapi.has(k):
+						y[k] = int(saved[i].yapi[k])
+				p["yapi"] = y
+				p.level = clampi(int(saved[i].get("level", 1)), 1, int(Yapilar.MAX_LEVEL[p.kind]))
 			for key in ["party_until", "guestbook", "rating", "tint"]:
 				if saved[i].has(key):
 					p[key] = saved[i][key]
@@ -115,10 +148,14 @@ func _pay_rent() -> void:
 	if not Net.is_server():
 		return
 	var totals := {}
-	for p in plots:
-		# 2.1: çevrimdışıyken para kazanılmaz (kira sadece oyundaki ev sahiplerine)
+	for i in plots.size():
+		var p: Dictionary = plots[i]
+		# 2.1: çevrimdışıyken para kazanılmaz (kira sadece oyundaki ev sahiplerine); 2.5: yakında park varsa kira artar
 		if p.owner != "" and Net.id_by_name(str(p.owner)) != 0:
-			totals[p.owner] = totals.get(p.owner, 0) + income_of(p)
+			var inc := income_of(p)
+			if inc > 0:
+				inc = int(inc * Yapilar.park_mult(i, plots))
+			totals[p.owner] = totals.get(p.owner, 0) + inc
 	for owner in totals:
 		totals[owner] = Election.take_tax(int(totals[owner] * Rpg.rent_mult_by_name(owner)))
 		Net.add_money_by_name(owner, totals[owner])
@@ -236,6 +273,15 @@ func req_build(d: Dictionary) -> void:
 	if Farm.is_farm(p) or Farm.is_ranch(p):
 		Net.notify(id, "Tarla ve ahır büyütülemez; satıp başka bir şey kurabilirsin.", false)
 		return
+	var want := str(d.get("kind", "home"))
+	if int(p.level) == 0 and kind_of(p) == "" and LIMITS.has(want) and count_kind(plots, str(p.owner), want) >= int(LIMITS[want]):
+		Net.notify(id, "En fazla %d %s kurabilirsin." % [int(LIMITS[want]), KIND_NAMES[want]], false)
+		return
+	if want in Yapilar.KINDS and (kind_of(p) == "" or str(p.get("kind", "")) == want):
+		Yapilar.build(id, i, want)            # 2.5: dükkân, otel, park (kurulum ya da yükseltme)
+		return
+	if Yapilar.is_yapi(p):
+		return
 	if int(p.level) == 0 and str(d.get("kind", "home")) == "ranch":
 		Farm.build_ranch(id, i)
 		return
@@ -276,9 +322,22 @@ func req_sell(d: Dictionary) -> void:
 	var p: Dictionary = plots[i]
 	if p.owner != Net.players[id].name:
 		return
+	var value := _clear(i)
+	Net.add_money(id, value)
+	Net.mark_dirty()
+	_broadcast()
+	Net.notify(id, "Arsa satıldı: +%s" % U.money(value))
+
+
+## Arsayı boşaltır (yapı yıkılır, sahipsiz kalır); sahibine ödenecek değeri döndürür.
+func _clear(i: int) -> int:
+	var p: Dictionary = plots[i]
 	var value := sell_value(p)
 	if Biz.is_biz(p) and p.get("biz") is Dictionary:
 		value += int(p.biz.cash)      # kasadaki para da sahibine
+	if Yapilar.is_yapi(p) and p.get("yapi") is Dictionary:
+		value += int(p.yapi.cash)
+	p.erase("yapi")
 	p.erase("biz")
 	p.erase("farm")
 	p.erase("ranch")
@@ -292,10 +351,40 @@ func req_sell(d: Dictionary) -> void:
 	Homes.clear_plot(i, str(p.owner))
 	p.owner = ""
 	p.level = 0
-	Net.add_money(id, value)
+	return value
+
+
+## 2.5: yönetici bir arsayı boşaltır (sohbette /arsasil ya da arsa penceresindeki düğme).
+## refund: sahibine satış değeri ödenir. Sonuç mesajını döndürür.
+func admin_clear(i: int, refund: bool, by: String) -> String:
+	if i < 0 or i >= plots.size():
+		return "Böyle bir arsa yok."
+	var owner := str(plots[i].owner)
+	if owner == "":
+		return "%d numaralı arsa zaten boş." % (i + 1)
+	var what := building_name(plots[i])
+	var value := _clear(i)
+	if refund:
+		Net.add_money_by_name(owner, value)
 	Net.mark_dirty()
 	_broadcast()
-	Net.notify(id, "Arsa satıldı: +%s" % U.money(value))
+	var oid := Net.id_by_name(owner)
+	if oid != 0:
+		Net.notify(oid, "Bir yönetici %d numaralı arsandaki yapıyı (%s) kaldırdı.%s" % [i + 1, what, " +%s iade edildi." % U.money(value) if refund else ""], false)
+	Net.log_line("Arsa boşaltıldı: #%d (%s, %s) — %s%s" % [i + 1, owner, what, by, "" if refund else ", iadesiz"])
+	return "%d numaralı arsa boşaltıldı (%s: %s)%s." % [i + 1, owner, what, ", %s iade edildi" % U.money(value) if refund else ", iade yok"]
+
+
+func admin_clear_ask(i: int, refund: bool) -> void:
+	Net.ask(self, "req_admin_clear", {"i": i, "refund": refund})
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func req_admin_clear(d: Dictionary) -> void:
+	var i := _check(d)
+	if i < 0 or not Net.is_admin(Net.sender()):
+		return
+	Net.notify(Net.sender(), admin_clear(i, bool(d.get("refund", true)), Net.players[Net.sender()].name))
 
 
 func _broadcast() -> void:

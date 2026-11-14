@@ -88,7 +88,7 @@ func update_zone(ext: String) -> void:
 		if Map.HWY_REST.grow(40).has_point(me):
 			z = {"type": "roads", "do": "service", "k": "tesis", "label": "Dinlenme tesisi — çay ve simit (%s, +30 enerji)" % U.money(Roads.SERVICES.tesis.price)}
 	else:
-		for i in range(Map.CITY_PLOTS, Map.PLOT_COUNT):
+		for i in range(Map.CITY_PLOTS, Map.KASABA_END):
 			if Map.plot_rect(i).has_point(me):
 				z = {"type": "realestate", "label": "Arsa #%d (%s)" % [i + 1, Map.TOWN_NAMES[ext]], "plot": i}
 		var stop := Work.stop_near(me)
@@ -326,7 +326,7 @@ func draw_town(ext: String, view: Rect2, items: Array) -> void:
 		_draw_camlibel(view, items)
 	for rr: Rect2 in (Map.YK_ROADS if ext == "yalikent" else Map.CB_ROADS):
 		_road(rr)
-	for i in range(Map.CITY_PLOTS, Map.PLOT_COUNT):
+	for i in range(Map.CITY_PLOTS, Map.KASABA_END):
 		if view.intersects(Map.plot_rect(i).grow(100)):
 			w._draw_plot(i)
 	for b in (Map.YK_BUILDINGS if ext == "yalikent" else Map.CB_BUILDINGS):
@@ -491,7 +491,7 @@ func _draw_camlibel(view: Rect2, items: Array) -> void:
 		for b in Map.CB_BUILDINGS:
 			if (b.rect as Rect2).grow(70).has_point(p):
 				bad = true
-		for i in range(Map.CITY_PLOTS + 4, Map.PLOT_COUNT):
+		for i in range(Map.CITY_PLOTS + 4, Map.KASABA_END):
 			if Map.plot_rect(i).grow(60).has_point(p):
 				bad = true
 		for hs in deco_houses():

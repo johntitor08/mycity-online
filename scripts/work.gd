@@ -244,7 +244,7 @@ func _taxi_tick(id: int, j: Dictionary) -> void:
 
 static func _cargo_targets() -> Array:
 	var pts: Array = []
-	for i in Map.PLOT_COUNT:
+	for i in Map.KASABA_END:              # 2.5: konut bölgesi hedef olmaz (kargo şehir işi)
 		pts.append(Map.plot_front(i) + Vector2(0, 30))
 	for b in Map.BUILDINGS:
 		pts.append(Vector2(b.rect.get_center().x, b.rect.end.y + 16))
@@ -336,7 +336,7 @@ func req_spray(d: Dictionary) -> void:
 
 func _start_fire() -> void:
 	var spots: Array = []
-	for i in mini(Land.plots.size(), Map.PLOT_COUNT):
+	for i in mini(Land.plots.size(), Map.KASABA_END):       # 2.5: itfaiye konut bölgesine gitmez
 		var p: Dictionary = Land.plots[i]
 		if p.owner != "" and int(p.level) >= 1:
 			spots.append([Map.plot_rect(i).get_center() + Vector2(0, 10), i])

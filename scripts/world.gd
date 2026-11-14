@@ -46,6 +46,14 @@ const PANELS := {
 	"port": preload("res://scripts/ui/port_panel.gd"),
 }
 const GRASS := {"spring": Color("#5d9c4a"), "summer": Color("#78a443"), "autumn": Color("#8f9645"), "winter": Color("#d6e2e6")}
+# 2.5: dükkân, otel, park görselleri ve çizim yükseklikleri (arsa merkezine göre ayak noktası)
+const YAPI_TEX := {
+	"shop": [null, preload("res://assets/plots/bakkal.svg"), preload("res://assets/plots/supermarket.svg")],
+	"hotel": [null, preload("res://assets/plots/pansiyon.svg"), preload("res://assets/plots/otel.svg")],
+	"park": [null, preload("res://assets/plots/park.svg")],
+}
+const YAPI_H := {"shop": [0, 112, 128], "hotel": [0, 122, 168], "park": [0, 156]}
+const YAPI_FOOT := {"shop": [0, 50, 56], "hotel": [0, 50, 62], "park": [0, 82]}
 const BIZ_TEX := [
 	null,
 	preload("res://assets/plots/bufe.svg"),
@@ -278,6 +286,7 @@ func _ready() -> void:
 	hud.achievements_requested.connect(open_simple_panel.bind("res://scripts/ui/ach_panel.gd"))
 	hud.map_requested.connect(open_map)
 	hud.settings_requested.connect(open_settings)
+	hud.admin_requested.connect(open_simple_panel.bind("res://scripts/ui/admin_panel.gd"))
 	hud.league_requested.connect(open_simple_panel.bind("res://scripts/ui/league_panel.gd"))
 	hud.guide_requested.connect(open_simple_panel.bind("res://scripts/ui/guide_panel.gd"))
 	Tutorial.start(ui_layer)
@@ -1014,8 +1023,8 @@ func _find_g_action_base() -> Dictionary:
 	for i in Map.PLOT_COUNT:
 		if i < Land.view.size() and Map.plot_rect(i).has_point(my_pos):
 			var p: Dictionary = Land.view[i]
-			if p.owner != "" and p.owner != Net.my_name and int(p.level) >= 1:
-				var what := "tarlayı" if Farm.is_farm(p) else ("kasayı" if Biz.is_biz(p) else "evi")
+			if p.owner != "" and p.owner != Net.my_name and int(p.level) >= 1 and str(p.get("kind", "")) != "park":
+				var what := "tarlayı" if Farm.is_farm(p) else ("kasayı" if Biz.is_biz(p) or Yapilar.is_yapi(p) else "evi")
 				return {"kind": "rob", "plot": i, "label": "Soy: %s'in %s (suç!)" % [p.owner, what]}
 	return {}
 
@@ -1282,6 +1291,11 @@ func _structure_of(i: int, p: Dictionary) -> Array:
 		return []
 	if Biz.is_biz(p):
 		return [BIZ_TEX[level], Vector2(c.x, c.y + 54), [0, 116, 126, 146][level]]
+	if Yapilar.is_yapi(p):
+		var k := str(p.kind)
+		if k == "park":
+			return []            # parkta yürünür
+		return [YAPI_TEX[k][level], Vector2(c.x, c.y + YAPI_FOOT[k][level]), YAPI_H[k][level]]
 	return [PLOT_TEX[level], Vector2(c.x, c.y + [0, 42, 50, 60][level]), [0, 120, 130, 158][level]]
 
 
@@ -2444,7 +2458,7 @@ func _draw_building(b: Dictionary) -> void:
 
 func _draw_plot(i: int) -> void:
 	var r := Map.plot_rect(i)
-	var p = Land.view[i] if i < Land.view.size() else {"owner": "", "level": 0, "price": Map.PLOT_PRICES[i]}
+	var p = Land.view[i] if i < Land.view.size() else {"owner": "", "level": 0, "price": Map.plot_price(i)}
 	var owner: String = p.owner
 	var c := r.get_center()
 	if owner == "":
@@ -2480,6 +2494,18 @@ func _draw_plot(i: int) -> void:
 			Color("#fde68a") if open else Color("#94a3b8"), r.size.x)
 		if not open:
 			_text(Vector2(r.position.x, c.y + 4), "KAPALI (malzeme yok)", 15, Color("#fca5a5"), r.size.x)
+		level = -1
+	if Yapilar.is_yapi(p) and level >= 1:          # 2.5: dükkân, otel, park
+		var k := str(p.kind)
+		var lv := clampi(level, 1, YAPI_TEX[k].size() - 1)
+		_draw_tex_at(YAPI_TEX[k][lv], Vector2(c.x, c.y + YAPI_FOOT[k][lv]), YAPI_H[k][lv], Land.TINTS[int(p.get("tint", 0)) % Land.TINTS.size()] if k != "park" else Color.WHITE)
+		var y: Dictionary = p.get("yapi", {})
+		var sub := ""
+		if k == "shop":
+			sub = "  stok %d" % int(y.get("stock", 0))
+		_text(Vector2(r.position.x, r.position.y + 26), Yapilar.name_of(p) + sub, 15, Color("#fde68a"), r.size.x)
+		if k == "shop" and int(y.get("stock", 0)) <= 0:
+			_text(Vector2(r.position.x, c.y + 4), "KAPALI (mal yok)", 15, Color("#fca5a5"), r.size.x)
 		level = -1
 	match level:
 		0:
