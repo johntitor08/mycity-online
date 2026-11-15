@@ -3417,12 +3417,14 @@ func _perf(w) -> void:
 	Tutorial.finish()
 	Env.hour = 12.0
 	Env.force_weather("clear")
+	if "--kis" in OS.get_cmdline_user_args():
+		Env.force_season("winter")
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	await _wait(1.5)
 	var Map = preload("res://scripts/map.gd")
 	var spots := [["şehir merkezi", Net.spawn_pos], ["şehir arsaları", Map.plot_rect(5).get_center() + Vector2(0, 160)],
-		["plaj", Vector2(1400, Map.BEACH.position.y + 100)], ["mahalle çarşı", Map.MARKET_SQ.get_center()],
+		["plaj", Vector2(1400, Map.BEACH.position.y + 100)], ["açık deniz", Vector2(1400, 2900)], ["mahalle çarşı", Map.MARKET_SQ.get_center()],
 		["konut bölgesi", Map.plot_rect(60).get_center() + Vector2(0, 150)], ["Yalıkent", Map.plot_rect(13).get_center() + Vector2(0, 160)],
 		["lunapark", Map.FAIR.get_center()], ["dağ", Map.MOUNTAIN.get_center()], ["şehir (gece)", Net.spawn_pos], ["konut (gece)", Map.plot_rect(60).get_center() + Vector2(0, 150)]]
 	var out := []

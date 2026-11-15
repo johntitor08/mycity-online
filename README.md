@@ -45,6 +45,10 @@ Menüde:
 - **Karakterini Düzenle**: Ten rengi, saç modeli (kısa/uzun/topuz/kirpi/kel), saç, tişört ve
   pantolon rengi. Oyun içinde sol üstteki **Karakter** butonuyla da değiştirilebilir.
 
+## 2.5.2: Kışın beyaz deniz düzeltildi
+
+- 2.5.1'de plajdan uzaklaşınca (açık deniz, Martı Adası çevresi) deniz çizilmiyordu; kışın deniz beyaz, diğer mevsimlerde yeşil görünüyordu. Artık deniz her yerde doğru çiziliyor.
+
 ## 2.5.1: Performans — oyun 3–5 kat daha akıcı
 
 - **Kasma giderildi:** 2.5'te arsa sayısı 150'ye çıkınca her karede bütün arsalar, binalar, ağaçlar ve ~500 yazı ekranda olmasa da çiziliyordu. Artık yalnızca ekranda görünenler çiziliyor; lunaparkta ya da dağdayken şehir hiç çizilmiyor.

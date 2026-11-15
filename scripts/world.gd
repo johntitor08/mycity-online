@@ -2130,7 +2130,7 @@ func _draw() -> void:
 		_draw_park()
 		_draw_stage()
 		_draw_race_track()
-		if _vr.intersects(Rect2(0, Map.BEACH.position.y - 200, Map.WORLD.size.x, Map.BEACH.size.y + 600)):
+		if _vr.end.y > Map.BEACH.position.y - 200:      # plaj + deniz (güney kıyısına kadar); yalnız şehrin kuzeyindeyken atlanır
 			_draw_beach()
 		_draw_field()
 		if _vr.intersects(Map.LAKE.grow(200)):
