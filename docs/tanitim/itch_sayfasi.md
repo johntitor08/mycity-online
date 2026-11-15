@@ -15,7 +15,9 @@ Kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — T
 **MyCity Online**, arkadaşlarınla aynı şehirde yaşadığın, Türkçe, ücretsiz ve çok oyunculu bir yaşam/simülasyon oyunu. Arsa al, ev kur, işletme aç, meslek seç, balık tut, dağa tırman, korsan hazinesi ara — hepsi aynı dünyada, aynı anda.
 
 ### Neler var?
-- 🚓 **Polis kovalamacası (yeni):** aranırken polis siren çalarak peşine düşer (araçtaysan polis arabasıyla); bir binaya saklan ya da 15 saniye kaç, yakalanırsan hapse girersin
+- 🏘️ **150 arsa ve yeni yapılar (yeni):** Yeni Mahalle'nin güneyindeki konut bölgesinde 130 yeni arsa; dükkân aç (bakkal → süpermarket), pansiyon → otel işlet ya da park kur (yakındaki arsaların kirası artar); herkese adil kişi başı arsa sınırları
+- ⚡ **Akıcı oynanış (yeni):** 2.5.1 ile oyun 3-5 kat daha az işlemci kullanıyor; eski bilgisayarda, telefonda ve tarayıcıda da akıcı
+- 🚓 **Polis kovalamacası:** aranırken polis siren çalarak peşine düşer (araçtaysan polis arabasıyla); bir binaya saklan ya da 15 saniye kaç, yakalanırsan hapse girersin
 - 🐾 **Evcil hayvan rolü:** bir arkadaşının kedisi, köpeği ya da papağanı ol — hayvan olarak ya da insan şeklinde kulak ve kuyrukla; miyavla, sahibini takip et, sahibin seni sevsin ve mama versin (ikiniz de onaylarsınız, istediğiniz an bitirirsiniz)
 - 🏢 **Kurumların içi:** hastane, market, karakol, banka, okul, kumarhane, kaplıca dahil 19 binanın içine gir; görevlinin tezgâhında işini hallet, kaplıcanın sıcak havuzunda yüz ve dinlen
 - 🌐 **Sunucu listesi:** resmi sunucu, topluluk sunucuları, kendi listen ve aynı Wi-Fi'daki sunucular; oyuncu sayısını ve ping'i görerek tek dokunuşla katıl
@@ -33,7 +35,7 @@ Kendi şehrini kur: 30 adalı okyanus, kendi adan, tren, sinema, paintball — T
 - 🧟 **Zombi gecesi:** dolunay gecelerinde şehri savun, barikat kur, mahsur vatandaşları kurtar
 - 🚀 **Uzay üssü ve Ay:** roketini yap, Ay'a uç, Ay taşı kaz, herkesle birlikte Ay üssünü kur
 - ⛳ **Mini golf ve bowling:** 9 delikli golf sahası, gerçek puanlamalı bowling salonu
-- 🏙️ **Şehir:** 20 arsa, ev → villa → gökdelen, büfe → kafe → restoran, bina ve araba boyama
+- 🏙️ **Şehir:** 150 arsa (şehir, Yalıkent, Çamlıbel ve Yeni Mahalle), ev → villa → gökdelen, büfe → kafe → restoran, dükkân, otel ve park, bina ve araba boyama
 - 💼 **Meslekler:** doktor, kasiyer, polis, itfaiyeci, taksi, kargo, çöpçü, fabrika işçisi, hayvanat bahçesi bakıcısı
 - 🎣 **Balıkçılık ve dalış:** göl, deniz, açık deniz, Martı Adası; deniz altında inci ve batık gemi
 - 🌊 **Açık Okyanus:** 30 ada (tropik, volkanik, buzul, batık şehir...), sandıklar ve hazineler, keşif haritası ve fenerler, fırtınalar ve dev **Kraken**

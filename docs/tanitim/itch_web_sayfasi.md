@@ -18,7 +18,9 @@ MyCity Online (Tarayıcı)
 **Resmi Sunucuya Katıl**'a tıkla. Masaüstü oyuncularıyla aynı şehirde, aynı sunucuda oynarsın.
 
 ### Neler var?
-- 🚓 **Polis kovalamacası (yeni):** aranırken polis siren çalarak peşine düşer (araçtaysan polis arabasıyla); bir binaya saklan ya da 15 saniye kaç, yakalanırsan hapse girersin
+- 🏘️ **150 arsa ve yeni yapılar (yeni):** Yeni Mahalle'nin güneyindeki konut bölgesinde 130 yeni arsa; dükkân (bakkal → süpermarket), pansiyon → otel ve park (yakındaki arsaların kirası artar); herkese adil kişi başı arsa sınırları
+- ⚡ **Akıcı oynanış (yeni):** 2.5.1 ile oyun 3-5 kat daha az işlemci kullanıyor; tarayıcıda ve telefonda da akıcı
+- 🚓 **Polis kovalamacası:** aranırken polis siren çalarak peşine düşer (araçtaysan polis arabasıyla); bir binaya saklan ya da 15 saniye kaç, yakalanırsan hapse girersin
 - 🐾 **Evcil hayvan rolü:** arkadaşının kedisi, köpeği ya da papağanı ol — hayvan olarak ya da insan şeklinde kulak ve kuyrukla
 - 🏢 **Kurumların içi:** hastane, market, karakol, banka, okul, kumarhane, kaplıca dahil 19 binanın içine gir; görevlinin tezgâhında işini hallet, kaplıcanın sıcak havuzunda yüz ve dinlen
 - 🌐 **Sunucu listesi:** resmi sunucu, topluluk sunucuları, kendi listen ve aynı Wi-Fi'daki sunucular; oyuncu sayısını ve ping'i görerek tek dokunuşla katıl
@@ -27,7 +29,7 @@ MyCity Online (Tarayıcı)
 - 👨‍🍳 Mutfak servisi ve aşçılık yarışması, 🌊 Batık Şehir ve denizaltı, 🏛️ belediye projeleri, 🎧 plaj festivali ve DJ (2.0)
 - 🏘️ Pazar tezgâhı, 🐶 evcil hayvan şovu, 🏎️ tuning ve sokak yarışı, 🌪️ afetler (1.9)
 - ⚔️ Mağara zindanı, 🧟 zombi geceleri, 🚀 Ay'a roket, ⛳ mini golf ve 🎳 bowling (1.8)
-- 🏙️ Arsa al, ev → villa → gökdelen kur; büfe, kafe, restoran işlet
+- 🏙️ 150 arsadan birini al, ev → villa → gökdelen kur; büfe, kafe, restoran, dükkân ya da otel işlet, park kur
 - 💼 Doktor, polis, itfaiyeci, taksici, kargocu, çiftçi ol
 - 🌊 30 adalı Açık Okyanus, hazineler, fırtınalar ve dev Kraken; kendi adanı satın al
 - 🚆 Tren, 🎬 sinema ve karaoke, 🎨 paintball arenası, 🎡 lunapark, ⛰️ dağ ve kayak
