@@ -49,7 +49,10 @@ Oyun hakkında
 • Klan kur, belediye başkanı seç, festivalde DJ ol, zombi gecesinde şehri savun
 • Windows, Linux, Android ve tarayıcıda; telefonda dokunmatik kontroller
 
-Videodan sonra gelenler (2.3.1 – 2.4.1)
+Videodan sonra gelenler (2.3.1 – 2.5.2)
+• 150 arsa: Yeni Mahalle'nin güneyinde 130 arsalık konut bölgesi
+• Yeni yapılar: dükkân (bakkal → süpermarket), pansiyon → otel ve park
+• 3-5 kat daha akıcı oynanış: telefonda ve tarayıcıda da kasmıyor
 • Polis kovalamacası: aranırken polis siren çalarak peşine düşer; bir binaya saklan ya da 15 saniye kaç
 • Evcil hayvan rolü: arkadaşının kedisi, köpeği ya da papağanı ol
 • Telefonda kartopu, fotoğraf modu, spor salonu ve ritim oyunları için dokunmatik düğmeler
